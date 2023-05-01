@@ -1,0 +1,231 @@
+﻿@using System.Net.Mail
+@using System.Text.RegularExpressions
+
+@using iSportsRecruiting.Shared.DTO
+@using iSportsRecruiting.Shared.Models
+@using iSportsRecruiting.Shared.Security
+@using System.Net.Http.Json
+
+@inject ISnackbar _snackBar
+@inject HttpClient _httpClient
+
+@if (!string.IsNullOrWhiteSpace(CoachName) && !UpdateContact)
+{
+    <MudItem xs="12" Style="text-align: center" Class="mt-5">
+        <MudIcon Icon="@Icons.Filled.MarkEmailRead" Size="Size.Large" Style="font-size: 60px" />
+    </MudItem>
+    <MudItem xs="12">
+        <MudText Typo="Typo.body2" Align="Align.Center">We have sent an email with a confirmation link to your email address.</MudText>
+    </MudItem>
+}
+else
+{
+    <MudItem xs="12">
+        <MudTextField Variant="Variant.Outlined" @bind-Value="Model.FirstName" Required="true" Label="First Name" />
+    </MudItem>
+    <MudItem xs="12">
+        <MudTextField Variant="Variant.Outlined" @bind-Value="Model.LastName" Required="true" Label="Last Name" />
+    </MudItem>
+    <MudItem xs="12">
+        <MudTextField Variant="Variant.Outlined" T="string" Label="E-mail"
+                      @bind-Value="Model.Email" Required="true" RequiredError="Email is required!" Validation="@(new Func<string, IEnumerable<string>>(ValidateEmail))"></MudTextField>
+        @if (_emailIsLoading)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Success" />
+        }
+    </MudItem>
+}
+
+@code {
+    [Parameter]
+    public string CoachName { get; set; }
+
+    [Parameter]
+    public string CoachEmail { get; set; }
+
+    [Parameter]
+    public int SportId { get; set; }
+
+    [Parameter]
+    public int UniversityId { get; set; }
+
+    [Parameter]
+    public int CoachType { get; set; }
+
+    [Parameter]
+    public bool UpdateContact { get; set; }
+
+    [Parameter]
+    public int ContactId { get; set; }
+
+
+    [Parameter]
+    public CoachDTO Model { get; set; }
+    [Parameter]
+    public EventCallback<CoachDTO> ModelChanged { get; set; }
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CreateConfirmationLink();
+    }
+
+    private async Task CreateConfirmationLink()
+    {
+        if (!UpdateContact)
+        {
+            if (!string.IsNullOrWhiteSpace(CoachName))
+            {
+                var names = CoachName.Split(' ');
+
+                Model.FirstName = names[0];
+                Model.LastName = names[1];
+                Model.Email = CoachEmail;
+
+                await _httpClient.PostAsJsonAsync("api/v1/account/register/confirmation/create",
+                new ConfirmEmail
+                {
+                    Contact_Id = ContactId,
+                    Is_Coach = CoachType == 1,
+                    Sport_Id = SportId,
+                    Full_Name = CoachName,
+                    Email = Model.Email,
+                    University_Id = UniversityId
+                });
+            }
+            else if (!string.IsNullOrWhiteSpace(Model.FirstName))
+            {
+                await _httpClient.PostAsJsonAsync("api/v1/account/register/confirmation/create",
+                new ConfirmEmail
+                {
+                    Contact_Id = Model.UniversityContactId,
+                    Is_Coach = Model.IsCoach,
+                    Sport_Id = Model.SportId,
+                    Full_Name = $"{Model.FirstName} {Model.LastName}",
+                    Email = Model.Email,
+                    University_Id = Model.UniversityId
+                });
+            }
+        }
+        else
+        {
+            Model.UniversityContactId = ContactId;
+        }
+    }
+
+    public async Task<bool> CheckIfCompleted()
+    {
+        await ModelChanged.InvokeAsync(Model);
+
+        var isOk = !string.IsNullOrWhiteSpace(Model.FirstName)
+            && !string.IsNullOrWhiteSpace(Model.LastName) && !string.IsNullOrWhiteSpace(Model.Email);
+
+
+        if (isOk)
+        {
+            _emailIsLoading = true;
+            StateHasChanged();
+
+            var response = await _httpClient.GetFromJsonAsync<Response<bool>>($"/api/v1/account/validate/{Model.Email}");
+
+            _emailIsLoading = false;
+            StateHasChanged();
+
+            if (response?.Payload ?? false)
+            {
+                _snackBar.Add("Email already exists", Severity.Error);
+                return false;
+            }
+
+            await CreateConfirmationLink();
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private string _password;
+    private string _confirmPassword;
+    private MudTextField<string> _passwordField;
+
+    private IEnumerable<string> PasswordStrength(string pw)
+    {
+        if (string.IsNullOrWhiteSpace(pw))
+        {
+            yield return "Password is required!";
+            yield break;
+        }
+
+        if (pw.Length < 8)
+            yield return "Password must be at least of length 8";
+        if (!Regex.IsMatch(pw, @"[A-Z]"))
+            yield return "Password must contain at least one capital letter";
+        if (!Regex.IsMatch(pw, @"[a-z]"))
+            yield return "Password must contain at least one lowercase letter";
+        if (!Regex.IsMatch(pw, @"[0-9]"))
+            yield return "Password must contain at least one digit";
+    }
+
+    private string PasswordMatch(string arg)
+    {
+        if (_password != arg)
+            return "Passwords don't match";
+
+        Model.Cipher = Cripto.EncryptPassword(_password);
+
+        return null;
+    }
+
+    private bool _emailIsLoading;
+
+    private bool _passwordVisibility;
+    private InputType _passwordInput = InputType.Password;
+    private string _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
+
+    private void TogglePasswordVisibility()
+    {
+        if (_passwordVisibility)
+        {
+            _passwordVisibility = false;
+            _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
+            _passwordInput = InputType.Password;
+        }
+        else
+        {
+            _passwordVisibility = true;
+            _passwordInputIcon = Icons.Material.Filled.Visibility;
+            _passwordInput = InputType.Text;
+        }
+    }
+
+    private bool _emailLoading;
+    private IEnumerable<string> ValidateEmail(string email)
+    {
+        if (MailAddressValidation(email))
+        {
+            yield break;
+        }
+
+        if (!email.Contains(".edu"))
+        {
+            yield return "This is not a valid university email";
+            yield break;
+        }
+
+        yield return "Invalid email";
+    }
+
+    private bool MailAddressValidation(string email)
+    {
+        try
+        {
+            MailAddress m = new(email);
+            return true;
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+    }
+}

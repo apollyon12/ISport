@@ -1,0 +1,282 @@
+﻿@layout MainLayout
+@page "/schedulednotifications"
+
+@using iSportsRecruiting.Shared.DTO;
+@using System.Net.Http.Json
+@using iSportsRecruiting.Client.Shared.Dialogs
+
+@inject HttpClient _httpClient
+@inject ISnackbar _snackBar
+@inject IDialogService _dialogService
+
+<ShowAthletesLeadsOverlay OnSelectedItems="OnSelectedItems" OnCloseOverlay="CloseOverlay" IsVisible="_showOverlay" />
+<MudGrid>
+    <MudItem xs="4">
+        <MudTextField @bind-Value="Message" Lines="1" Label="Message" Variant="Variant.Text"></MudTextField>
+    </MudItem>
+    <MudItem xs="3">
+        <MudTextField @bind-Value="To" Label="To" Disabled="true" Variant="Variant.Text"></MudTextField>
+    </MudItem>
+    <MudItem xs="1">
+        <MudIconButton OnClick="ShowOverlay" Style="margin-top: 11px;" Icon="@Icons.Material.Filled.Add" Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Large" />
+    </MudItem>
+    <MudItem xs="2">
+        <MudCheckBox @bind-Checked="@EMAIL" Label="EMAIL" ></MudCheckBox>
+        <MudCheckBox @bind-Checked="@SMS" Label="SMS"></MudCheckBox>
+    </MudItem>
+    <MudItem xs="2">
+        <MudButton OnClick="AddScheduledNotification" Style="margin-top: 11px;" Disabled="@(DisableAddNotifications())" Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Large">Add Notification</MudButton>
+    </MudItem>
+    <MudItem xs="3">
+        <MudSelect OnClose="OnCloseSelectFrequency" @bind-Value="@Frequency" T="string" Label="Frequency" AnchorOrigin="Origin.BottomCenter">
+            <MudSelectItem Value="@("Daily")" />
+            <MudSelectItem Value="@("Weekly")" />
+            <MudSelectItem Value="@("Monthly")" />
+        </MudSelect>
+    </MudItem>
+    @if (Frequency == "Weekly")
+    {
+        <MudItem xs="3">
+            <MudSelect OnClose="OnCloseSelectWeekly" @bind-Value="@DayOfTheWeek" T="string" Label="Day of the Week" AnchorOrigin="Origin.BottomCenter">
+                <MudSelectItem Value="@("Monday")" />
+                <MudSelectItem Value="@("Tuesday")" />
+                <MudSelectItem Value="@("Wednesday")" />
+                <MudSelectItem Value="@("Thursday")" />
+                <MudSelectItem Value="@("Friday")" />
+                <MudSelectItem Value="@("Saturday")" />
+                <MudSelectItem Value="@("Sunday")" />
+            </MudSelect>
+        </MudItem>
+    }
+    else if (Frequency == "Monthly")
+    {
+        <MudItem xs="3">
+            <MudSelect OnClose="OnCloseSelectMonthly" @bind-Value="@DayOfTheMonth" T="string" Label="Day of the Month" AnchorOrigin="Origin.BottomCenter">
+                @for (int i = 0; i < 10; i++)
+                {
+                    <MudSelectItem Value="@((i + 1).ToString())" />
+                }
+            </MudSelect>
+        </MudItem>
+    }
+</MudGrid>
+
+<MudGrid Class="mt-9">
+    <MudItem xs="12">
+        <MudTable @ref="_table" Breakpoint="Breakpoint.MdAndUp" Class="mb-4" Items="Elements" Dense="true" Hover="true" LoadingProgressColor="Color.Info" Loading="_isLoading" Square="true" SortLabel="Sort By" Height="500px">
+            <HeaderContent>
+                <MudTh>
+                    <MudTableSortLabel SortBy="new Func<ScheduledNotificationDTO, object>(x => x.Daily)">Daily</MudTableSortLabel>
+                </MudTh>
+                <MudTh>
+                    <MudTableSortLabel SortBy="new Func<ScheduledNotificationDTO, object>(x => x.DayOfTheMonth)">Day Of the Month</MudTableSortLabel>
+                </MudTh>
+                <MudTh>
+                    <MudTableSortLabel SortBy="new Func<ScheduledNotificationDTO, object>(x => x.DayOfTheWeek)">Day Of the Week</MudTableSortLabel>
+                </MudTh>
+                <MudTh>
+                    <MudTableSortLabel SortBy="new Func<ScheduledNotificationDTO, object>(x => x.To)">To</MudTableSortLabel>
+                </MudTh>
+                <MudTh>
+                    <MudTableSortLabel SortBy="new Func<ScheduledNotificationDTO, object>(x => x.Message)">Message</MudTableSortLabel>
+                </MudTh>
+                <MudTh>
+                    <MudTableSortLabel SortBy="new Func<ScheduledNotificationDTO, object>(x => x.Send_Email)">Email</MudTableSortLabel>
+                </MudTh>
+                <MudTh>
+                    <MudTableSortLabel SortBy="new Func<ScheduledNotificationDTO, object>(x => x.Send_Sms)">Sms</MudTableSortLabel>
+                </MudTh>
+                <MudTh Style="text-align:center">Action</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Dayly">@context.Daily.ToString()</MudTd>
+                <MudTd DataLabel="Monthly">@context.DayOfTheMonth.ToString()</MudTd>
+                <MudTd DataLabel="Weekly">@context.DayOfTheWeek</MudTd>
+                <MudTd DataLabel="To">@context.To</MudTd>
+                <MudTd DataLabel="Message">@context.Message</MudTd>
+                <MudTd DataLabel="Sms">@context.Send_Sms</MudTd>
+                <MudTd DataLabel="Only Sms">@context.Send_Email</MudTd>
+                <MudTd Style="text-align:center">
+                    <MudTooltip Text="Delete">
+                        <MudIconButton OnClick="@(async () => await Delete(context.Id))" Icon="@Icons.Material.Filled.Delete" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+                    </MudTooltip>
+                </MudTd>
+            </RowTemplate>
+            <PagerContent>
+                <MudTablePager PageSizeOptions="new int[] {10, 25, 50, 100}" />
+            </PagerContent>
+        </MudTable>
+
+    </MudItem>
+</MudGrid>
+
+
+@code {
+    private List<ScheduledNotificationDTO> Elements { get; set; } = new();
+    public string To { get; set; } = string.Empty;
+    public string ToEntities { get; set; } = string.Empty;
+    public string Frequency { get; set; } = string.Empty;
+    public string DayOfTheWeek { get; set; } = string.Empty;
+    public string DayOfTheMonth { get; set; } = string.Empty;
+    public bool Daily { get; set; } = false;
+    public string Message { get; set; } = string.Empty;
+    public string SelectedOption { get; set; }
+    public string Subject { get; set; }
+    private List<ContactDTO> SelectedItems { get; set; }
+    private MudTable<ScheduledNotificationDTO> _table;
+    public bool SMS { get; set; } = false;
+    public bool EMAIL { get; set; } = true;
+    private bool _showOverlay;
+    private bool _isLoading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadInitialData();
+    }
+
+    private void CloseOverlay(bool isVisible)
+    {
+        _showOverlay = isVisible;
+        StateHasChanged();
+    }
+    private void ShowOverlay()
+    {
+        _showOverlay = true;
+        StateHasChanged();
+    }
+    private void OnSelectedItems(List<ContactDTO> items)
+    {
+        To = string.Empty;
+        ToEntities = string.Empty;
+
+        SelectedItems = items;
+        foreach (var item in SelectedItems)
+        {
+            To += item.FullName + ", ";
+            ToEntities += item.Id + ", ";
+        }
+        To = To.Remove(To.Length - 2);
+        ToEntities = ToEntities.Remove(ToEntities.Length - 2);
+    }
+    private bool DisableAddNotifications()
+    {
+        if ((!SMS && !EMAIL) || !Message.Any() || !To.Any() || string.IsNullOrEmpty($"{Frequency}"))
+            return true;
+        if (!SMS && !EMAIL || string.IsNullOrEmpty(DayOfTheMonth) && string.IsNullOrEmpty(DayOfTheWeek))
+        {
+            return true;
+        }
+        else
+            return false;
+    }
+    private async Task LoadInitialData()
+    {
+        if (!_isLoading)
+        {
+            _isLoading = true;
+        }
+
+        var response = await _httpClient.GetFromJsonAsync<Response<IEnumerable<ScheduledNotificationDTO>>>("api/v1/notification/schedulednotification");
+        if (response?.Payload is not null && response.Payload.Count() >= 1)
+        {
+            Elements.Clear();
+            Elements = response.Payload.ToList();
+            foreach (var item in Elements)
+            {
+                string athletesNames = string.Empty;
+                string[] ids = item.To.Split(',');
+                foreach (var id in ids)
+                {
+                    var athleteResponse = await _httpClient.GetFromJsonAsync<Response<AthleteDTO>>($"api/v1/athlete/{id}/short");
+                    if (athleteResponse?.Payload is null)
+                    {
+                        var leadResponse = await _httpClient.GetFromJsonAsync<Response<LeadDTO>>($"api/v1/lead/get/{id}");
+                        if (leadResponse?.Payload is not null)
+                        {
+                            athletesNames += leadResponse.Payload.FullName + ", ";
+                        }
+                    }
+                    else
+                    {
+                        athletesNames += athleteResponse.Payload.FirstName + ", ";
+                    }
+                }
+                athletesNames = athletesNames.Remove(athletesNames.Length - 2);
+                item.To = athletesNames;
+            }
+        }
+        StateHasChanged();
+        _isLoading = false;
+
+    }
+    private async Task AddScheduledNotification()
+    {
+        var scheduledNotification = new ScheduledNotificationDTO
+            {
+                Daily = Daily,
+                DayOfTheMonth = string.IsNullOrEmpty(DayOfTheMonth) ? null : Int32.Parse(DayOfTheMonth),
+                DayOfTheWeek = DayOfTheWeek,
+                Message = Message,
+                To = ToEntities,
+                Send_Email = EMAIL,
+                Send_Sms = SMS
+            };
+        var httpResponse = await _httpClient.PostAsJsonAsync("api/v1/notification/send/schedulednotification", scheduledNotification);
+        if (httpResponse.IsSuccessStatusCode)
+        {
+            await LoadInitialData();
+        }
+        if (httpResponse is null || !httpResponse.IsSuccessStatusCode)
+        {
+            _snackBar.Add("Error", Severity.Error, o => o.VisibleStateDuration = 8000);
+        }
+        To = string.Empty;
+        ToEntities = string.Empty;
+        Message = string.Empty;
+        EMAIL = false;
+        SMS = false;
+        Frequency = string.Empty;
+        DayOfTheMonth = null;
+        DayOfTheWeek = string.Empty;
+    }
+    private void OnCloseSelectFrequency()
+    {
+        switch (Frequency)
+        {
+            case "Daily":
+                DayOfTheWeek = string.Empty;
+                DayOfTheMonth = string.Empty;
+                Daily = true;
+                break;
+            case "Weekly":
+                DayOfTheMonth = string.Empty;
+                Daily = false;
+                break;
+            case "Monthly":
+                DayOfTheWeek = string.Empty;
+                Daily = false;
+                break;
+            default:
+                break;
+        }
+    }
+    private void OnCloseSelectWeekly()
+    {
+        DayOfTheMonth = string.Empty;
+    }
+    private void OnCloseSelectMonthly()
+    {
+        DayOfTheWeek = string.Empty;
+    }
+    private async Task Delete(int id)
+    {
+        var reference = _dialogService.Show<DeleteConfirmation>();
+        var result = await reference.Result;
+
+        if (!result.Cancelled)
+        {
+            await _httpClient.DeleteAsync($"api/v1/notification/{id}");
+            await LoadInitialData();
+        }
+    }
+}

@@ -1,0 +1,425 @@
+﻿@using iSportsRecruiting.Shared.DTO
+@using iSportsRecruiting.Shared.Email
+@using iSportsRecruiting.Shared.Models
+@using Blazored.LocalStorage
+@using System.Net.Http.Json
+
+@namespace iSportsRecruiting.Client.Shared.Dialogs
+
+@inject ISnackbar _snackBar
+@inject IJSRuntime _jsRuntime;
+@inject HttpClient _httpClient;
+@inject IDialogService _dialogService
+@inject ILocalStorageService _localStorage;
+
+<MudDialog>
+    <TitleContent>
+        <MudText Style="margin-top: 20px" Typo="Typo.h5" Align="Align.Center">
+            <b>SEND AN EMAIL</b>
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid>
+            @if (account?.Type == UserType.Athlete)
+            {
+                <MudItem sm="12" xs="12">
+                    @if (contact is not null)
+                    {
+                        <MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+                            <MudRadioGroup @bind-SelectedOption="@_selectedOption">
+                                <MudRadio Option="@("C")" Color="Color.Primary">
+                                    @contact.Coach <b>(Head Coach)</b>
+                                </MudRadio>
+                                @if (!string.IsNullOrWhiteSpace(contact.AssisantCoach))
+                                {
+                            <MudRadio Option="@("A")" Color="Color.Primary">
+                                @contact.AssisantCoach <b>(Assistant Coach)</b>
+                            </MudRadio>
+                                }
+                    </MudRadioGroup>
+                </MudHidden>
+
+                        <MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+                            <MudRadioGroup @bind-SelectedOption="@_selectedOption">
+                                <MudRadio Style="display: block" Option="@("C")" Color="Color.Primary">
+                                    @contact.Coach <b>(Head Coach)</b>
+                                </MudRadio>
+                                @if (!string.IsNullOrWhiteSpace(contact.AssisantCoach))
+                                {
+                            <MudRadio Style="display: block" Option="@("A")" Color="Color.Primary">
+                                @contact.AssisantCoach <b>(Assistant Coach)</b>
+                            </MudRadio>
+                                }
+                    </MudRadioGroup>
+                </MudHidden>
+                    }
+                </MudItem>
+            }
+            <MudItem sm="12" xs="12">
+                @if (account?.Type == UserType.Coach)
+                {
+                    <MudTextField MaxLength="7500" Counter="7500" AutoFocus="true" Label="Write your message here..." Class="mb-3" Lines="8" @bind-Value="_emailBody"
+                              AdornmentColor="@Color.Primary" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Send" OnAdornmentClick="SendEmailFromCoach"
+                              Immediate="true" />
+                }
+                else
+                {
+                    if (IsFromEmailList)
+                    {
+                        <MudTextField Disabled="contact is null" MaxLength="7500" Counter="7500" AutoFocus="true" Label="Write your message here..." Class="mb-3" Lines="8" @bind-Value="_emailBody"
+                              AdornmentColor="@Color.Primary" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Send" OnAdornmentClick="SendEmailFromAthlete"
+                              Immediate="true" />
+                    }
+                    else
+                    {
+                        <MudTextField Disabled="coach is null" MaxLength="7500" Counter="7500" AutoFocus="true" Label="Write your message here..." Class="mb-3" Lines="8" @bind-Value="_emailBody"
+                              AdornmentColor="@Color.Primary" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Send" OnAdornmentClick="SendEmailFromAthlete"
+                              Immediate="true" />
+                    }
+                }
+
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+</MudDialog>
+
+@code {
+
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public int AthleteId { get; set; }
+
+    [Parameter]
+    public bool IsFromEmailList { get; set; }
+
+    [Parameter]
+    public int SenderId { get; set; }
+
+    [Parameter]
+    public int UniversityId { get; set; }
+
+    [Parameter]
+    public string Email { get; set; }
+
+    [Parameter]
+    public bool IsCoach { get; set; }
+
+    string _emailBody;
+    public string _selectedOption = "C";
+
+    private AthleteDTO athlete;
+    private AccountDto account;
+    private UniversityDTO university;
+    private CoachDTO coach;
+    private SportContactModel contact;
+
+    private bool _sendingEmail, _loadingData = true;
+
+    protected override void OnInitialized()
+    {
+        Task.Run(async () =>
+        {
+            account = await _localStorage.GetItemAsync<AccountDto>("account");
+
+            if (account.Type == UserType.Athlete)
+            {
+                var response = await _httpClient.GetFromJsonAsync<Response<UniversityDTO[]>>($"api/v1/university?id={UniversityId}");
+                university = response?.Payload?.First()!;
+
+                if (!IsFromEmailList)
+                {
+                    var email = await _localStorage.GetItemAsync<EmailModel>("email");
+                    var responseCoach = await _httpClient.GetFromJsonAsync<Response<CoachModel>>($"api/v1/coach/{email.Sender_Id}");
+                    coach = responseCoach?.Payload.ToDTO()!;
+
+                    if (coach is null)
+                    {
+                        _snackBar.Add("This coach doesn't exist anymore...", Severity.Error);
+                        return;
+                    }
+                }
+                else
+                {
+                    var responseContact = await _httpClient.GetFromJsonAsync<Response<SportContactModel>>($"api/v1/coach/contact/{university.Id}/{account.Athlete.SportName}");
+                    contact = responseContact?.Payload!;
+                }
+            }
+            else
+            {
+                var athleteResponse = await _httpClient.GetFromJsonAsync<Response<AthleteDTO>>($"api/v1/athlete/{AthleteId}/short");
+
+                if (athleteResponse is not null && athleteResponse.Status == ResponseStatus.Ok)
+                {
+                    athlete = athleteResponse.Payload;
+                }
+            }
+
+            _loadingData = false;
+            StateHasChanged();
+        });
+    }
+
+    void Cancel() => MudDialog.Cancel();
+
+    private async Task SendEmailFromCoach()
+    {
+        string emailBodyBk = _emailBody;
+        _emailBody = string.Empty;
+
+        var email = new EmailModel
+            {
+                Receiver_Name = $"{athlete.FirstName} {athlete.LastName}",
+                Receiver_Image = athlete.ImageProfile,
+                Sender_Name = $"{account.Coach.FirstName} {account.Coach.LastName}",
+                Content = emailBodyBk,
+                Receiver_Id = athlete.Id,
+                Sender_Id = account.Coach.Id,
+                University_Id = account.Coach.UniversityId,
+                University_Name = account.Coach.University,
+                Receiver_Type = 1,
+                Replied_To = AthleteId,
+                Sent = false
+            };
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(emailBodyBk))
+            {
+                _snackBar.Add("You can't sent an empty email", Severity.Info);
+                return;
+            }
+
+            _sendingEmail = true;
+            StateHasChanged();
+
+            _ = _jsRuntime.InvokeVoidAsync("scrollToBottom", "scrollContainer");
+
+            var universityResponse = await _httpClient.GetFromJsonAsync<Response<UniversityDTO[]>>($"api/v1/university?id={account.Coach.UniversityId}");
+            var university = universityResponse.Payload.First();
+
+            string subject = $"Coach {account.Coach.FirstName} {account.Coach.LastName} from {university.University} is interested in you";
+
+            email.Subject = subject;
+            email.Sender_Image = $"https://isportsrecruiting.com/images/logos/{universityResponse?.Payload.FirstOrDefault().Image}.jpg";
+
+            var response = await _httpClient.PostAsJsonAsync($"api/v1/email/sendemail/collegecoach@isportsrecruiting.com/{account.Coach.FirstName} {account.Coach.LastName}/{subject}",
+                new EmailRequest
+                    {
+                        Contact = new EmailContact
+                        {
+                            Email = athlete.Email,
+                            Name = $"{athlete.FirstName} {athlete.LastName}"
+                        },
+                        Body = emailBodyBk
+                    });
+
+            if (response.IsSuccessStatusCode)
+            {
+                var httpEmailResponse = await _httpClient.PostAsJsonAsync("api/v1/email", email);
+
+                if (httpEmailResponse.IsSuccessStatusCode)
+                {
+                    var emailResponse = await httpEmailResponse.Content.ReadFromJsonAsync<Response<int>>();
+
+                    email.Sent = true;
+                    _sendingEmail = false;
+                    StateHasChanged();
+
+                    _snackBar.Add("Email sent!", Severity.Success);
+                }
+            }
+            else
+            {
+                _snackBar.Add("There was a problem trying to send the email...", Severity.Error);
+            }
+        }
+        catch (Exception e)
+        {
+            email.Error = true;
+            _snackBar.Add(e.Message, Severity.Error);
+        }
+
+        MudDialog.Close();
+    }
+
+    private async Task SendEmailFromAthlete()
+    {
+        EmailModel email = new();
+        string emailBodyBk = _emailBody;
+        _emailBody = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(emailBodyBk))
+        {
+            _snackBar.Add("You can't sent an empty email", Severity.Info);
+            return;
+        }
+
+        _sendingEmail = true;
+        StateHasChanged();
+
+        try
+        {
+            if (contact is null)
+            {
+                EmailContact emailContact = new EmailContact { Email = coach.Email, Name = $"{coach.FirstName} {coach.LastName}", Athlete = account.Athlete };
+                email = new EmailModel
+                    {
+                        Receiver_Name = emailContact.Name,
+                        Receiver_Image = $"https://isportsrecruiting.com/images/logos/{university.Image}.jpg",
+                        Sender_Name = $"{account.Athlete.FirstName} {account.Athlete.LastName}",
+                        Content = emailBodyBk,
+                        Receiver_Id = coach.Id,
+                        Sender_Id = account.Id,
+                        University_Id = university.Id,
+                        University_Name = university.University,
+                        Receiver_Type = 1,
+                        Replied_To = AthleteId,
+                        Sent = false
+                    };
+
+                string subject = $"{account.Athlete.FirstName} {account.Athlete.LastName}, {account.Athlete.State}, GPA {account.Athlete.GPA}, {account.Athlete.Position}";
+
+                email.Subject = subject;
+                email.Sender_Image = account.Athlete.ImageProfile;
+
+                var response = await _httpClient.PostAsJsonAsync($"api/v1/email/sendemail/athlete/{account.Athlete.FirstName} {account.Athlete.LastName}", new EmailRequest { Contact = emailContact, Body = emailBodyBk });
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var httpEmailResponse = await _httpClient.PostAsJsonAsync("api/v1/email", email);
+
+                    if (httpEmailResponse.IsSuccessStatusCode)
+                    {
+                        email.Sent = true;
+                        _sendingEmail = false;
+                        StateHasChanged();
+
+                        _snackBar.Add("Email sent!", Severity.Success);
+                    }
+                    else
+                    {
+                        _snackBar.Add("There was a problem trying to send the email...", Severity.Error);
+                    }
+                }
+                else
+                {
+                    _snackBar.Add("There was a problem trying to send the email...", Severity.Error);
+                }
+
+                return;
+            }
+        }
+        catch (Exception e)
+        {
+            _snackBar.Add(e.Message, Severity.Error);
+        }
+
+        //Si contact es nulo, este codigo de abajo no se ejecuta
+
+        var responseCoach = await _httpClient.GetFromJsonAsync<Response<CoachModel>>($"api/v1/coach/sport/{account.Athlete.SportId}/{university.Id}");
+        coach = responseCoach?.Payload.ToDTO()!;
+
+        EmailContact headCoach = new EmailContact { Email = contact.Email, Name = contact.Coach, Athlete = account.Athlete };
+        email = new EmailModel
+            {
+                Receiver_Name = contact.Coach,
+                Receiver_Image = $"https://isportsrecruiting.com/images/logos/{university.Image}.jpg",
+                Sender_Name = $"{account.Athlete.FirstName} {account.Athlete.LastName}",
+                Content = emailBodyBk,
+                Receiver_Id = coach.Id,
+                Sender_Id = account.Id,
+                University_Id = university.Id,
+                University_Name = university.University,
+                Receiver_Type = 1,
+                Replied_To = AthleteId,
+                Sent = false
+            };
+
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync($"api/v1/email/sendemail/athlete/{account.Athlete.FirstName} {account.Athlete.LastName}", new EmailRequest { Contact = headCoach, Body = emailBodyBk });
+
+            if (response.IsSuccessStatusCode)
+            {
+                var httpEmailResponse = await _httpClient.PostAsJsonAsync("api/v1/email", email);
+
+                if (httpEmailResponse.IsSuccessStatusCode)
+                {
+                    email.Sent = true;
+                    _sendingEmail = false;
+                    StateHasChanged();
+
+                    _snackBar.Add("Email sent!", Severity.Success);
+                }
+                else
+                {
+                    _snackBar.Add("There was a problem trying to send the email...", Severity.Error);
+                }
+            }
+            else
+            {
+                _snackBar.Add("There was a problem trying to send the email...", Severity.Error);
+            }
+
+            return;
+        }
+        catch (Exception e)
+        {
+            _snackBar.Add(e.Message, Severity.Error);
+        }
+
+
+        EmailContact assistant = new EmailContact { Email = coach.Email, Name = $"{coach.FirstName} {coach.LastName}", Athlete = account.Athlete };
+        email = new EmailModel
+            {
+                Receiver_Name = contact.AssisantCoach,
+                Receiver_Image = $"https://isportsrecruiting.com/images/logos/{university.Image}.jpg",
+                Sender_Name = $"{account.Athlete.FirstName} {account.Athlete.LastName}",
+                Content = emailBodyBk,
+                Receiver_Id = coach.Id,
+                Sender_Id = account.Id,
+                University_Id = university.Id,
+                University_Name = university.University,
+                Receiver_Type = 1,
+                Replied_To = AthleteId,
+                Sent = false
+            };
+
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync($"api/v1/email/sendemail/athlete/{account.Athlete.FirstName} {account.Athlete.LastName}", new EmailRequest { Contact = assistant, Body = emailBodyBk });
+
+            if (response.IsSuccessStatusCode)
+            {
+                var httpEmailResponse = await _httpClient.PostAsJsonAsync("api/v1/email", email);
+
+                if (httpEmailResponse.IsSuccessStatusCode)
+                {
+                    email.Sent = true;
+                    _sendingEmail = false;
+                    StateHasChanged();
+
+                    _snackBar.Add("Email sent!", Severity.Success);
+                }
+                else
+                {
+                    _snackBar.Add("There was a problem trying to send the email...", Severity.Error);
+                }
+            }
+            else
+            {
+                _snackBar.Add("There was a problem trying to send the email...", Severity.Error);
+            }
+
+            return;
+        }
+        catch (Exception e)
+        {
+            _snackBar.Add(e.Message, Severity.Error);
+        }
+
+        MudDialog.Close();
+    }
+}

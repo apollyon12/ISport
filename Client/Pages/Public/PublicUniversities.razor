@@ -1,0 +1,312 @@
+﻿@layout PublicProfileLayout
+
+@page "/public/universities/{Sport}/{Gpa}"
+@using iSportsRecruiting.Client.Shared
+@using iSportsRecruiting.Shared.DTO
+@using System.Globalization
+
+@inject NavigationManager Navigation
+
+<style>
+
+    .mud-container-maxwidth-lg {
+        max-width: 100% !important;
+    }
+
+    .mud-grid-spacing-xs-3 {
+        width: 100% !important;
+        margin: 0 !important;
+    }
+</style>
+@*<MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+    <MudPaper Style="background-color: #2ebb0e;color: white;" Elevation="3">
+        <MudHidden Breakpoint="Breakpoint.Xl" Invert="true">
+            <MudContainer Fixed="true">
+                <MudGrid Style="padding-top: 71px">
+                    <MudItem Style="" xs="8">
+                        @if (totalUniversities < 1)
+                        {
+                            <MudSkeleton SkeletonType="SkeletonType.Circle" Width="180px" Height="180px" Style="display: block; margin-left: auto; margin-right: auto;" />
+                        }
+                        else
+                        {
+                            <MudGrid>
+                                <MudItem xs="1">
+                                    <MudElement HtmlTag="h1" Style="height: 71%; color: #1a1d19; font-size: 72px;">
+                                        @totalUniversities.ToString()
+                                    </MudElement>
+                                </MudItem>
+                                <MudItem Style="padding-top: 3%; padding-left: 3%;" xs="9">
+                                    <MudElement HtmlTag="h1" Style="padding-left: 3%; font-size: 38px; font-family: sans-serif;">
+                                        Schools to Approach
+                                    </MudElement>
+                                </MudItem>
+                            </MudGrid>
+                        }
+                    </MudItem>
+                    <MudItem xs="4">
+                        <MudContainer Style="text-align: center;">
+                            <MudGrid>
+                                <MudItem Style="padding-top: 4%; padding-left: 15%;" xs="6">
+                                    <a>
+                                        <img src="images/PlayStoreDownload.png" alt="Play Store" height="90.5px" width="200px" />
+                                    </a>
+                                </MudItem>
+                                <MudItem Style="padding-top: 6%; padding-right: 12%;" xs="6">
+                                    <a>
+                                        <img src="images/AppStoreDownload.png" alt="App Store" height="69px" width="200px" />
+                                    </a>
+                                </MudItem>
+                            </MudGrid>
+                        </MudContainer>
+                    </MudItem>
+                </MudGrid>
+            </MudContainer>
+        </MudHidden>
+        <MudHidden Breakpoint="Breakpoint.Lg" Invert="true">
+            <MudContainer Fixed="true">
+                <MudGrid Justify="Justify.Center" Style="padding-top: 90px">
+                    <MudItem Style="padding-top: 5%; padding-left: 3%;" sm="2" xs="12">
+                        @if (totalUniversities < 1)
+                        {
+                            <MudSkeleton SkeletonType="SkeletonType.Circle" Width="180px" Height="180px" Style="display: block; margin-left: auto; margin-right: auto;" />
+                        }
+                        else
+                        {
+                            <MudElement HtmlTag="h1" Style="height: 53%; color:#2ebb0e; font-size: 85px;">
+                                @totalUniversities.ToString()
+                            </MudElement>
+                            <MudElement HtmlTag="h1" Style="font-size: 16px; font-family: impact, sans-serif;">
+                                Schools to Approach
+                            </MudElement>
+                        }
+                    </MudItem>
+                    <MudItem Style="padding-top: 8%;" sm="7" xs="12">
+                        <MudElement HtmlTag="h1" Style="text-align:center; font-size: 52px; font-family: impact, sans-serif; color: black;">
+                            YOUR COLLEGE RECRUITING APP
+                        </MudElement>
+                    </MudItem>
+
+                    <MudItem sm="3" xs="12">
+                        <MudPaper Class="pa-3 ma-2" Style="text-align: center; float: right;" Elevation="3" Square="true">
+                            <MudText Typo="Typo.h5" Style="font-weight: 500">SIGN ME UP!</MudText>
+                            <MudDivider Class="mb-5" />
+                            <a>
+                                <img src="images/PlayStoreDownload.png" alt="Play Store" width="200px" />
+                            </a>
+                            <a>
+                                <img src="images/AppStoreDownload.png" alt="App Store" width="200px" />
+                            </a>
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
+            </MudContainer>
+        </MudHidden>
+
+    </MudPaper>
+
+</MudHidden>
+<MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+    <MudPaper Square="true" Elevation="5" style="padding-bottom: 25px; background-color: #FFFFFF">
+        <MudContainer Fixed="true">
+            <MudGrid Style="padding-top: 90px">
+                <MudHidden Breakpoint="Breakpoint.Sm" Invert="true">
+                    <MudItem Style="padding-left: 32%;" xs="12">
+                        @if (totalUniversities < 1)
+                        {
+                            <MudSkeleton SkeletonType="SkeletonType.Circle" Width="180px" Height="180px" Style="display: block; margin-left: auto; margin-right: auto;" />
+                        }
+                        else
+                        {
+                            <MudElement HtmlTag="h1" Style="height: 67%; color:#2ebb0e; font-size: 106px;">
+                                @totalUniversities.ToString()
+                            </MudElement>
+                            <MudElement HtmlTag="h1" Style="font-size: 19px;">
+                                Schools to Approach
+                            </MudElement>
+                        }
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudGrid Spacing="0">
+                            <MudItem sm="12" xs="12">
+                                @if (totalUniversities < 1)
+                                {
+                                    <MudSkeleton />
+                                }
+                                else
+                                {
+                                    <img src="images/collegerecruitingapp.png" alt="" width="100%" />
+                                }
+                            </MudItem>
+                        </MudGrid>
+                    </MudItem>
+                </MudHidden>
+                <MudHidden Breakpoint="Breakpoint.Xs" Invert="true">
+                    <MudItem Style="padding-left: 27%;" xs="12">
+                        @if (totalUniversities < 1)
+                        {
+                            <MudSkeleton SkeletonType="SkeletonType.Circle" Width="180px" Height="180px" Style="display: block; margin-left: auto; margin-right: auto;" />
+                        }
+                        else
+                        {
+                            <MudElement HtmlTag="h1" Style="height: 67%; color:#2ebb0e; font-size: 106px;">
+                                @totalUniversities.ToString()
+                            </MudElement>
+                            <MudElement HtmlTag="h1" Style="font-size: 19px;">
+                                Schools to Approach
+                            </MudElement>
+                        }
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudGrid Spacing="0">
+                            <MudItem sm="12" xs="12">
+                                @if (totalUniversities < 1)
+                                {
+                                    <MudSkeleton />
+                                }
+                                else
+                                {
+                                    <img src="images/collegerecruitingapp.png" alt="" width="100%" />
+                                }
+                            </MudItem>
+                        </MudGrid>
+                    </MudItem>
+                </MudHidden>
+                <MudItem xs="12">
+                    <MudPaper Class="pa-3 ma-2" Style="text-align: center;" Elevation="3" Square="true">
+                        <MudText Typo="Typo.h5" Style="font-weight: 500">SIGN ME UP!</MudText>
+                        <MudDivider Class="mb-5" />
+
+                        <a>
+                            <img src="images/PlayStoreDownload.png" alt="Play Store" width="200px" />
+                        </a>
+                        <a>
+                            <img src="images/AppStoreDownload.png" alt="App Store" width="200px" />
+                        </a>
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+        </MudContainer>
+    </MudPaper>
+</MudHidden>*@
+<div style="width: 100%; height: 4px; margin-bottom: 45px; " />
+
+<MudGrid Style="width: 100% !important">
+    <MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+        <MudItem md="12">
+            <div class="pa-8">
+                <UniversitiesTable IsPublicUniversities="true" OnLoadPublicUniversitiesCount="OnLoadPublicUniversitiesCount" OnUniversitySelected="OnUniversitySelected" Sport="@Sport" GpaScore="@ParsedGpa" ManageActions="false" ShowAthleteSettings="false" ShowSearchParameters="false" ShowOnlySearch="true"></UniversitiesTable>
+            </div>
+        </MudItem>
+    </MudHidden>
+    <MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+        <MudExpansionPanel Text="FILTERS">
+            <MudGrid>
+                <MudItem sm="12" xs="12">
+                    <MudTextField T="string" @bind-Value="SearchString" Immediate="true" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Search" AdornmentColor="Color.Primary" />
+                </MudItem>
+            </MudGrid>
+        </MudExpansionPanel>
+        <ListMobile OnLoadPublicUniversitiesCount="OnLoadPublicUniversitiesCountMobile" @ref="_listMobile" IsUniversityPublicList="true" OnCardClick="OnUniversitySelectedMobil" Style="margin-right: 16px" T="UniversityDTO" Title="Universities" EndPoint="@GetQuery()">
+            <CardImage>
+                <img alt="logo" src="https://isportsrecruiting.com/images/logos/@string.Format(context.Image + ".jpg")" style="padding: 3%;width: 48px;display: block;margin-left: auto;margin-right: auto;">
+            </CardImage>
+            <CardTitle>
+                @context.University
+            </CardTitle>
+            <CardSubtitle>
+                @if (!string.IsNullOrWhiteSpace(context.GPA))
+                {
+                    <span>GPA @context.GPA</span>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(context.State))
+                {
+                    <span> - @context.State.ToUpper()[..2]</span>
+                }
+            </CardSubtitle>
+            <CardOptions>
+                <MudTooltip Text="Check University">
+                    <MudIconButton OnClick="@(() => CheckUniversity(context.Id, context.University, context.IsFavorite))" Icon="@Icons.Material.Outlined.RemoveRedEye" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+                </MudTooltip>
+            </CardOptions>
+        </ListMobile>
+    </MudHidden>
+</MudGrid>
+
+@code {
+
+    [Parameter]
+    public string Sport { get; set; }
+
+    [Parameter]
+    public string Gpa { get; set; }
+
+    private ListMobile<UniversityDTO> _listMobile;
+    private int totalUniversities;
+    private string _searchString = string.Empty;
+    private string SearchString
+    {
+        get => _searchString;
+        set
+        {
+            _searchString = value;
+            Task.Run(async () => await _listMobile.ResetItemsAsync());
+        }
+    }
+
+    public string _urlImageUniversity => University is null ? string.Empty : $"https://isportsrecruiting.com/api/v1/file/logos/180/180/{University.Image}.jpg";
+
+    public UniversityDTO University { get; set; }
+
+    public string _fontSizeA = "19px";
+    public string _colorA = "#1a1a1a";
+    public string _fontSizeB = "19px";
+    public string _colorB = "#1a1a1a";
+
+    private decimal ParsedGpa { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Sport = Sport.Replace("-", " ");
+        ParsedGpa = decimal.Parse(Gpa.Replace("-", "."),
+            NumberStyles.Any, CultureInfo.GetCultureInfo("en-US"));
+
+    }
+    private void OnUniversitySelected(object? sender, UniversityDTO e)
+    {
+        University = e;
+        StateHasChanged();
+    }
+    private void OnLoadPublicUniversitiesCount(object? sender, int count)
+    {
+        totalUniversities = count;
+        StateHasChanged();
+    }
+    private void OnLoadPublicUniversitiesCountMobile(int count)
+    {
+        totalUniversities = count;
+        StateHasChanged();
+    }
+    private void OnUniversitySelectedMobil(UniversityDTO e)
+    {
+        University = e;
+        StateHasChanged();
+    }
+    private string GetQuery()
+    {
+        if (!string.IsNullOrEmpty(_searchString))
+        {
+            return $"university?sportName={Sport}&gpa={Gpa.ToString(CultureInfo.GetCultureInfo("en-US"))}&search={SearchString}&";
+        }
+        else
+        {
+            return $"university?sportName={Sport}&gpa={Gpa.ToString(CultureInfo.GetCultureInfo("en-US"))}&";
+        }
+    }
+    private void CheckUniversity(int id, string name, bool isFavorite)
+    {
+        Navigation.NavigateTo($"universities/{id}/{name.Replace(" ", "-").Replace(",", "").ToLower()}");
+    }
+
+}

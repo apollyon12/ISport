@@ -1,0 +1,61 @@
+﻿@using iSportsRecruiting.Shared.DTO
+
+@namespace iSportsRecruiting.Client.Shared.Dialogs
+
+@inject ISnackbar _snackBar
+@inject IJSRuntime _jsRuntime;
+@inject Blazored.LocalStorage.ILocalStorageService _localStorage;
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.InsertLink" Class="mr-3 mb-n1" />
+            Referral Url
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudLink Href="@Url">@Url</MudLink>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Success" Variant="Variant.Filled" OnClick="CopyUrl">Copy</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private MudButton _copyButton;
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+
+    public string Url { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var account = await _localStorage.GetItemAsync<AccountDto>("account");
+
+        switch (account.Type)
+        {
+            case UserType.Admin:
+                var nameSplit = account.Admin.Username.ToUpper().Split(' ');
+                if (nameSplit.Length > 1)
+                    Url = $"https://www.isportsrecruiting.com/register/{nameSplit[0][..1]}{nameSplit[1][..1]}{account.Id}";
+                else
+                    Url = $"https://www.isportsrecruiting.com/register/{nameSplit[0]}{account.Id}";
+                break;
+            case UserType.AssisAdmin:
+            case UserType.AssisCoord:
+                var nameSplit2 = account.Assistant.FullName.ToUpper().Split(' ');
+                Url = $"https://www.isportsrecruiting.com/register/{nameSplit2[0][..1]}{nameSplit2[1][..1]}{account.Id}";
+                break;
+            case UserType.Athlete:
+                Url = $"https://www.isportsrecruiting.com/athletes/{account.Athlete.Id}/{(account.Athlete.FirstName + "-" + account.Athlete.LastName).ToLower()}";
+                break;
+        }
+    }
+
+    async Task CopyUrl()
+    {
+        await _jsRuntime.InvokeVoidAsync("navigator.clipboard.writeText", Url);
+        _snackBar.Add("Successfully copied!", Severity.Success);
+    }
+    void Cancel() => MudDialog.Cancel();
+}

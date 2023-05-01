@@ -1,0 +1,38 @@
+﻿@namespace iSportsRecruiting.Client.Shared.Dialogs
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Email" Class="mr-3 mb-n1" />
+            Blast Emails
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Align="Align.Center">Please select the preferred option</MudText>
+        <MudGrid>
+            <MudItem sm="12">
+                <MudRadioGroup @bind-SelectedOption="@_selectedOption">
+                        <MudRadio Option="@(1)" Color="Color.Primary">Filter by Score</MudRadio>
+                        <MudRadio Option="@(2)" Color="Color.Primary">Filter by Favorites</MudRadio>
+                    </MudRadioGroup>
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Error" Variant="Variant.Filled" OnClick="Cancel">CANCEL</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit">START</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+
+    private int _selectedOption = 1;
+
+    void Submit()
+    {
+        MudDialog.Close(DialogResult.Ok(_selectedOption));
+    }
+    
+    void Cancel() => MudDialog.Cancel();
+}

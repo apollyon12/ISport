@@ -1,0 +1,44 @@
+﻿@namespace iSportsRecruiting.Client.Shared.Dialogs
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Filled.AutoAwesome" Class="mr-3 mb-n1"/>
+            ACCESS TO
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Style="font-size: 16px; padding-top: 10px" Typo="Typo.subtitle2">
+            ✔️ Online Profile Access
+            <br/>
+            ✔️ Access to Schools Requirements
+            <br/>
+            ✔️ Upload Transcripts, SAT/ACT
+            <br/>
+            ✔️ Save Favorite Schools
+            <br/>
+            ✔️ Access to All Divisions
+            <br/>
+            ✔️ Upload Unlimited Highlights
+            <br/>
+            ✔️ Unlimited Direct Email to Coaches
+        </MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Secondary" Variant="Variant.Filled" OnClick="Submit">Great!</MudButton>
+    </DialogActions>
+</MudDialog>
+
+
+
+@code {
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; }
+
+    void Submit()
+    {
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    void Cancel() => MudDialog.Cancel();
+}

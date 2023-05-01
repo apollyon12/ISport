@@ -1,0 +1,425 @@
+﻿@using System.Net.Http.Json
+@using Google.Protobuf.WellKnownTypes
+@using iSportsRecruiting.Shared.DTO
+@using System.Net
+
+@typeparam T
+
+@inject HttpClient _httpClient
+
+<style>
+    .mud-grid-spacing-xs-3 {
+        width: calc(100% + 10px) !important;
+        margin: -12px;
+    }
+</style>
+
+<MudGrid>
+    <MudItem xs="12">
+        <MudExpansionPanels Elevation="9">
+            @if (Manage is not null)
+            {
+                <MudExpansionPanel Text="MANAGE" @bind-IsExpanded="_manageIsExpanded">
+                    @Manage
+                </MudExpansionPanel>
+            }
+
+            @if (Filters is not null)
+            {
+                <MudExpansionPanel Text="FILTERS">
+                    @Filters
+                </MudExpansionPanel>
+            }
+        </MudExpansionPanels>
+    </MudItem>
+</MudGrid>
+
+<MudGrid Style="margin-bottom: 18px">
+
+    <MudItem Class="pl-6" xs="6">
+        <MudText Style="font-size: 16px" Class="mt-3" Typo="Typo.h6">@Title?.ToUpper()</MudText>
+        @if (Items.Length > _totalItems)
+        {
+            <MudText Class="mt-3 mb-3" Typo="Typo.caption">@Items.Length/@Items.Length</MudText>
+        }
+        else
+        {
+            <MudText Class="mt-3 mb-3" Typo="Typo.caption">@Items.Length/@_totalItems</MudText>
+        }
+    </MudItem>
+
+    @if (AddNewRoute is not null)
+    {
+        <MudItem xs="6" Style="text-align: right;">
+            <MudTooltip Text="Add New">
+                <MudIconButton Icon="@Icons.Filled.Add" Link="@AddNewRoute" />
+            </MudTooltip>
+
+            @if (Actions is not null)
+            {
+                @Actions
+            }
+        </MudItem>
+    }
+    else if (Manage is not null)
+    {
+        <MudItem xs="6" Style="text-align: right;">
+            <MudTooltip Text="Add New">
+                <MudIconButton Icon="@Icons.Filled.Add" OnClick="() => SetManageIsExpanded(true)" />
+            </MudTooltip>
+
+            @if (Actions is not null)
+            {
+                @Actions
+            }
+        </MudItem>
+    }
+</MudGrid>
+
+<MudGrid Style="@(IsUniversityPublicList ? "width: 100% !important" : "")">
+    @if (!_loading)
+    {
+        <MudItem Style="@(IsUniversityPublicList ? "margin-right: -18px;" : "margin-left: 16px; margin-right: -18px;")" xs="12">
+            <MudGrid Style="@(IsUniversityPublicList ? "width: 100% !important" : "")">
+                @foreach (var item in Items)
+                {
+                    <MudPaper @onclick="@(() => OnCardClick.InvokeAsync(item.Param))" Style="width: 100%;margin-bottom: 1px;" Elevation="@(Elevation ?? 5)" Class="pa-3">
+                        <MudGrid Style="@(isEmailList ? "Height: 74" : "Height: 68")">
+                            @if (CardImage is not null)
+                            {
+                                <MudItem @onclick="@(() => SelectItem())" xs="2">
+                                    @CardImage(item.Param)
+                                </MudItem>
+
+                                <MudItem xs="9">
+                                    <MudText Style="width: 100%;white-space: nowrap;text-overflow: ellipsis;overflow: hidden">@CardTitle(item.Param)</MudText>
+
+                                    @if (CardSubtitle is not null)
+                                    {
+                                        <MudText Style="width: 100%;white-space: nowrap;text-overflow: ellipsis;overflow: hidden;font-size: 12px;">@CardSubtitle(item.Param)</MudText>
+                                    }
+                                    @if (CardDate is not null)
+                                    {
+                                        <MudText Style="width: 100%;white-space: nowrap;text-overflow: ellipsis;overflow: hidden;font-size: 12px;">@CardDate(item.Param)</MudText>
+                                    }
+                                    @if (CardViewIcon is not null)
+                                    {
+                                        @CardViewIcon(item.Param)
+                                    }
+                                </MudItem>
+
+                                <MudItem xs="1">
+                                    @if (CardOptions is not null)
+                                    {
+                                        <div class="d-flex justify-end">
+                                            @if (!item.OptionsExpanded)
+                                            {
+                                                <div>
+                                                    <MudTooltip Text="Show Options">
+                                                        <MudIconButton Style="color: #424242" OnClick="@(() => SetItemOptions(item, true))" Icon="@Icons.Material.Filled.KeyboardArrowLeft" Size="Size.Medium"></MudIconButton>
+                                                    </MudTooltip>
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <div class="aparecer-desde-derecha" style="height: 44px;position: absolute;background-color: rgba(255, 255, 255, 0.6);">
+                                                    <MudTooltip Text="Hide Options">
+                                                        <MudIconButton Style="color: #424242" OnClick="@(() => SetItemOptions(item, false))" Icon="@Icons.Material.Filled.KeyboardArrowRight" Size="Size.Medium"></MudIconButton>
+                                                    </MudTooltip>
+
+                                                    @CardOptions(item.Param)
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+                                </MudItem>
+                            }
+                            else
+                            {                                
+                                <MudItem xs="10">
+                                    <MudText Style="width: 100%;white-space: nowrap;text-overflow: ellipsis;overflow: hidden">@CardTitle(item.Param)</MudText>
+
+                                    @if (CardSubtitle is not null)
+                                    {
+                                        <MudText Style="width: 100%;white-space: nowrap;text-overflow: ellipsis;overflow: hidden;font-size: 12px;">@CardSubtitle(item.Param)</MudText>
+                                    }
+                                </MudItem>
+
+                                <MudItem xs="2">
+                                    @if (CardOptions is not null)
+                                    {
+                                        <div class="d-flex justify-end">
+                                            @if (!item.OptionsExpanded)
+                                            {
+                                                <div>
+                                                    <MudTooltip Text="Show Options">
+                                                        <MudIconButton Style="color: #424242" OnClick="@(() => SetItemOptions(item, true))" Icon="@Icons.Material.Filled.KeyboardArrowLeft" Size="Size.Medium"></MudIconButton>
+                                                    </MudTooltip>
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <div class="aparecer-desde-derecha" style="height: 44px;position: absolute;background-color: rgba(255, 255, 255, 0.6);">
+                                                    <MudTooltip Text="Hide Options">
+                                                        <MudIconButton Style="color: #424242" OnClick="@(() => SetItemOptions(item, false))" Icon="@Icons.Material.Filled.KeyboardArrowRight" Size="Size.Medium"></MudIconButton>
+                                                    </MudTooltip>
+
+                                                    @CardOptions(item.Param)
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+                                </MudItem>
+                            }
+                        </MudGrid>
+                    </MudPaper>
+                }
+            </MudGrid>
+        </MudItem>
+    }
+    else
+    {
+        <MudItem Style="margin-left: 16px;margin-right: -18px;" xs="12">
+            <MudGrid>
+                @for (int i = 0; i < _tableState.PageSize; i++)
+                {
+                    <MudPaper Style="width: 100%;margin-bottom: 1px;" Elevation="5" Class="pa-3">
+                        <MudGrid>
+                            <MudItem xs="5">
+                                <MudSkeleton Style="width: 100%;margin-bottom: 1px !important;" Animation="Animation.Wave" SkeletonType="SkeletonType.Text" />
+                                <MudSkeleton Style="width: 100%;margin-bottom: 1px !important;" Animation="Animation.Wave" SkeletonType="SkeletonType.Text" />
+                            </MudItem>
+                            <MudItem Style="display: flex;" xs="7">
+                                <div style="display: block;margin-left: auto;margin-right: 0;">
+                                    <MudSkeleton Width="24px" Height="24px" Animation="Animation.Wave" SkeletonType="SkeletonType.Rectangle" />
+                                </div>
+                            </MudItem>
+                        </MudGrid>
+                    </MudPaper>
+                }
+            </MudGrid>
+        </MudItem>
+    }
+
+    <MudItem xs="12">
+        @if (_loading)
+        {
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Style="display: block;margin-left: auto;margin-right: auto;" Size="Size.Medium" />
+        }
+        else
+        {
+            <MudIconButton OnClick="LoadMoreItemsAsync" Disabled="_loading || _disableLoadMore" Style="display: block;margin-left: auto;margin-right: auto;" Icon="@Icons.Filled.Refresh" Size="Size.Large" />
+        }
+    </MudItem>
+</MudGrid>
+
+@code {
+
+    [Parameter]
+    public string Style { get; set; } = null!;
+
+    [Parameter]
+    public string? Title { get; set; } = null!;
+
+    [Parameter]
+    public RenderFragment Manage { get; set; } = null!;
+
+    [Parameter]
+    public RenderFragment Filters { get; set; } = null!;
+
+    [Parameter]
+    public RenderFragment Actions { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback<T> OnCardClick { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnLoadPublicUniversitiesCount { get; set; }
+
+    [Parameter]
+    public RenderFragment<T>? CardImage { get; set; } = null!;
+
+    [Parameter]
+    public RenderFragment<T>? CardOptions { get; set; } = null!;
+
+    [Parameter]
+    public RenderFragment<T>? CardDate { get; set; } = null!;
+
+    [Parameter]
+    public RenderFragment<T>? CardTitle { get; set; } = null!;
+
+    [Parameter]
+    public RenderFragment<T>? CardSubtitle { get; set; } = null!;
+
+    [Parameter]
+    public RenderFragment<T>? CardViewIcon { get; set; } = null!;
+
+    [Parameter]
+    public string? EndPoint { get; set; } = null!;
+
+    [Parameter]
+    public bool isEmailList { get; set; } = false;
+
+    [Parameter]
+    public bool IsUniversityPublicList { get; set; } = false;
+
+    [Parameter]
+    public string? AddNewRoute { get; set; }
+
+    [Parameter]
+    public string? Search { get; set; } = string.Empty;
+
+    [Parameter]
+    public int? Elevation { get; set; } = 5;
+
+    [Parameter]
+    public Func<MobileItem<T>, bool>? SearchBy { get; set; }
+
+    [Parameter]
+    public EventHandler<UniversityDTO> OnUniversitySelected { get; set; }
+
+    [Parameter]
+    public IEnumerable<T>? Elements
+    {
+        get => Items.Select(i => i.Param);
+        set
+        {
+            if (value != null)
+                _items = value.Select(e => new MobileItem<T>(e)).ToArray();
+        }
+    }
+    private MobileItem<T>[] _items = Array.Empty<MobileItem<T>>();
+    public MobileItem<T>[] Items => SearchBy is not null ? _items.Where(SearchBy).ToArray() : _items;
+
+    protected override void OnInitialized()
+    {
+        Task.Run(async () =>
+        {
+            await LoadMoreItemsAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void ForceRender() => StateHasChanged();
+
+    bool _loading;
+    bool _disableLoadMore;
+
+    readonly TableState _tableState = new TableState
+        {
+            PageSize = 6
+        };
+
+    int _totalItems;
+
+    private async Task LoadMoreItemsAsync()
+    {
+        if (EndPoint is null)
+            return;
+
+        _loading = true;
+        StateHasChanged();
+
+        _tableState.PageSize += 11;
+
+        if (EndPoint.Last() == '=')
+            EndPoint += "&";
+
+        var response = await _httpClient.GetFromJsonAsync<Response<T[]>>($"api/v1/{EndPoint}page={_tableState.Page}&take={_tableState.PageSize}");
+        if (response is not null)
+        {
+            _items = response.Payload.Select(i => new MobileItem<T>(i)).ToArray();
+            
+            _totalItems = response.Total ?? 0;
+            if (IsUniversityPublicList)
+            {
+                await OnLoadPublicUniversitiesCount.InvokeAsync(_totalItems);
+            }
+        }
+        _loading = false;
+
+        _disableLoadMore = _totalItems <= _tableState.PageSize;
+        StateHasChanged();
+    }
+    private void SelectItem()
+    {
+        if (!isEmailList)
+        {
+            return;
+        }
+        else
+        {
+
+        }
+    }
+
+    public async Task ResetItemsAsync()
+    {
+        if (EndPoint is null)
+            return;
+
+        _loading = true;
+        StateHasChanged();
+
+        var response = await _httpClient.GetFromJsonAsync<Response<T[]>>($"api/v1/{EndPoint}page={_tableState.Page}&take={_tableState.PageSize}");
+
+        if (response is not null)
+        {
+            _items = response.Payload.Select(i => new MobileItem<T>(i)).ToArray();
+            _totalItems = response.Total ?? 0;
+        }
+
+        _loading = false;
+        _disableLoadMore = _totalItems <= _tableState.PageSize;
+        StateHasChanged();
+    }
+
+    private bool _isOptionsOpen;
+
+    private string GetOptionsVisibility(bool isOpener)
+    {
+        if (isOpener)
+        {
+            return _isOptionsOpen ? "hidden" : "visible";
+        }
+
+        return _isOptionsOpen ? "visible" : "hidden";
+    }
+
+    private void SetItemOptions(MobileItem<T> item, bool expanded)
+    {
+        if (expanded)
+        {
+            var mobileItems = _items.Where(i => i != item);
+
+            foreach (var mobileItem in mobileItems)
+                mobileItem.OptionsExpanded = false;
+        }
+
+        item.OptionsExpanded = expanded;
+        StateHasChanged();
+    }
+
+    private bool _manageIsExpanded;
+
+    public void SetManageIsExpanded(bool isExpanded, bool fromOutside = false)
+    {
+        _manageIsExpanded = isExpanded;
+
+        if (fromOutside)
+            StateHasChanged();
+    }
+
+    public class MobileItem<TParam>
+    {
+        public bool OptionsExpanded { get; set; }
+
+        public TParam Param { get; }
+
+        public MobileItem(TParam item)
+        {
+            Param = item;
+        }
+    }
+
+}

@@ -1,0 +1,215 @@
+﻿@layout MainLayout
+@page "/messages-inbox"
+
+@using iSportsRecruiting.Shared.DTO;
+@using iSportsRecruiting.Client.Shared.Dialogs
+@using System.Net.Http.Json
+
+@inject ISnackbar _snackBar
+@inject HttpClient _httpClient
+@inject IDialogService _dialogService
+@inject Blazored.LocalStorage.ILocalStorageService _localStorage;
+
+
+
+<MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+    <div class="mb-6">
+        <MudRadioGroup @bind-SelectedOption="FilterOption">
+            <MudRadio Option="@("Incoming")">Incoming</MudRadio>
+            <MudRadio Option="@("Outgoing")">Outgoing</MudRadio>
+        </MudRadioGroup>
+    </div>
+    <MudPaper Square="true" Class="pa-3 mt-4">
+        <MudGrid>
+            <MudItem sm="12" xs="12">
+                <MudTextField Class="mr-1" T="string" TextChanged="Search" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Search" AdornmentColor="Color.Primary" />
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    @if (FilterOption == "Incoming")
+    {
+        <MudTable Class="mb-4" Items="Elements" Dense="true" Hover="true" Square="true" SortLabel="Sort By" Loading="_loading" LoadingProgressColor="@Color.Secondary">
+            <ColGroup>
+                <col />
+                <col />
+                <col />
+                <col />
+            </ColGroup>
+            <HeaderContent>
+                <MudTh>
+                    <MudTableSortLabel SortBy="new Func<MessageSmsDTO, object>(x => x.FullName)">Name</MudTableSortLabel>
+                </MudTh>
+                <MudTh>
+                    <MudTableSortLabel SortBy="new Func<MessageSmsDTO, object>(x => x.Phone)">Phone</MudTableSortLabel>
+                </MudTh>
+                <MudTh>
+                    <MudTableSortLabel SortBy="new Func<MessageSmsDTO, object>(x => x.Role)">Role</MudTableSortLabel>
+                </MudTh>
+                <MudTh>
+                    <MudTableSortLabel SortBy="new Func<MessageSmsDTO, object>(x => x.Sms)">SMS</MudTableSortLabel>
+                </MudTh>
+                <MudTh>
+                    <MudTableSortLabel SortBy="new Func<MessageSmsDTO, object>(x => x.Date)">Date</MudTableSortLabel>
+                </MudTh>
+            </HeaderContent>
+            <RowTemplate>
+
+                <MudTd DataLabel="Name">@context.FullName</MudTd>
+                <MudTd DataLabel="Phone">@context.Phone</MudTd>
+                <MudTd DataLabel="Role">@context.Role</MudTd>
+                <MudTd DataLabel="Sms">@context.Sms</MudTd>
+                <MudTd DataLabel="Date">@context.Date</MudTd>
+            </RowTemplate>
+            <PagerContent>
+                <MudTablePager PageSizeOptions="new int[] {10, 25, 50, 100}" />
+            </PagerContent>
+        </MudTable>
+    }
+    else
+    {
+        <MudTable Class="mb-4" Items="Elements" Dense="true" Hover="true" Square="true" SortLabel="Sort By" Loading="_loading" LoadingProgressColor="@Color.Secondary">
+            <ColGroup>
+                <col />
+                <col />
+                <col />
+                <col />
+            </ColGroup>
+            <HeaderContent>
+                <MudTh>
+                    <MudTableSortLabel SortBy="new Func<MessageSmsDTO, object>(x => x.From)">From</MudTableSortLabel>
+                </MudTh>
+                <MudTh>
+                    <MudTableSortLabel SortBy="new Func<MessageSmsDTO, object>(x => x.Phone)">To</MudTableSortLabel>
+                </MudTh>
+                <MudTh>
+                    <MudTableSortLabel SortBy="new Func<MessageSmsDTO, object>(x => x.Sms)">SMS</MudTableSortLabel>
+                </MudTh>
+                <MudTh>
+                    <MudTableSortLabel SortBy="new Func<MessageSmsDTO, object>(x => x.Status)">Status</MudTableSortLabel>
+                </MudTh>
+                <MudTh>
+                    <MudTableSortLabel SortBy="new Func<MessageSmsDTO, object>(x => x.Date)">Date</MudTableSortLabel>
+                </MudTh>
+
+            </HeaderContent>
+            <RowTemplate>
+
+                <MudTd DataLabel="From">@context.From</MudTd>
+                <MudTd DataLabel="Phone">@context.Phone</MudTd>
+                <MudTd DataLabel="Sms">@context.Sms</MudTd>
+                <MudTd DataLabel="Status">
+                    @if (context.Status.ToLower() == "failed")
+                    {
+                        <MudTooltip Text="@context.Error">
+                            <MudChip Style="cursor: pointer" Color="Color.Error">@context.Status.ToUpper()</MudChip>
+                        </MudTooltip>
+                    }
+                    else if(context.Status.ToLower() == "undelivered")
+                    {
+                        <MudChip Color="Color.Info">@context.Status.ToUpper()</MudChip>
+                    }
+                    else
+                    {
+                        <MudChip Color="Color.Secondary">@context.Status.ToUpper()</MudChip>
+                    }
+            </MudTd>
+            <MudTd DataLabel="Date">@context.Date</MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new int[] {10, 25, 50, 100}" />
+        </PagerContent>
+    </MudTable>
+    }
+
+</MudHidden>
+
+@code {
+    private string _filterOption = "Incoming";
+    public string FilterOption
+    {
+        get => _filterOption;
+        set
+        {
+            _filterOption = value;
+            _ = Task.Run(async () =>
+            {
+                await GetInitialDataAsync();
+            });
+        }
+    }
+
+    private string? _athleteEndpoint => _account is not null && _account?.Type != UserType.Admin || _account?.Type == UserType.Admin && ShowOnlyReferrals
+        ? $"Athlete/referral/{_account?.Id}?"
+        : "Athlete?";
+
+    private bool _showOnlyReferrals;
+
+    private bool ShowOnlyReferrals
+    {
+        get => _showOnlyReferrals;
+        set
+        {
+            _showOnlyReferrals = value;
+            Task.Run(async () => await GetInitialDataAsync());
+        }
+    }
+
+    private MessageSmsDTO[] _elements = Array.Empty<MessageSmsDTO>();
+
+    private MessageSmsDTO[] Elements
+    {
+        get
+        {
+            return _elements.Where(a => (string.IsNullOrWhiteSpace(_search)
+                                         || (a.FullName).Contains(_search,
+                                             StringComparison.InvariantCultureIgnoreCase))).ToArray();
+        }
+        set => _elements = value;
+    }
+
+    private SportDTO[] _sports = Array.Empty<SportDTO>();
+
+    private string _search = string.Empty;
+    private bool _loading;
+    private bool _editMode;
+    private string _description;
+    private AccountDto _account;
+    DateRange _dateRange = new(DateTime.Now.Date, DateTime.Now.AddDays(5).Date);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetInitialDataAsync();
+    }
+
+    private ListMobile<ContactDTO>? _listMobile;
+
+    private async Task GetInitialDataAsync()
+    {
+        try
+        {
+            _loading = true;
+            StateHasChanged();
+
+            _account = await _localStorage.GetItemAsync<AccountDto>("account");
+
+            var response = await _httpClient.GetFromJsonAsync<Response<MessageSmsDTO[]>>($"api/v1/sms?direction={FilterOption}");
+
+            if (response is not null && response.Status == ResponseStatus.Ok)
+            {
+                Elements = response.Payload;
+            }
+
+            _loading = false;
+            StateHasChanged();
+        }
+        catch (Exception e)
+        {
+        }
+    }
+
+    private void Search(string value)
+    {
+        _search = value;
+    }
+}

@@ -1,0 +1,39 @@
+﻿@namespace iSportsRecruiting.Client.Shared.Dialogs
+
+<MudDialog>
+    <TitleContent>
+        <MudGrid Style="text-align: center">
+            <MudItem sm="3">
+                <img width="80" alt="logo" src="images/ISR_BLACK.png"/>
+            </MudItem>
+            <MudItem sm="9">
+                <MudText Typo="Typo.h6">@Title</MudText>
+            </MudItem>
+        </MudGrid>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid Style="text-align: center">
+            <MudItem sm="12" Class="p-6">
+                <MudText Typo="Typo.body1">@Content</MudText>
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Secondary" Variant="Variant.Filled" OnClick="Confirm">OK</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public string Title { get; set; }
+
+    [Parameter]
+    public string Content { get; set; }
+
+    void Confirm() => MudDialog.Close(DialogResult.Ok(true));
+    void Cancel() => MudDialog.Cancel();
+}

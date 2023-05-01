@@ -1,0 +1,79 @@
+﻿@using iSportsRecruiting.Shared.DTO
+@using iSportsRecruiting.Shared.Email
+@using iSportsRecruiting.Shared.Models
+@using Blazored.LocalStorage
+@using System.Net.Http.Json
+
+@namespace iSportsRecruiting.Client.Shared.Dialogs
+
+@inject ISnackbar _snackBar
+@inject IJSRuntime _jsRuntime;
+@inject HttpClient _httpClient;
+@inject IDialogService _dialogService
+@inject ILocalStorageService _localStorage;
+
+<MudDialog>
+    <TitleContent>
+        <MudText Style="margin-top: 20px" Typo="Typo.h5" Align="Align.Center">
+            <b>SEND A MASS MESSAGE</b>
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid>
+            <MudItem sm="12" xs="12">
+                <MudTextField MaxLength="7500" Counter="7500" AutoFocus="true" Label="Write your message here..." Class="mb-3" Lines="8" @bind-Value="Body"
+                              AdornmentColor="@Color.Primary" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Send" OnAdornmentClick="SendMessages"
+                              Immediate="true" />
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+</MudDialog>
+
+@code {
+
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public bool IsAthletes { get; set; } = false;
+
+    [Parameter]
+    public ContactDTO[] Contacts { get; set; }
+
+    public string Body { get; set; }
+
+    void Cancel() => MudDialog.Cancel();
+
+    private async Task SendMessages()
+    {
+        if (Contacts is not null)
+        {
+            var httpResponse = await _httpClient.PostAsJsonAsync<SmsParentDTO>($"api/v1/sms/sendspecific", new SmsParentDTO { Contacts = Contacts, Message = Body });
+            var response = await httpResponse.Content.ReadFromJsonAsync<Response>();
+
+            if (response is not null && response.Status == ResponseStatus.Ok)
+            {
+                MudDialog.Close();
+            }
+            else
+            {
+                MudDialog.Cancel();
+            }
+        }
+        else
+        {
+            string path = IsAthletes ? "athletes" : "leads";
+            var httpResponse = await _httpClient.PostAsJsonAsync<Sample>($"api/v1/sms/{path}", new Sample { Text = Body });
+            var response = await httpResponse.Content.ReadFromJsonAsync<Response>();
+
+            if (response is not null && response.Status == ResponseStatus.Ok)
+            {
+                MudDialog.Close();
+            }
+            else
+            {
+                MudDialog.Cancel();
+            }
+        }
+    }
+}

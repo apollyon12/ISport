@@ -1,0 +1,684 @@
+﻿@page "/chat/conversations"
+
+@using iSportsRecruiting.Shared.Models
+@using iSportsRecruiting.Shared.DTO
+@using Microsoft.AspNetCore.Components
+@using System.Threading
+@using iSportsRecruiting.Client.Shared.Dialogs
+@using iSportsRecruiting.Shared.Email
+@using iSportsRecruiting.Client.Shared.Utils
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
+@using System.Net.Http.Json
+
+@implements IDisposable
+
+@inject ISnackbar _snackBar
+@inject IJSRuntime _jsRuntime
+@inject HttpClient _httpClient
+@inject IDialogService _dialogService
+@inject Blazored.LocalStorage.ILocalStorageService _localStorage;
+
+<MudPaper Elevation="9" Class="mt-4" Style="height: 95%;">
+    <MudGrid Style="height: 100%;">
+        <MudItem sm="3" Style="padding-right: 0px !important; padding-bottom: 0px !important; padding-top: 0px !important;border-style: none solid none none;border-width: thin; border-color: #d1d1d1;">
+            <div style="padding: 12px; background-color: #e7e7e7; border-style: none none solid none; border-width: thin; border-color: #d1d1d1;">
+                <MudPaper Elevation="0" Class="d-flex flex-row px-2 mx-4" Style="background-color:white; margin-left: 0px !important; margin-right: 0px !important">
+                    <MudIcon Icon="@Icons.Filled.Search" Style="color: #565656; margin-top: 11px;" Size="Size.Small" />
+                    <MudTextField Disabled="_contacts.Any()" @bind-Value="ContactSearch" T="string" Placeholder="Search for a contact" DisableUnderLine="true" Class="mt-n2 mx-4" Immediate="true" />
+                </MudPaper>
+            </div>
+            <MudList Clickable="!_loading" Style="padding-top: 0px !important">
+                <div Style="max-height: calc(100vh - 181px); overflow-y: auto">
+                    @if (_loading)
+                    {
+                        <MudListItem>
+                            <MudGrid>
+                                <MudItem sm=2>
+                                    <MudSkeleton SkeletonType="SkeletonType.Circle" Width="55px" Height="55px" Animation="Animation.Wave" Style="transform: translateY(10%);" />
+                                </MudItem>
+
+                                <MudItem sm="10">
+                                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="100px" Animation="Animation.Wave" />
+                                </MudItem>
+                            </MudGrid>
+                        </MudListItem>
+                    }
+                    else
+                    {
+                        @foreach (var contact in Contacts)
+                        {
+                            <MudListItem Style="@contact.Style" OnClick="@(() => SelectContact(contact))">
+                                <MudGrid>
+                                    <MudItem sm=2>
+                                        <MudBadge Visible="contact.IsOnline" Color="@Color.Success" Overlap="true" Bottom="true" Bordered="true">
+                                            @if (_account?.Type == UserType.Coach)
+                                            {
+                                                <MudAvatar Image="@($"https://isportsrecruiting.com/api/v1/file/200/200/{contact.Avatar}")" Style="width: 55px; height: 55px; transform: translateY(10%);" />
+                                            }
+                                            else
+                                            {
+                                                <MudAvatar Image="@($"https://isportsrecruiting.com/images/logos/{contact.Avatar}.jpg")" Style="width: 55px; height: 55px; transform: translateY(10%);" />
+                                            }
+                                        </MudBadge>
+                                    </MudItem>
+
+                                    <MudItem sm="10">
+                                        <MudText Style="margin-left:12px; font-weight: 600; margin-top: 3%" Typo="Typo.body1">@contact.FullName</MudText>
+
+                                        @if (contact.IsOnline)
+                                        {
+                                            @if (contact.IsWriting)
+                                            {
+                                                <MudText Style="margin-left:12px;" Typo="Typo.caption">Writing...</MudText>
+                                            }
+                                            else
+                                            {
+                                                <MudText Style="margin-left:12px;" Typo="Typo.caption">Online</MudText>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <MudText Style="margin-left:12px;" Typo="Typo.caption">Offline</MudText>
+                                        }
+                                    </MudItem>
+                                </MudGrid>
+                            </MudListItem>
+                            <MudDivider />
+                        }
+                    }
+                </div>
+            </MudList>
+        </MudItem>
+
+        <MudItem sm="9" Style="background-color: #e7e7e7; padding: 0px; padding-bottom: 7px;">
+            <div style="height: 95%">
+                <MudPaper Elevation="0" Square="true" Style="padding: 9px; height: 65px; border-style: none none solid none; border-width: thin; border-color: #d1d1d1;">
+                    <MudGrid>
+                        @if (_loading)
+                        {
+                            <MudItem sm="11">
+                                <div style="display: inline-block; margin-left: 6px">
+                                    <MudSkeleton SkeletonType="SkeletonType.Circle" Width="40px" Height="40px" Animation="Animation.Wave" Style="transform: translateY(10%);" />
+                                </div>
+
+                                <div style="display: inline-block; width: 91%">
+                                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="100px" Animation="Animation.Wave" />
+                                </div>
+                            </MudItem>
+
+                            @if (_contact is not null)
+                            {
+                                <MudItem sm="1">
+                                    <MudMenu Icon="@Icons.Material.Filled.MoreVert" Disabled="true">
+                                        <MudMenuItem>View Profile</MudMenuItem>
+                                        <MudMenuItem>Add Favorite</MudMenuItem>
+                                        <MudMenuItem>Send Email</MudMenuItem>
+                                    </MudMenu>
+                                </MudItem>
+                            }
+                        }
+                        else
+                        {
+                            <MudItem sm="11">
+                                <div style="display: inline-block; margin-left: 6px">
+                                    @if (_account?.Type == UserType.Coach)
+                                    {
+                                        <MudAvatar Image="@($"https://isportsrecruiting.com/api/v1/file/200/200/{_contact.Avatar}")" Style="transform: translateY(10%); cursor:pointer" />
+                                    }
+                                    else
+                                    {
+                                        <MudAvatar Image="@($"https://isportsrecruiting.com/images/logos/{_contact.Avatar}.jpg")" Style="transform: translateY(10%); cursor:pointer" />
+                                    }
+                                </div>
+
+                                <div style="display: inline-block; width: 91%">
+                                    <MudText Style="margin-left:12px; font-weight: 600; font-size: 14px; cursor:pointer" Typo="Typo.body1">@_contact.FullName</MudText>
+                                    @if (_contact.IsOnline)
+                                    {
+                                        @if (_contact.IsWriting)
+                                        {
+                                            <MudText Style="margin-left:12px;" Typo="Typo.caption">Writing...</MudText>
+                                        }
+                                        else
+                                        {
+                                            <MudText Style="margin-left:12px;" Typo="Typo.caption">Online</MudText>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <MudText Style="margin-left:12px;" Typo="Typo.caption">Offline</MudText>
+                                    }
+                                </div>
+                            </MudItem>
+
+                            <MudItem sm="1">
+                                <MudMenu Icon="@Icons.Material.Filled.MoreVert">
+                                    <MudMenuItem>View Profile</MudMenuItem>
+                                    <MudMenuItem>Add Favorite</MudMenuItem>
+                                    <MudMenuItem>Send Email</MudMenuItem>
+                                </MudMenu>
+                            </MudItem>
+                        }
+                    </MudGrid>
+                </MudPaper>
+                @if (_loadingConversation)
+                {
+                    <MudProgressLinear Size="Size.Large" Color="Color.Success" Indeterminate="true" />
+                }
+
+                <MudContainer id="scrollContainer" Style="max-height: calc(100vh - 224px); overflow-y: auto; padding: 0 6%;">
+                    <MudGrid>
+                        @if (_account?.Type == UserType.Coach)
+                        {
+                            foreach (var email in _contact.Conversation)
+                            {
+                                if (email.Id == _contact.Conversation.First().Id)
+                                {
+                                    <MudItem sm="12" Class="mb-1" />
+                                }
+
+                                if (email.Sender_Id == _account?.Coach.Id)
+                                {
+                                    <MudItem sm="12" xs="12" Style="text-align: right">
+                                        <MudPaper Elevation="9" Style="display: inline-block; background-color: #dcf8c6; padding: 8px 13px 8px 13px; border-radius: 3px;">
+                                            <MudText Typo="Typo.body1" Align="Align.Left" Style="font-size: 15px;">@email.Content</MudText>
+
+                                            <MudText Typo="Typo.caption" Align="Align.Right" Style="display: inline-block; font-family: 'Roboto';font-size: 11px;font-weight: lighter;">@(new DateTime(email.TimeStamp).ToLocalTime().ToString("MM/dd/yyyy hh:mm tt"))</MudText>
+
+                                            <div style="display: inline-block">
+                                                @if (email.Error)
+                                                {
+                                                    <MudIcon Style="font-size: 17px" Icon="@Icons.Filled.Error" Color="Color.Error" />
+                                                }
+                                                else if (email.Sent)
+                                                {
+                                                    @if (email.Readed)
+                                                    {
+                                                        <MudIcon Style="font-size: 17px; color: #00c4ff" Icon="@Icons.Filled.Check" />
+                                                    }
+                                                    else
+                                                    {
+                                                        <MudIcon Style="font-size: 17px; color: #8a8b89" Icon="@Icons.Filled.Check" />
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    <MudIcon Style="font-size: 17px; color: #8a8b89" Icon="@Icons.Filled.AccessTime" />
+                                                }
+                                            </div>
+                                        </MudPaper>
+                                    </MudItem>
+                                }
+                                else
+                                {
+                                    <MudItem sm="12" xs="12">
+                                        <MudPaper Elevation="9" Style="background-color: #fff; padding: 8px 13px 8px 13px; display: inline-block; border-radius: 3px; ">
+                                            <MudText Typo="Typo.body1" Align="Align.Left" Style="font-size: 15px;">@email.Content</MudText>
+
+                                            <MudText Typo="Typo.caption" Align="Align.Right" Style="display: block; font-family: 'Roboto';font-size: 11px;font-weight: lighter;">@(new DateTime(email.TimeStamp).ToLocalTime().ToString("MM/dd/yyyy hh:mm tt"))</MudText>
+                                        </MudPaper>
+                                    </MudItem>
+                                }
+                            }
+                        }
+                        else
+                        {
+                            foreach (var email in _contact.Conversation)
+                            {
+                                if (email.Id == _contact.Conversation.First().Id)
+                                {
+                                    <MudItem sm="12" Class="mb-1" />
+                                }
+
+                                if (email.Sender_Id == _account?.Id)
+                                {
+                                    <MudItem sm="12" xs="12" Style="text-align: right">
+                                        <MudPaper Elevation="9" Style="display: inline-block; background-color: #dcf8c6; padding: 8px 13px 8px 13px; display: inline-block; border-radius: 3px; ">
+                                            <MudText Typo="Typo.body1" Align="Align.Left" Style="font-size: 15px;">@email.Content</MudText>
+
+                                            <MudText Typo="Typo.caption" Align="Align.Right" Style="display: inline-block; font-family: 'Roboto';font-size: 11px;font-weight: lighter;">@(new DateTime(email.TimeStamp).ToLocalTime().ToString("MM/dd/yyyy hh:mm tt"))</MudText>
+
+                                            <div style="display: inline-block">
+                                                @if (email.Error)
+                                                {
+                                                    <MudIcon Style="font-size: 17px" Icon="@Icons.Filled.Error" Color="Color.Error" />
+                                                }
+                                                else if (email.Sent)
+                                                {
+                                                    @if (email.Readed)
+                                                    {
+                                                        <MudIcon Style="font-size: 17px; color: #00c4ff" Icon="@Icons.Filled.Check" />
+                                                    }
+                                                    else
+                                                    {
+                                                        <MudIcon Style="font-size: 17px; color: #8a8b89" Icon="@Icons.Filled.Check" />
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    <MudIcon Style="font-size: 17px; color: #8a8b89" Icon="@Icons.Filled.AccessTime" />
+                                                }
+                                            </div>
+                                        </MudPaper>
+                                    </MudItem>
+                                }
+                                else
+                                {
+                                    <MudItem sm="12" xs="12">
+                                        <MudPaper Elevation="9" Style="background-color: #fff; padding: 8px 13px 8px 13px; display: inline-block; border-radius: 3px; ">
+                                            <MudText Typo="Typo.body1" Align="Align.Left" Style="font-size: 15px;">@email.Content</MudText>
+
+                                            <MudText Typo="Typo.caption" Align="Align.Right" Style="display: block;font-family: 'Roboto';font-size: 11px;font-weight: lighter;">@(new DateTime(email.TimeStamp).ToLocalTime().ToString("MM/dd/yyyy hh:mm tt"))</MudText>
+                                        </MudPaper>
+                                    </MudItem>
+                                }
+                            }
+                        }
+                    </MudGrid>
+                </MudContainer>
+            </div>
+
+            <div>
+                @if (Contacts.Any())
+                {
+                    <MudPaper Elevation="9" Class="d-flex flex-row px-2 mx-4" Style="background-color:white">
+                        <MudTextField @onkeypress="OnKeyPressInChat" T="string" @bind-Value="EmailBody" Placeholder="Enter your message..." DisableUnderLine="true" Class="mt-n2 mx-4" />
+                        @if (_account?.Type == UserType.Coach)
+                        {
+                            <MudButton Disabled="_loadingConversation" StartIcon="@Icons.Material.Outlined.Send" Style="color: #565656" ButtonType="ButtonType.Button" OnClick="SendEmailFromCoach">Send</MudButton>
+                        }
+                        else
+                        {
+                            <MudButton Disabled="_loadingConversation" StartIcon="@Icons.Material.Outlined.Send" Style="color: #565656" ButtonType="ButtonType.Button" OnClick="SendEmailFromAthlete">Send</MudButton>
+                        }
+                    </MudPaper>
+                }
+            </div>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+<style>
+
+    html {
+        height: 100%;
+    }
+
+    body {
+        height: 100%;
+    }
+
+    #app {
+        height: 100%;
+    }
+
+    .mud-layout {
+        height: 100%;
+    }
+
+    .mud-main-content {
+        height: 100%;
+    }
+
+    .mud-container {
+        height: 100%;
+    }
+
+    .mud-badge.mud-badge-bottom.right.mud-badge-overlap {
+        inset: calc(100% - 21px) auto auto calc(100% - 18px) !important;
+    }
+</style>
+
+@code
+{
+    private bool _sendingEmail;
+    private bool _loadingContact;
+    private bool _loadingConversation;
+    private string EmailBody { get; set; }
+
+    private CancellationTokenSource _tokenSource = new();
+    private string _contactSearch;
+    private string ContactSearch
+    {
+        get => _contactSearch;
+        set
+        {
+            _contactSearch = value;
+
+            _tokenSource.Cancel();
+            _tokenSource = new();
+
+            Task.Run(async () =>
+            {
+                await Task.Delay(1500);
+
+                StateHasChanged();
+            }, _tokenSource.Token);
+        }
+    }
+
+    private const string Path = "/api/v1/email";
+
+    private bool _loading;
+    private string _search;
+    private AccountDto _account;
+    //private HubConnection _hubConnection;
+
+    private void Search(string value)
+    {
+        _search = value;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _account = await _localStorage.GetItemAsync<AccountDto>("account");
+
+        int id = _account.Type == UserType.Coach ? _account.Coach.Id : _account.Athlete.Id;
+
+        HubEvents.IsInChat = true;
+
+        HubEvents.IsWriting += _id =>
+        {
+            var contact = _contacts.FirstOrDefault(c => c.Id == _id);
+
+            if (contact is not null)
+            {
+                contact.IsWriting = true;
+                StateHasChanged();
+            }
+        };
+
+        HubEvents.Ping += _id =>
+        {
+            var contact = _contacts.FirstOrDefault(c => c.Id == _id);
+
+            foreach (var message in contact.Conversation)
+            {
+                if (message.Sender_Id == id)
+                {
+                    message.Readed = true;
+                }
+            }
+
+            StateHasChanged();
+        };
+
+        HubEvents.ReceivedEmail += email =>
+        {
+            var contact = _contacts.FirstOrDefault(c => c.Id == email.Sender_Id);
+
+            if (contact is not null)
+            {
+                contact.Conversation.Add(email);
+
+                if (contact.Id != _contact.Id)
+                {
+                    contact.MessagesCount++;
+                }
+
+                StateHasChanged();
+
+                int id = _account.Type == UserType.Coach ? _account.Coach.Id : _account.Athlete.Id;
+
+                _httpClient.GetAsync($"api/v1/email/readed/{id}/{email.Sender_Id}");
+            }
+        };
+
+
+        await GetElements();
+    }
+
+    private List<Contact> _contacts = new();
+    private List<Contact> Contacts => _contacts.Where(c => string.IsNullOrWhiteSpace(ContactSearch) || c.FullName.Contains(ContactSearch, StringComparison.InvariantCultureIgnoreCase)).ToList();
+    private Contact _contact = new();
+
+
+    private async Task GetElements()
+    {
+        if (!_loading)
+        {
+            _loading = true;
+            StateHasChanged();
+        }
+
+        if (_account.Type == UserType.Coach)
+        {
+            var responseAthletes = await _httpClient.GetFromJsonAsync<Response<AthleteDTO[]>>($"api/v1/athlete/sport/{_account.Coach.SportId}");
+            _contacts.AddRange(responseAthletes?.Payload.Select(a => new Contact { Id = a.Id, FullName = $"{a.FirstName} {a.LastName}", Email = a.Email, Avatar = a.ImageProfile }));
+
+            if (_contacts.Any())
+            {
+                _contact = _contacts.First();
+                SelectContact(_contact);
+            }
+        }
+        else
+        {
+            var responseCoaches = await _httpClient.GetFromJsonAsync<Response<CoachModel[]>>($"api/v1/coach/sport/{_account.Athlete.SportId}");
+            _contacts.AddRange(responseCoaches?.Payload.Select(a => new Contact { Id = a.Id, FullName = $"{a.First_Name} {a.Last_Name}", Email = a.Email, Avatar = a.Image }));
+
+            if (_contacts.Any())
+            {
+                _contact = _contacts.First();
+                SelectContact(_contact);
+            }
+        }
+
+        _loading = false;
+    }
+
+    private async Task OnKeyPressInChat(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            if (!string.IsNullOrWhiteSpace(EmailBody))
+            {
+                if (_account.Type == UserType.Coach)
+                {
+                    await SendEmailFromCoach();
+                }
+                else
+                {
+                    await SendEmailFromAthlete();
+                }
+            }
+        }
+    }
+
+    private async Task SendEmailFromCoach()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(EmailBody))
+            {
+                _snackBar.Add("You can't sent an empty email", Severity.Info);
+                return;
+            }
+
+            var email = new EmailModel
+            {
+                Receiver_Name = _contact.FullName,
+                Receiver_Image = _contact.Avatar,
+                Sender_Name = $"{_account.Coach.FirstName} {_account.Coach.LastName}",
+                Content = EmailBody,
+                Receiver_Id = _contact.Id,
+                Sender_Id = _account.Coach.Id,
+                Sent = false
+            };
+
+            var emailBodyBk = EmailBody;
+
+            EmailBody = null;
+            _sendingEmail = true;
+            _contact.Conversation.Add(email);
+            StateHasChanged();
+
+            var universityResponse = await _httpClient.GetFromJsonAsync<Response<UniversityDTO[]>>($"api/v1/university?id={_account.Coach.UniversityId}");
+            var university = universityResponse.Payload.First();
+            string subject = $"Coach {_account.Coach.FirstName} {_account.Coach.LastName} from {university.University} is interested in you";
+
+            email.Subject = subject;
+            email.Sender_Image = $"https://isportsrecruiting.com/images/logos/{universityResponse?.Payload.FirstOrDefault().Image}.jpg";
+
+            //var response = await _httpClient.PostAsJsonAsync($"api/v1/email/sendemail/collegecoach@isportsrecruiting.com/{_account.Coach.FirstName} {_account.Coach.LastName}/{subject}/{EmailBody}",
+            //    new EmailContact { Email = Athlete.Email, Name = $"{Athlete.FirstName} {Athlete.LastName}" });
+
+            var httpEmailResponse = await _httpClient.PostAsJsonAsync("api/v1/email", email);
+
+            email.Sent = true;
+            StateHasChanged();
+
+            if (httpEmailResponse.IsSuccessStatusCode)
+            {
+                var emailResponse = await httpEmailResponse.Content.ReadFromJsonAsync<Response<int>>();
+
+                var notification = new Notification
+                {
+                    Entity_Id = _contact.Id,
+                    Title =  subject,
+                    Body = emailBodyBk,
+                    Type = "email",
+                    Link = "/chat/conversations",
+                    Image = $"https://isportsrecruiting.com/images/logos/{universityResponse?.Payload.FirstOrDefault().Image}.jpg",
+                    External_Relate_Id = _account.Coach.Id
+                };
+                notification.SetIcon(Icons.Filled.Email);
+
+                _ = _httpClient.PostAsJsonAsync("api/v1/hub", notification);
+
+                SuccessEmail();
+            }
+        }
+        catch (Exception e)
+        {
+            _snackBar.Add(e.Message, Severity.Error);
+        }
+    }
+
+    private async Task SendEmailFromAthlete()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(EmailBody))
+            {
+                _snackBar.Add("You can't sent an empty email", Severity.Info);
+                return;
+            }
+
+            var email = new EmailModel
+            {
+                Receiver_Id = _contact.Id,
+                Receiver_Name = _contact.FullName,
+                Receiver_Image = $"https://isportsrecruiting.com/images/logos/{_contact.Avatar}.jpg",
+                Sender_Id = _account.Id,
+                Sender_Image = _account.Athlete.ImageProfile,
+                Sender_Name = $"{_account.Athlete.FirstName} {_account.Athlete.LastName}",
+                Content = EmailBody,
+                Sent = false
+            };
+
+            var emailBodyBk = EmailBody;
+
+            EmailBody = null;
+            _sendingEmail = true;
+            _contact.Conversation.Add(email);
+            StateHasChanged();
+
+            var responseCoach = await _httpClient.GetFromJsonAsync<Response<CoachModel>>($"api/v1/coach/{_contact.Id}");
+            var coach = responseCoach.Payload;
+
+            string subject = $"{_account.Athlete.FirstName} {_account.Athlete.LastName}, {_account.Athlete.State}, GPA {_account.Athlete.GPA}, {_account.Athlete.Position}";
+            email.Subject = subject;
+
+            //var response = await _httpClient.PostAsJsonAsync($"api/v1/email/sendemail/studentathlete@isportsrecruiting.com/{_account.Athlete.FirstName} {_account.Athlete.LastName}/{subject}/{EmailBody}",
+            // new EmailContact { Email = coach.Email, Name = recipientName });
+
+            var httpEmailResponse = await _httpClient.PostAsJsonAsync<EmailModel>("api/v1/email", email);
+
+            email.Sent = true;
+            StateHasChanged();
+
+            if (httpEmailResponse.IsSuccessStatusCode)
+            {
+                var emailResponse = await httpEmailResponse.Content.ReadFromJsonAsync<Response<int>>();
+
+                var notification = new Notification
+                {
+                    Entity_Id = coach.Id,
+                    Title =  subject,
+                    Body = emailBodyBk,
+                    Type = "email",
+                    Link = "/chat/conversations",
+                    Image = _account.Athlete.ImageProfile,
+                    External_Relate_Id = _account.Athlete.Id
+                };
+                notification.SetIcon(Icons.Filled.Email);
+
+                _ = _httpClient.PostAsJsonAsync("api/v1/hub", notification);
+
+                SuccessEmail();
+            }
+        }
+        catch (Exception e)
+        {
+            _snackBar.Add(e.Message, Severity.Error);
+        }
+    }
+
+    private void SuccessEmail()
+    {
+        _snackBar.Add("Email sent!", Severity.Success);
+        _sendingEmail = false;
+        StateHasChanged();
+    }
+
+    public void OpenConversation(EmailModel email)
+    {
+        _dialogService.Show<SendEmail>("Send Email",
+            new DialogParameters { ["TempData"] = new EmailTempData { ReplyTo = email } },
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
+    }
+
+    private CancellationTokenSource tokenSource = new();
+    private void SelectContact(Contact contact)
+    {
+        foreach (var c in _contacts.Where(c => c.IsSelected))
+            c.IsSelected = false;
+
+        contact.IsSelected = true;
+        _contact = contact;
+
+        _loadingConversation = true;
+
+        tokenSource.Cancel();
+        tokenSource = new();
+
+        Task.Run(async () =>
+        {
+            var responseHistory = await _httpClient.GetFromJsonAsync<Response<IEnumerable<EmailModel>>>($"api/v1/email/history/{_account.Id}/{contact.Id}");
+            contact.Conversation = responseHistory.Payload.ToList();
+            _loadingConversation = false;
+            StateHasChanged();
+
+            if (contact.Conversation.Any())
+            {
+                int id = _account.Type == UserType.Coach ? _account.Coach.Id : _account.Athlete.Id;
+
+                await _httpClient.GetAsync($"api/v1/email/readed/{id}/{_contact.Id}");
+            }
+        }, tokenSource.Token);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        //await _jsRuntime.InvokeVoidAsync("scrollToBottom", "scrollContainer");
+    }
+
+
+    public void Dispose()
+    {
+        HubEvents.IsInChat = false;
+        HubEvents.CloseChat();
+    }
+}

@@ -1,0 +1,115 @@
+﻿@using iSportsRecruiting.Shared.DTO
+@using iSportsRecruiting.Shared.Email
+@using iSportsRecruiting.Shared.Models
+@using Blazored.LocalStorage
+@using System.Net.Http.Json
+
+@namespace iSportsRecruiting.Client.Shared.Dialogs
+
+@inject ISnackbar _snackBar
+@inject IJSRuntime _jsRuntime;
+@inject HttpClient _httpClient;
+@inject IDialogService _dialogService
+@inject ILocalStorageService _localStorage;
+
+<MudDialog>
+    <TitleContent>
+        <MudText Style="margin-top: 20px" Typo="Typo.h5" Align="Align.Center">
+            <b>SEND A MASS EMAIL</b>
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        
+        @if (_isRendering)
+        {
+            <div style="text-align: right">
+                <MudButton Class="mb-6" Variant="Variant.Text" Color="Color.Primary" OnClick="ToggleIsRendering">Show Plain Text</MudButton>
+            </div>
+
+            <MudTextField AutoFocus="true" Label="Subject" Class="mb-3" @bind-Value="Subject" Variant="Variant.Outlined" Immediate="true" />
+
+            <MudGrid>
+                <MudItem xs="12">
+                    <iframe srcdoc="@Body" style="width:100%; height: 400px" />
+                </MudItem>
+                <MudItem xs="12">
+                    <div style="text-align: right">
+                        <MudButton Class="mb-6" Variant="Variant.Filled" Color="Color.Primary" OnClick="SendMessages" EndIcon="@Icons.Filled.Send">Send Emails</MudButton>
+                    </div>
+                </MudItem>
+            </MudGrid>
+        }
+        else
+        {
+            <div style="text-align: right">
+                <MudButton Class="mb-6" Variant="Variant.Text" Color="Color.Primary" OnClick="ToggleIsRendering">Render HTML</MudButton>
+            </div>
+
+            <MudTextField AutoFocus="true" Label="Subject" Class="mb-3" @bind-Value="Subject" Variant="Variant.Outlined" Immediate="true" />
+
+            <MudGrid>
+                <MudItem sm="12" xs="12">
+                    <MudTextField AutoFocus="true" Label="Write your message here..." Class="mb-3" Lines="8" @bind-Value="Body"
+                              AdornmentColor="@Color.Primary" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Send" OnAdornmentClick="SendMessages"
+                              Immediate="true" />
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+</MudDialog>
+
+@code {
+
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public ContactDTO[] Contacts { get; set; }
+
+    public string Body { get; set; }
+
+    public string Subject { get; set; }
+
+    void Cancel() => MudDialog.Cancel();
+
+    private bool _isRendering;
+
+    private void ToggleIsRendering()
+    {
+        _isRendering = !_isRendering;
+        StateHasChanged();
+    }
+
+    private async Task SendMessages()
+    {
+        if (Contacts is not null)
+        {
+            var httpResponse = await _httpClient.PostAsJsonAsync<EmailParentDTO>($"api/v1/email/sendspecific", new EmailParentDTO { Contacts = Contacts, Message = Body, Subject = Subject });
+            var response = await httpResponse.Content.ReadFromJsonAsync<Response>();
+
+            if (response is not null && response.Status == ResponseStatus.Ok)
+            {
+                MudDialog.Close();
+            }
+            else
+            {
+                MudDialog.Cancel();
+            }
+        }
+        else
+        {
+            string path = "athletes";
+            var httpResponse = await _httpClient.PostAsJsonAsync<Sample>($"api/v1/sms/{path}", new Sample { Text = Body });
+            var response = await httpResponse.Content.ReadFromJsonAsync<Response>();
+
+            if (response is not null && response.Status == ResponseStatus.Ok)
+            {
+                MudDialog.Close();
+            }
+            else
+            {
+                MudDialog.Cancel();
+            }
+        }
+    }
+}

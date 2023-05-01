@@ -1,0 +1,55 @@
+﻿<style>
+    .mud-grid-spacing-xs-3 {
+        margin: 0;
+    }
+</style>
+
+<MudGrid>
+    <MudItem xs="12">
+        <MudGrid Style="margin: 0%;" Justify="Justify.Center">
+            <MudItem Style="padding-top: 1%; padding-left: 31%; padding-bottom: 0% !important;" xs="12">
+                <img src="images/ISR_BLACK.png" alt="ISR" style="width: 158px;margin-top:22%">
+            </MudItem>
+            <MudItem Style="padding-left: 34%;" xs="12">
+                <MudAvatar Elevation="0" Variant="Variant.Outlined" Style="height:121px; width:121px; border: 5px solid #2ebb0eff !important;" Image="@Icon"></MudAvatar>
+            </MudItem>
+        </MudGrid>
+    </MudItem>
+
+    <MudItem xs="12" Style="background-image: url('images/PresentationRayas.png'); background-repeat:no-repeat; background-position:center;
+            background-attachment:fixed; background-size:contain;display: flex; justify-content: center; padding:0px">
+        <!--
+            <img src="images/PresentationRayas.png" alt="ISR" style="width:100%; height: 44%; position: absolute; padding-top: 21%; padding-bottom: 5%;">
+        -->
+        <MudCard Elevation="24" Style="border-radius: 21px; width:80%;padding-top: 11px;padding-bottom: 11px;">
+            <MudText Style="font-weight: 300;font-family: serif;color: #646464 !important; font-size: 28px" Align="Align.Center" Typo="Typo.h4">@Title</MudText>
+            <MudCardMedia Image="@Banner" Style="-webkit-filter: grayscale(100%);filter: grayscale(100%);background-position: center; border-radius: 0 !important;margin-top: 11px;margin-bottom: 11px;" Height="167" />
+            <MudText Style="font-weight: 300;font-family: serif;color: #646464 !important;font-size: 28px" Align="Align.Center" Typo="Typo.h4">@Subtitle</MudText>
+        </MudCard>
+    </MudItem>
+
+    <MudItem xs="12" Style="padding-top: 36px;">
+        <MudText Align="Align.Center" Style="color: #0c0c0c !important;font-weight: bolder;margin-top: 9%;font-size: 35px;line-height: 31px !important;text-shadow: 2px 2px 3px #181818;font-family: 'Roboto';width: 230px;margin: auto;" Typo="Typo.h5">@ActionTitle</MudText>
+        <MudFab OnClick="@(async () => await Action.InvokeAsync())" Size="Size.Large" Variant="Variant.Filled" Style="bottom: 12px;right: 35px;position: absolute;" Color="Color.Secondary" Icon="@Icons.Filled.ArrowForward"></MudFab>
+    </MudItem>
+</MudGrid>
+
+@code {
+    [Parameter]
+    public EventCallback Action { get; set; }
+
+    [Parameter]
+    public string? Icon { get; set; }
+
+    [Parameter]
+    public string? Banner { get; set; }
+
+    [Parameter]
+    public string? Title { get; set; }
+
+    [Parameter]
+    public string? Subtitle { get; set; }
+
+    [Parameter]
+    public string? ActionTitle { get; set; }
+}

@@ -1,0 +1,92 @@
+﻿@using System.Threading
+@using iSportsRecruiting.Shared.DTO
+@using Microsoft.AspNetCore.Components
+@using System.Net.Http.Json
+
+@inject HttpClient _httpClient;
+
+<MudItem xs="12">
+    <MudAutocomplete @ref="_autocompleteSports" Required="true" Variant="Variant.Outlined" @bind-Value="Sport" T="SportDTO" Label="Sport" SearchFunc="@SearchSport"
+                     Clearable="true" MaxItems="10" ToStringFunc="sport => sport.Name" />
+</MudItem>
+<MudItem xs="12">
+    <MudAutocomplete Required="true" Disabled="Sport is null" Variant="Variant.Outlined" @bind-Value="University" T="UniversityDTO" Label="University" SearchFunc="@SearchUniversity"
+                     Clearable="true" MaxItems="10" ToStringFunc="university => university.University" />
+</MudItem>
+
+@code {
+    private MudAutocomplete<SportDTO> _autocompleteSports;
+
+    [Parameter]
+    public CoachDTO Model { get; set; }
+    [Parameter]
+    public EventCallback<CoachDTO> ModelChanged { get; set; }
+
+    [Parameter]
+    public UniversityDTO University { get; set; }
+    [Parameter]
+    public EventCallback<UniversityDTO> UniversityChanged { get; set; }
+    public UniversityDTO[] Universities { get; set; } = Array.Empty<UniversityDTO>();
+
+    [Parameter]
+    public SportDTO Sport { get; set; }
+    [Parameter]
+    public EventCallback<SportDTO> SportChanged { get; set; }
+
+    [Parameter]
+    public int CoachType { get; set; } = 1;
+    [Parameter]
+    public EventCallback<int> CoachTypeChanged { get; set; }
+
+    public SportDTO[] Sports { get; set; } = Array.Empty<SportDTO>();
+
+    CancellationTokenSource _tokenSource = new();
+    private async Task<IEnumerable<SportDTO>> SearchSport(string value)
+    {
+        _tokenSource.Cancel();
+        _tokenSource = new();
+
+        var sportsResponse = await _httpClient.GetFromJsonAsync<Response<SportDTO[]>>($"api/v1/sport?search={value}&page=1&take=10", _tokenSource.Token);
+        if (sportsResponse is not null && sportsResponse.Status == ResponseStatus.Ok)
+        {
+            Sports = sportsResponse.Payload;
+        }
+
+        return Sports;
+    }
+
+    CancellationTokenSource _tokenSourceUniversity = new();
+    private async Task<IEnumerable<UniversityDTO>> SearchUniversity(string value)
+    {
+        _tokenSourceUniversity.Cancel();
+        _tokenSourceUniversity = new();
+
+        var universitiesSports = await _httpClient.GetFromJsonAsync<Response<UniversityDTO[]>>($"api/v1/university?sportName={Sport.Name}&search={value}&page=0&take=10", _tokenSourceUniversity.Token);
+        if (universitiesSports is not null && universitiesSports.Status == ResponseStatus.Ok)
+        {
+            Universities = universitiesSports.Payload;
+        }
+
+        return Universities;
+    }
+
+    public bool CheckIfCompleted()
+    {
+        var isCompleted = University is not null
+                          && Sport is not null;
+
+        if (isCompleted)
+        {
+            Model.SportId = Sport.Id;
+            Model.IsCoach = CoachType == 1;
+            Model.UniversityId = University.Id;
+
+            ModelChanged.InvokeAsync(Model);
+            SportChanged.InvokeAsync(Sport);
+            CoachTypeChanged.InvokeAsync(CoachType);
+            UniversityChanged.InvokeAsync(University);
+        }
+
+        return isCompleted;
+    }
+}

@@ -1,0 +1,464 @@
+﻿@page "/schedules"
+
+@using Blazored.LocalStorage
+@using iSportsRecruiting.Shared.DTO;
+@using iSportsRecruiting.Client.Shared.Dialogs
+@using System.Net.Http.Json
+
+@inject HttpClient _httpClient;
+@inject IDialogService _dialogService
+@inject ILocalStorageService _localStorage;
+
+<style>
+    .tr-background {
+        background-color: #e3f9e4;
+    }
+</style>
+
+
+<MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+    <MudExpansionPanels Elevation="9">
+        <MudExpansionPanel Text="Manage" @bind-IsExpanded="IsExpanded">
+            <MudGrid>
+                @if (!EditMode)
+                {
+                    <MudItem sm="2" xs="12">
+                        <MudSelect @bind-Value="_element.Type" T="int" Label="Event Type">
+                            <MudSelectItem Value="1">Task</MudSelectItem>
+                            <MudSelectItem Value="2">Meeting</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem sm="6" xs="12">
+                        <MudTextField T="string" Label="Description" @bind-Value="_element.Description"/>
+                    </MudItem>
+
+                    @if (_element.Type == 1)
+                    {
+                        <MudItem sm="4" xs="12">
+                            <MudDateRangePicker Label="Start/End Dates" @bind-DateRange="DateRange"/>
+                        </MudItem>
+                    }
+                    else
+                    {
+                        <MudItem sm="2">
+                            <MudDatePicker Label="Date" @bind-Date="_element.DateStart"/>
+                        </MudItem>
+
+                        <MudItem sm="2">
+                            <MudTimePicker AmPm="true" Label="Time" @bind-Time="Time"/>
+                        </MudItem>
+                    }
+                }
+                else
+                {
+                    <MudItem sm="6" xs="12">
+                        <MudTextField T="string" Label="Description" @bind-Value="_element.Description"/>
+                    </MudItem>
+                    @if (_element.Type == 1)
+                    {
+                        <MudItem sm="4" xs="12">
+                            <MudDateRangePicker Label="Start/End Dates" @bind-DateRange="DateRange"/>
+                        </MudItem>
+                    }
+                    else
+                    {
+                        <MudItem sm="2">
+                            <MudDatePicker Label="Date" @bind-Date="_element.DateStart"/>
+                        </MudItem>
+
+                        <MudItem sm="2">
+                            <MudTimePicker AmPm="true" Label="Time" @bind-Time="Time"/>
+                        </MudItem>
+                    }
+                    <MudItem sm="2" xs="12">
+                        <MudSelect @bind-Value="_element.Status" T="int">
+                            <MudSelectItem Value="1">To Do</MudSelectItem>
+                            <MudSelectItem Value="2">In Progress</MudSelectItem>
+                            <MudSelectItem Value="3">Completed</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                }
+
+                @if (_element.Type == 2)
+                {
+                    <MudItem sm="4" xs="12">
+                        <MudSelect @bind-Value="_element.Location" T="int" Label="Location">
+                            <MudSelectItem Value="1">In Person</MudSelectItem>
+                            <MudSelectItem Value="2">Phone Call</MudSelectItem>
+                            <MudSelectItem Value="3">Zoom</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem sm="4" xs="12">
+                        <MudTextField @bind-Value="_element.Phone" T="string" Label="Phone" Adornment="Adornment.Start" AdornmentIcon="@Icons.Filled.Phone"/>
+                    </MudItem>
+                    <MudItem sm="4" xs="12">
+                        <MudTextField @bind-Value="_element.Email" T="string" Label="Email" Adornment="Adornment.Start" AdornmentIcon="@Icons.Filled.Email"/>
+                    </MudItem>
+                }
+
+                <MudItem sm="12" xs="12">
+                    <MudTextField @bind-Value="_element.Notes" Variant="Variant.Filled" Lines="6" Label="Notes" T="string"/>
+                </MudItem>
+
+                <MudItem sm="12" xs="12">
+                    <MudButtonGroup Color="Color.Primary" Variant="Variant.Filled" Style="float: right">
+                        @if (EditMode)
+                        {
+                            <MudButton OnClick="Reset" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Cancel" Style="background-color: #db1e1e">Cancel</MudButton>
+                            <MudButton OnClick="@(async () => await Edit())" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" Color="Color.Primary">Save</MudButton>
+                        }
+                        else
+                        {
+                            <MudButton Disabled="_loading" OnClick="@(async () => await Save())" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add" Color="Color.Primary">ADD</MudButton>
+                        }
+                    </MudButtonGroup>
+                </MudItem>
+            </MudGrid>
+        </MudExpansionPanel>
+    </MudExpansionPanels>
+
+    <MudPaper Elevation="9" Class="pa-3 mt-4">
+        <MudGrid>
+            <MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+                <MudItem sm="12">
+                    <MudText Typo="Typo.h6">Schedules</MudText>
+                </MudItem>
+            </MudHidden>
+            <MudItem xs="12" sm="12">
+                <MudTextField Class="mr-1" T="string" TextChanged="Search" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Search" AdornmentColor="Color.Primary"/>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudTable Class="mb-4" Items="Elements" Dense="true" Hover="true" Square="true" SortLabel="Sort By" Loading="_loading" LoadingProgressColor="@Color.Secondary">
+        <ToolBarContent>
+            <MudGrid>
+                <MudItem sm="12" xs="12">
+                    <MudChip Color="Color.Primary" Style="float: right; font-weight: bold">@Elements.Count</MudChip>
+                </MudItem>
+            </MudGrid>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<TaskDTO, object>(x => x.Description)">Description</MudTableSortLabel>
+            </MudTh>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<TaskDTO, object>(x => x.DateStart)">Date</MudTableSortLabel>
+            </MudTh>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<TaskDTO, object>(x => x.Status)">Status</MudTableSortLabel>
+            </MudTh>
+            <MudTh Style="text-align:center">Action</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Description" Class="@(context.Type != 1 ? "tr-background" : string.Empty)">@context.Description</MudTd>
+            <MudTd DataLabel="DateStart" Class="@(context.Type != 1 ? "tr-background" : string.Empty)">
+                @if (context.DateStart != null)
+                {
+                    @context.DateStart?.ToString("d")
+
+                    @if (context.Type == 1)
+                    {
+                        @($" -> {context.DateEnd?.ToString("d")}")
+                    }
+                    else
+                    {
+                        @($" - {TimeSpan.FromTicks(context.TimeStart).ToString("g")}")
+                    }
+                }
+            </MudTd>
+            <MudTd DataLabel="Status" Class="@(context.Type != 1 ? "tr-background" : string.Empty)">
+                <MudChip>
+                    @GetStatus(context.Status)
+                </MudChip>
+            </MudTd>
+            <MudTd Style="text-align:center" Class="@(context.Type != 1 ? "tr-background" : string.Empty)">
+                <MudTooltip Text="Edit">
+                    <MudIconButton OnClick="@(() => OnEdit(context))" Icon="@Icons.Material.Filled.Edit" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+                </MudTooltip>
+                <MudTooltip Text="Delete">
+                    <MudIconButton OnClick="@(async () => await Delete(context.Id))" Icon="@Icons.Material.Filled.Delete" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+                </MudTooltip>
+            </MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new[] {10, 25, 50, 100}"/>
+        </PagerContent>
+    </MudTable>
+</MudHidden>
+
+@if (_account is not null)
+{
+    <MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+        <ListMobile @ref="_listMobile" T="TaskDTO" SearchBy="@(a => a.Param.Description.Contains(_search, StringComparison.InvariantCultureIgnoreCase))"
+                    Style="margin-left: 16px; margin-right: 16px" Title="Tasks" EndPoint="@($"Task/{_account.Id}?")">
+            <Manage>
+                <MudGrid>
+                    @if (!EditMode)
+                    {
+                        <MudItem sm="2" xs="12">
+                            <MudSelect @bind-Value="_element.Type" T="int" Label="Event Type">
+                                <MudSelectItem Value="1">Task</MudSelectItem>
+                                <MudSelectItem Value="2">Meeting</MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem sm="6" xs="12">
+                            <MudTextField T="string" Label="Description" @bind-Value="_element.Description"/>
+                        </MudItem>
+
+                        @if (_element.Type == 1)
+                        {
+                            <MudItem sm="4" xs="12">
+                                <MudDateRangePicker Label="Start/End Dates" @bind-DateRange="DateRange"/>
+                            </MudItem>
+                        }
+                        else
+                        {
+                            <MudItem sm="2">
+                                <MudDatePicker Label="Date" @bind-Date="_element.DateStart"/>
+                            </MudItem>
+
+                            <MudItem sm="2">
+                                <MudTimePicker AmPm="true" Label="Time" @bind-Time="Time"/>
+                            </MudItem>
+                        }
+                    }
+                    else
+                    {
+                        <MudItem sm="6" xs="12">
+                            <MudTextField T="string" Label="Description" @bind-Value="_element.Description"/>
+                        </MudItem>
+                        @if (_element.Type == 1)
+                        {
+                            <MudItem sm="4" xs="12">
+                                <MudDateRangePicker Label="Start/End Dates" @bind-DateRange="DateRange"/>
+                            </MudItem>
+                        }
+                        else
+                        {
+                            <MudItem sm="2">
+                                <MudDatePicker Label="Date" @bind-Date="_element.DateStart"/>
+                            </MudItem>
+
+                            <MudItem sm="2">
+                                <MudTimePicker AmPm="true" Label="Time" @bind-Time="Time"/>
+                            </MudItem>
+                        }
+                        <MudItem sm="2" xs="12">
+                            <MudSelect @bind-Value="_element.Status" T="int">
+                                <MudSelectItem Value="1">To Do</MudSelectItem>
+                                <MudSelectItem Value="2">In Progress</MudSelectItem>
+                                <MudSelectItem Value="3">Completed</MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+                    }
+
+                    @if (_element.Type == 2)
+                    {
+                        <MudItem sm="4" xs="12">
+                            <MudSelect @bind-Value="_element.Location" T="int" Label="Location">
+                                <MudSelectItem Value="1">In Person</MudSelectItem>
+                                <MudSelectItem Value="2">Phone Call</MudSelectItem>
+                                <MudSelectItem Value="3">Zoom</MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem sm="4" xs="12">
+                            <MudTextField @bind-Value="_element.Phone" T="string" Label="Phone" Adornment="Adornment.Start" AdornmentIcon="@Icons.Filled.Phone"/>
+                        </MudItem>
+                        <MudItem sm="4" xs="12">
+                            <MudTextField @bind-Value="_element.Email" T="string" Label="Email" Adornment="Adornment.Start" AdornmentIcon="@Icons.Filled.Email"/>
+                        </MudItem>
+                    }
+
+                    <MudItem sm="12" xs="12">
+                        <MudTextField @bind-Value="_element.Notes" Variant="Variant.Filled" Lines="6" Label="Notes" T="string"/>
+                    </MudItem>
+
+                    <MudItem sm="12" xs="12">
+                        <MudButtonGroup Color="Color.Primary" Variant="Variant.Filled" Style="float: right">
+                            @if (EditMode)
+                            {
+                                <MudButton OnClick="Reset" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Cancel" Style="background-color: #db1e1e">Cancel</MudButton>
+                                <MudButton OnClick="@(async () => await Edit())" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" Color="Color.Primary">Save</MudButton>
+                            }
+                            else
+                            {
+                                <MudButton Disabled="_loading" OnClick="@(async () => await Save())" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add" Color="Color.Primary">ADD</MudButton>
+                            }
+                        </MudButtonGroup>
+                    </MudItem>
+                </MudGrid>
+            </Manage>
+
+            <Filters>
+                <MudTextField Class="mr-1" T="string" TextChanged="Search" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Search" AdornmentColor="Color.Primary"/>
+            </Filters>
+
+            <CardTitle>
+                @context.Description
+            </CardTitle>
+
+            <CardSubtitle>
+                @if (context.DateStart.HasValue && context.DateEnd.HasValue)
+                {
+                    @($"{context.DateStart.Value.ToShortDateString()} - {context.DateEnd.Value.ToShortDateString()}")
+                }
+            </CardSubtitle>
+
+            <CardOptions>
+                <MudTooltip Text="Edit">
+                    <MudIconButton OnClick="@(() => OnEdit(context))" Icon="@Icons.Material.Outlined.Edit" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+                </MudTooltip>
+                <MudTooltip Text="Delete">
+                    <MudIconButton Color="@Color.Error" OnClick="@(async () => await Delete(context.Id))" Icon="@Icons.Material.Outlined.Delete" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+                </MudTooltip>
+            </CardOptions>
+        </ListMobile>
+    </MudHidden>
+}
+
+
+@code {
+        private const string Path = "/api/v1/task";
+
+    private TimeSpan? Time { get; set; } = DateTime.Now.TimeOfDay;
+    private DateRange DateRange { get; set; } = new(DateTime.Now, DateTime.Now.AddDays(1));
+
+    private TaskDTO _element = new();
+    private List<TaskDTO> _elements;
+
+    private List<TaskDTO> Elements
+    {
+        get => _elements is null ?
+            Enumerable.Empty<TaskDTO>().ToList() :
+            _elements.Where(e => string.IsNullOrWhiteSpace(_search) ||
+                                 e.Description.Contains(_search, StringComparison.InvariantCultureIgnoreCase)).ToList();
+
+        set => _elements = value;
+    }
+
+    public bool IsExpanded { get; set; }
+    private bool EditMode => _element.Id != 0;
+
+    private ListMobile<TaskDTO>? _listMobile;
+
+    private string _search = string.Empty;
+    private bool _loading;
+
+    private AccountDto? _account;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _account = await _localStorage.GetItemAsync<AccountDto>("account");
+
+        await GetElements();
+    }
+
+    private async Task GetElements()
+    {
+        if (!_loading)
+        {
+            _loading = true;
+            StateHasChanged();
+        }
+
+        var response = await _httpClient.GetFromJsonAsync<Response<List<TaskDTO>>>($"{Path}/{_account.Id}");
+        Elements = response?.Payload;
+
+        _loading = false;
+    }
+
+    private void Search(string value)
+    {
+        _search = value;
+    }
+
+    private void OnEdit(TaskDTO element)
+    {
+        _element = element;
+        DateRange.Start = element.DateStart;
+        DateRange.End = element.DateEnd;
+        Time = TimeSpan.FromTicks(element.TimeStart);
+        IsExpanded = true;
+        
+        _listMobile?.SetManageIsExpanded(true, true);
+    }
+
+    private void SetTime()
+    {
+        if (DateRange.Start.HasValue)
+            _element.DateStart = DateRange.Start.Value;
+
+        if (DateRange.End.HasValue)
+            _element.DateEnd = DateRange.End.Value;
+
+        if (Time.HasValue)
+            _element.TimeStart = Time.Value.Ticks;
+    }
+
+    private async ValueTask Edit()
+    {
+        if (_element.Id > 0)
+        {
+            IsExpanded = false;
+            _loading = true;
+            StateHasChanged();
+
+            SetTime();
+
+            await _httpClient.PutAsJsonAsync(Path, _element);
+
+            Reset();
+        }
+    }
+
+    private async ValueTask Save()
+    {
+        IsExpanded = false;
+        _loading = true;
+        StateHasChanged();
+
+        SetTime();
+
+        _element.UserId = _account.Id;
+
+        await _httpClient.PostAsJsonAsync(Path, _element);
+        await GetElements();
+
+        Reset();
+    }
+
+    private void Reset()
+    {
+        _element = new();
+        IsExpanded = false;
+        StateHasChanged();
+        
+        _listMobile?.SetManageIsExpanded(false, true);
+    }
+
+    private async Task Delete(int id)
+    {
+        var reference = _dialogService.Show<DeleteConfirmation>();
+        var result = await reference.Result;
+
+        if (!result.Cancelled)
+        {
+            _loading = true;
+            StateHasChanged();
+
+            await _httpClient.DeleteAsync($"{Path}/{id}");
+            await GetElements();
+        }
+    }
+
+    private string GetStatus(int status)
+        => status switch
+        {
+            1 => "To Do",
+            2 => "In Progress",
+            3 => "Completed",
+            _ => throw new KeyNotFoundException()
+            };
+
+}

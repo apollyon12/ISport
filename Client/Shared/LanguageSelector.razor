@@ -1,0 +1,65 @@
+@inject NavigationManager _navigationManager
+
+<MudMenu Icon="@Icons.Material.Outlined.Translate" Color="Color.Inherit" Direction="Direction.Bottom" OffsetY="true" Dense="true">
+    @foreach (var language in languages)
+    {
+        <MudMenuItem Style="text-align: center" OnClick="(()=> ChangeLanguageAsync(language.Code))">
+            <MudAvatar Image="@language.ImagePath" Style="width:40px; height:40px" />
+            <MudText Align="Align.Center" Inline="true" Style="float:right;margin-top:10px;margin-left:12px">
+                @language.DisplayName
+            </MudText>
+        </MudMenuItem>
+    }
+</MudMenu>
+
+@code
+{
+    private async Task ChangeLanguageAsync(string languageCode)
+    {
+        //await _preferenceManager.ChangeLanguageAsync(languageCode);
+        _navigationManager.NavigateTo(_navigationManager.Uri, forceLoad: true);
+    }
+    public class LanguageCodes
+    {
+        public string DisplayName { get; set; }
+        public string Code { get; set; }
+        public string ImagePath { get; set; }
+    }
+    private List<LanguageCodes> languages = new List<LanguageCodes>()
+{
+        new LanguageCodes
+        {
+            Code = "en-US",
+            DisplayName= "English",
+            ImagePath = "/images/estados-unidos.png"
+        },
+        new LanguageCodes
+        {
+            Code = "es-ES",
+            DisplayName = "Español",
+            ImagePath = "/images/espana.png"
+        },
+        //new LanguageCodes
+        //{
+        //    Code = "fr-FR",
+        //    DisplayName = "French"
+        //},
+
+        //new LanguageCodes
+        //{
+        //    Code = "km_KH",
+        //    DisplayName= "Khmer"
+        //},
+        //new LanguageCodes
+        //{
+        //    Code = "de-DE",
+        //    DisplayName = "German"
+        //},
+
+        //new LanguageCodes
+        //{
+        //    Code = "ru-RU",
+        //    DisplayName = "Русский"
+        //},
+    };
+}

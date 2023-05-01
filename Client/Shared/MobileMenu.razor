@@ -1,0 +1,248 @@
+﻿@using iSportsRecruiting.Shared.DTO
+@using Microsoft.AspNetCore.Components.Routing
+@using MudBlazor.Utilities
+
+
+@inject NavigationManager _navigation
+@inject Blazored.LocalStorage.ILocalStorageService _localStorage
+
+<style>
+    .mud-tab {
+        width: 100%;
+        min-width: 56px;
+        display: inline-flex;
+        padding: 6px 12px;
+        min-height: 48px;
+        flex-shrink: 0;
+        font-weight: 500;
+        line-height: 1.75;
+        user-select: none;
+        white-space: normal;
+        letter-spacing: .02857em;
+        text-transform: uppercase;
+        text-align: center;
+        align-items: center;
+        justify-content: center;
+        transition: background-color 150ms cubic-bezier(.4,0,.2,1) 0ms;
+    }
+</style>
+
+<MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+    <MudTabs @bind-ActivePanelIndex="activeIndex" Color="Color.Dark" Centered="true" Style="position: fixed; bottom: 0; left: 0;font-family: monospace; width: 100%" Elevation="0" Outlined="true" Position="Position.Bottom" AlwaysShowScrollButtons="true">
+        @if (Account is not null)
+        {
+            @if (Account.Type == UserType.Athlete)
+            {
+                <MudTabPanel OnClick="@(() => Navigate("/dashboard"))" Icon="@Icons.Material.Outlined.Dashboard" />
+                <MudTabPanel OnClick="@(() => Navigate("/athlete/universities"))" Icon="@Icons.Material.Outlined.Search" />
+
+
+                <MudTabPanel OnClick="@(() => Navigate("/athlete/profile"))" Icon="@Icons.Material.Outlined.Person" />
+                <MudTabPanel OnClick="@(() => Navigate($"/athletes/{Account.Athlete.Id}/{(Account.Athlete.FirstName + "-" + Account.Athlete.LastName).ToLower()}"))" Icon="@Icons.Material.Outlined.Public" />
+
+                <!--
+                    <MudTabPanel OnClick="@(() => Navigate("/athlete/universities/favorites"))" Icon="@Icons.Material.Outlined.Star"/>
+                    <MudTabPanel OnClick="@(() => Navigate("/emails/received"))" Icon="@Icons.Material.Outlined.Email"/>
+                    <MudTabPanel OnClick="@(() => Navigate("/emails"))" Icon="@Icons.Material.Outlined.Email"/>
+                -->
+
+
+                <MudTabPanel OnClick="@(() => Navigate("/services/advisor"))" Icon="@Icons.Material.Outlined.PersonAdd" />
+                <MudTabPanel OnClick="@(() => Navigate("/services/blast-email"))" Icon="@Icons.Material.Outlined.Email" />
+                <MudTabPanel OnClick="@(() => Navigate("/services/video-editing"))" Icon="@Icons.Material.Outlined.Videocam" />
+                if (Account.Athlete.ShowTut && ShowTut)
+                {
+                    <WelcomePopover Open="Account.Athlete.ShowTut" ClickNext="NextFromTutorial" IsMobile="true">
+                        <Title>
+                            Welcome to iSportsRecruiting
+                        </Title>
+                        <Description>
+                            Complete atleast 90% of your profile in order to connect with College Coaches; <br />
+                            upload your picture 240 x 240 (recommended), personal statement, <br />
+                            transcript, SAT/ACT results, club and/or high school information, stats, <br />
+                            highlight videos.
+                        </Description>
+                    </WelcomePopover>
+                }
+            }
+            else if (Account.Type == UserType.Admin || Account.Type == UserType.AssisAdmin)
+            {
+                <MudTabPanel OnClick="@(() => Navigate("/dashboard"))" Icon="@Icons.Material.Outlined.Dashboard" />
+                <MudTabPanel OnClick="@(() => Navigate("/schedules"))" Icon="@Icons.Material.Outlined.Schedule" />
+                <MudTabPanel OnClick="@(() => Navigate("/leads"))" Icon="@Icons.Material.Outlined.Leaderboard" />
+                <MudTabPanel OnClick="@(() => Navigate("/athletes"))" Icon="@Icons.Material.Outlined.SportsHandball" />
+                <MudTabPanel OnClick="@(() => Navigate("/universities"))" Icon="@Icons.Material.Outlined.School" />
+                <MudTabPanel OnClick="@(() => Navigate("/sports"))" Icon="@Icons.Material.Outlined.Sports" />
+                <MudTabPanel OnClick="@(() => Navigate("/assistants"))" Icon="@Icons.Material.Outlined.Assistant" />
+                <MudTabPanel OnClick="@(() => Navigate("/promotions"))" Icon="@Icons.Material.Outlined.LocalOffer" />
+            }
+            else if (Account.Type == UserType.AssisCoord || Account.Type == UserType.Coach)
+            {
+                <MudTabPanel OnClick="@(() => Navigate("/dashboard"))" Icon="@Icons.Material.Outlined.Dashboard" />
+                <MudTabPanel OnClick="@(() => Navigate("/schedules"))" Icon="@Icons.Material.Outlined.Schedule" />
+                @if (Account.Type == UserType.AssisCoord)
+                {
+                    <MudTabPanel OnClick="@(() => Navigate("/leads"))" Icon="@Icons.Material.Outlined.Leaderboard" />
+                }
+
+                @if (Account.Type == UserType.Coach)
+                {
+                    <MudTabPanel OnClick="@(() => Navigate("/athletes"))" Icon="@Icons.Material.Outlined.SportsHandball" />
+                    <MudTabPanel OnClick="@(() => Navigate("/favorites"))" Icon="@Icons.Material.Outlined.Star" />
+                    <MudTabPanel OnClick="@(() => Navigate("/emails/received"))" Icon="@Icons.Material.Outlined.Email" />
+                    <MudTabPanel OnClick="@(() => Navigate("/emails"))" Icon="@Icons.Material.Outlined.Email" />
+                }
+                else
+                {
+                    <MudTabPanel OnClick="@(() => Navigate("/athletes"))" Icon="@Icons.Material.Outlined.SportsHandball" />
+                }
+                @*<MudNavLink Href="/goals" Icon="@Icons.Material.Outlined.Star">@localizer["Goals"]</MudNavLink>*@
+            }
+        }
+    </MudTabs>
+</MudHidden>
+
+@code {
+    private AccountDto? Account { get; set; }
+
+    public bool ShowTut { get; set; } = true;
+
+    int activeIndex = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _navigation.LocationChanged += NavigationManagerOnLocationChanged;
+
+        Account = await _localStorage.GetItemAsync<AccountDto>("account");
+        var route = _navigation.Uri.Replace(_navigation.BaseUri, string.Empty);
+        ChangeToIndex(route);
+    }
+
+    private void NavigationManagerOnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        var route = _navigation.Uri.Replace(_navigation.BaseUri, string.Empty);
+        ChangeToIndex(route);
+    }
+
+    private void ChangeToIndex(string route)
+    {
+        if (Account is null)
+            return;
+
+        switch (Account.Type)
+        {
+            case UserType.Admin:
+                activeIndex = GetIndexByRouteAdmin(route);
+                break;
+            case UserType.AssisCoord:
+                activeIndex = GetIndexByRouteAssistant(route);
+                break;
+            case UserType.Athlete:
+                activeIndex = GetIndexByRouteAthlete(route);
+                break;
+            case UserType.Coach:
+                activeIndex = GetIndexByRouteCoach(route);
+                break;
+        }
+
+        StateHasChanged();
+    }
+
+    private int GetIndexByRouteAdmin(string route)
+    {
+        switch (route)
+        {
+            case "dashboard":
+                return 0;
+            case "schedules":
+                return 1;
+            case "leads":
+                return 2;
+            case "athletes":
+                return 3;
+            case "universities":
+                return 4;
+            case "sports":
+                return 5;
+            case "assistants":
+                return 6;
+            case "promotions":
+                return 7;
+        }
+
+        return 0;
+    }
+
+    private int GetIndexByRouteAssistant(string route)
+    {
+        switch (route)
+        {
+            case "dashboard":
+                return 0;
+            case "schedules":
+                return 1;
+            case "leads":
+                return 2;
+            case "athletes":
+                return 3;
+        }
+
+        return 0;
+    }
+
+    private int GetIndexByRouteAthlete(string route)
+    {
+        switch (route)
+        {
+            case "dashboard":
+                return 0;
+            case "athlete/universities":
+                return 1;
+            case "athlete/profile":
+                return 2;
+            case string containsAthlete when containsAthlete.Contains("athletes"):
+                return 3;
+            case "services/advisor":
+                return 4;
+            case "services/blast-email":
+                return 5;
+            case "services/video-editing":
+                return 6;
+        }
+
+        return 0;
+    }
+
+    private int GetIndexByRouteCoach(string route)
+    {
+        switch (route)
+        {
+            case "dashboard":
+                return 0;
+            case "schedules":
+                return 1;
+            case "athletes":
+                return 2;
+            case "favorites":
+                return 3;
+            case "emails/received":
+                return 4;
+            case "emails/sent":
+                return 5;
+        }
+
+        return 0;
+    }
+
+    private void Navigate(string uri)
+    {
+        Task.Run(() => _navigation.NavigateTo(uri));
+    }
+    private void NextFromTutorial()
+    {
+        ShowTut = false;
+        StateHasChanged();
+
+        _navigation.NavigateTo("athlete/profile/tut/true");
+    }
+}

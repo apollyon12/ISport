@@ -1,0 +1,195 @@
+@using Microsoft.AspNetCore.Components.Forms
+@using iSportsRecruiting.Client.Services
+@using iSportsRecruiting.Shared.DTO
+
+@inject ISnackbar _snackBar
+@inject HttpClient _httpClient
+@inject NavigationManager Navigation;
+@inject NavigationManager _navigationManager
+@inject IJSRuntime runtime
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage;
+
+<MudGrid @onfocusout="ComponentFocusOut">
+    @if (Athlete is not null)
+    {
+        <MudItem xs="12" sm="4" md="3">
+            <MudCard Elevation="9">
+                <MudCardContent>
+                    <div class="d-flex justify-center mb-4">
+                        @if (_uploading)
+                        {
+                            <MudSkeleton SkeletonType="SkeletonType.Circle" Width="180px" Height="180px" />
+                        }
+                        else if (!string.IsNullOrEmpty(Athlete.ImageProfile))
+                        {
+                            <MudAvatar Image="@($"{Athlete.ImageProfile}?{DateTime.Now.Ticks}")" Style="height:180px; width:180px; margin: 10px"> </MudAvatar>
+                        }
+                        else if (!string.IsNullOrWhiteSpace(Athlete.FirstName))
+                        {
+                            <MudAvatar Color="Color.Secondary" Style="height:180px; width:180px;">
+                                <MudText Typo="Typo.h6">@Athlete.FirstName[0]</MudText>
+                            </MudAvatar>
+                        }
+                    </div>
+                    <MudText Typo="Typo.h6" Align="Align.Center">@Athlete.FirstName @Athlete.LastName</MudText>
+                    <MudText Align="Align.Center" Style="overflow: hidden;overflow-wrap: break-word;">@Athlete.Email</MudText>
+                </MudCardContent>
+
+                <MudCardActions Class="d-flex justify-center">
+                    <InputFile id="fileInput" OnChange="UploadFiles" hidden />
+                    <MudButton HtmlTag="label"
+                           Disabled="_uploading"
+                           Variant="Variant.Text"
+                           Color="Color.Primary"
+                           Size="Size.Small"
+                           StartIcon="@Icons.Filled.CloudUpload"
+                           for="fileInput">
+                        Upload Image
+                    </MudButton>
+                </MudCardActions>
+            </MudCard>
+            @if (IsTutActive && !_tutFinalized)
+            {
+                <MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+                    <WelcomePopover ClickNext="NextFromTutorial" Open="@(true)" IsMobile="true">
+                        <Title>
+                            Upload in Academics and Athletics information
+                        </Title>
+                        <Description>
+                            Academics; GPA Score, ACT/SAT Score, Honor rolls, Awards. <br />
+                            Athlethics: NCAA ID, Varsity or JV, Stats, Clubs Information, Coaches informations <br />
+                            and video highlights (Max 4 min)
+                        </Description>
+                    </WelcomePopover>
+                </MudHidden>
+                <MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+                    <WelcomePopover ClickNext="NextFromTutorial" Open="@(true)" Style="margin-top: 37vh;margin-left: 1vh;">
+                        <Title>
+                            Upload in Academics and Athletics information
+                        </Title>
+                        <Description>
+                            Academics; GPA Score, ACT/SAT Score, Honor rolls, Awards. <br />
+                            Athlethics: NCAA ID, Varsity or JV, Stats, Clubs Information, Coaches informations <br />
+                            and video highlights (Max 4 min)
+                        </Description>
+                    </WelcomePopover>
+                </MudHidden>
+
+            }
+        </MudItem>
+
+        <MudItem xs="12" sm="8" md="9">
+            @*<EditForm OnValidSubmit="UpdateProfileAsync">*@
+            <MudCard Elevation="9">
+                <MudCardContent>
+                    <MudGrid>
+                        <MudItem xs="12" md="6">
+                            <MudTextField @bind-Value="Athlete.FirstName" Label="First Name" Variant="Variant.Outlined" Required="true" />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudTextField @bind-Value="Athlete.LastName" Label="Last Name" Variant="Variant.Outlined" Required="true" />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudTextField @bind-Value="Athlete.Email" Label="Email" Variant="Variant.Outlined" InputType="InputType.Email" Disabled=true />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudSelect T="string" Label="Birth" @bind-Value="Athlete.Birth" Strict="true" Variant="Variant.Outlined" AdornmentIcon="@Icons.Filled.DateRange" AdornmentColor="Color.Primary" Required="true">
+                                @for (int i = DateTime.Now.Year - 18; i <= DateTime.Now.Year; i++)
+                                {
+                                    <MudSelectItem T="string" Value="i.ToString()" />
+                                }
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+                                <MudNumericField @bind-Value="Height" Label="Height" Variant="Variant.Outlined" Min="4" Max="8" Step=".01M" Format="0.#0" />
+                            </MudHidden>
+                            <MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+                                <MudTextField Mask="@(new PatternMask("0.00"))" @bind-Value="Height" Label="Height" Variant="Variant.Outlined" />
+                            </MudHidden>
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+                                <MudNumericField @bind-Value="Weight" Label="Weight" Variant="Variant.Outlined" />
+                            </MudHidden>
+                            <MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+                                <MudTextField Mask="@(new PatternMask("000"))" @bind-Value="Weight" Label="Weight" Variant="Variant.Outlined" />
+                            </MudHidden>
+                        </MudItem>
+                        <MudItem xs="12" md="12">
+                            <MudAutocomplete MaxItems="null" Variant="Variant.Outlined" T="string" Label="State" @bind-Value="Athlete.State" SearchFunc="@SearchStates" />
+                        </MudItem>
+                        <MudItem xs="12" md="12">
+                            <MudTextField @bind-Value="Athlete.Address" T="string" Label="Address" Variant="Variant.Outlined" Lines="3" />
+                        </MudItem>
+                    </MudGrid>
+                </MudCardContent>
+            </MudCard>
+            @*</EditForm>*@
+        </MudItem>
+    }
+</MudGrid>
+
+@code {
+
+    [Parameter]
+    public bool IsTutActive { get; set; }
+
+    private bool _tutFinalized;
+    protected override async Task OnInitializedAsync()
+    {
+        var account = await LocalStorage.GetItemAsync<AccountDto>("account");
+        if (account.Type == UserType.Athlete)
+        {
+            _tutFinalized = !account.Athlete.ShowTut;
+            StateHasChanged();
+        }
+    }
+
+    private void NextFromTutorial()
+    {
+        IsTutActive = false;
+        StateHasChanged();
+
+        Navigation.NavigateTo("athlete/universities/tut/true");
+    }
+
+    private void UploadFiles(InputFileChangeEventArgs e)
+    {
+        var entries = e.GetMultipleFiles();
+
+        foreach (var file in e.GetMultipleFiles())
+        {
+            string format = $".{e.File.Name.Split(".").Last()}";
+            if (file.Size / 10024 > 10024)
+            {
+                _snackBar.Add("Files larger than 10mb aren't accepted", Severity.Error);
+            }
+            else if (format == ".png" || format == ".jpeg" || format == ".jpg")
+            {
+                var customFile = new CustomFile(file)
+                    {
+                        Description = $"profile-image-{Athlete.Id}",
+                        FileName = CleanNameForFileName(e.File.Name.Replace(format, "")) + format
+                    };
+                customFile.ConvertedToBase64 += ImageFile_ConvertedToBase64;
+                customFile.StartConversion();
+            }
+            else
+            {
+                _snackBar.Add($"This file has the extension {entries.FirstOrDefault().Name.Split(".").Last()}",
+                    Severity.Error);
+            }
+        }
+    }
+
+    private static string CleanNameForFileName(string fileName)
+    {
+        return fileName.Replace(".", "").Replace("#", "").Replace("%", "").Replace("&", "").Replace("{", "")
+            .Replace("}", "").Replace("\\", "").Replace("<", "").Replace(">", "").Replace("*", "")
+            .Replace("?", "").Replace("/", "").Replace(" ", "").Replace("$", "").Replace("!", "")
+            .Replace("'", "").Replace("\"", "").Replace(":", "").Replace("@", "").Replace("+", "")
+            .Replace("`", "").Replace("|", "").Replace("=", "");
+    }
+
+}

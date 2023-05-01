@@ -1,0 +1,261 @@
+﻿@page "/athlete/billing"
+
+@using iSportsRecruiting.Shared.DTO
+@using iSportsRecruiting.Shared.Models
+@using Blazored.LocalStorage
+@using System.Net.Http.Json
+@using System.Globalization
+
+@inject ISnackbar _snackBar;
+@inject HttpClient _httpClient;
+@inject ILocalStorageService _localStorage;
+@inject NavigationManager _navigationManager
+
+
+@if (_showProgress)
+{
+    <MudProgressLinear Color="Color.Success" Value="_progressValue"/>
+}
+
+@if (!string.IsNullOrWhiteSpace(_billing.Plan) && _elements.Any() && _athlete is not null)
+{
+    <MudGrid Style="padding: 3vh">
+
+        @if (!string.IsNullOrWhiteSpace(_billing.Plan))
+        {
+            <MudItem sm="12">
+                <MudText Typo="Typo.h4" Style="font-weight: bolder">Billing History</MudText>
+            </MudItem>
+        }
+        @if (_elements.Any())
+        {
+            <MudItem sm="12">
+                <MudTable Elevation="9" Class="mb-4" Items="_elements" Dense="true" Hover="true" Square="true" SortLabel="Sort By"
+                          Loading="_loading" Striped="true" LoadingProgressColor="@Color.Secondary" Filter="new Func<EntityPayments, bool>(FilterFunc1)">
+                    <ToolBarContent>
+                        <MudTextField @bind-Value="@_search" Placeholder="Search by plan, amount, promotion and date" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+                    </ToolBarContent>
+                    <HeaderContent>
+                        <MudTh>
+                            <MudTableSortLabel SortBy="new Func<EntityPayments, object>(x => x.Plan)">Plan</MudTableSortLabel>
+                        </MudTh>
+                        <MudTh>
+                            <MudTableSortLabel SortBy="new Func<EntityPayments, object>(x => x.Amount)">Amount</MudTableSortLabel>
+                        </MudTh>
+                        <MudTh>
+                            <MudTableSortLabel SortBy="new Func<EntityPayments, object>(x => x.Promotion_Code)">Promotion</MudTableSortLabel>
+                        </MudTh>
+                        <MudTh>
+                            <MudTableSortLabel SortBy="new Func<EntityPayments, object>(x => x.Date)">Date</MudTableSortLabel>
+                        </MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Plan">@context.Plan</MudTd>
+                        <MudTd DataLabel="Amount">$ @context.Amount</MudTd>
+                        <MudTd DataLabel="Promotion"> @context.Promotion_Code</MudTd>
+                        <MudTd DataLabel="Date">@context.Date.ToString("d")</MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudItem>
+
+            <MudItem sm="12">
+                <MudDivider Style="width: 100%; background-color: #bdbdbd;margin-top: 20px; margin-bottom: 20px;"/>
+            </MudItem>
+
+            <MudItem sm="12">
+                <MudText Typo="Typo.h4" Style="font-weight: bolder">Plans</MudText>
+            </MudItem>
+
+            <MudItem sm="3">
+                <MudText Typo="Typo.subtitle2">
+                    <b>LET'S GET IN FRONT OF THE COMPETITION - UPGRADE NOW</b>
+                </MudText>
+                <MudSelect @bind-Value="@_plan" T="string" Label="Plans" Variant="Variant.Outlined" AutoFocus="true">
+                    <MudSelectItem T="string" Value="@("MS")">MS (Monthly Plan) - $24.99 </MudSelectItem>
+                </MudSelect>
+                <MudText Typo="Typo.caption"><b style="color: #a92d2d">Your suscription ends</b> @_elements?.FirstOrDefault()?.Date.AddYears(1).Date.ToLocalTime().ToString("d"). Using your card ending in <b>(@_billing?.Card_Number?.Substring(_billing.Card_Number.Length - 4))</b></MudText>
+            </MudItem>
+
+            <MudItem sm="12">
+                <MudButton Disabled="_plan == _athlete.Plan" Variant="Variant.Filled" Color="Color.Primary" OnClick="PayPlanTest">Save</MudButton>
+            </MudItem>
+
+            <MudItem sm="12">
+                <MudDivider Style="width: 100%; background-color: #bdbdbd;margin-top: 20px; margin-bottom: 20px;"/>
+            </MudItem>
+
+            <MudItem sm="12">
+                <MudText Typo="Typo.h4" Style="font-weight: bolder">Credit Card</MudText>
+            </MudItem>
+
+            <MudItem sm="12"/>
+
+            @if (_isEditing)
+            {
+                <MudItem xs="4">
+                    <MudTextField Mask="@(new PatternMask("0000 0000 0000 0000"))" @bind-Value="@_billing.Card_Number" T="string" Label="Card Number" Variant="Variant.Outlined"/>
+                </MudItem>
+                <MudItem xs="8"/>
+                
+                <MudItem xs="4">
+                    <MudTextField Mask="@(new PatternMask("00/00"))" @bind-Value="@_billing.Exp_Date" T="string" Label="Exp Date" Variant="Variant.Outlined"/>
+                </MudItem>
+                <MudItem xs="8"/>
+                
+                <MudItem xs="4">
+                    <MudTextField Mask="@(new PatternMask("0000"))" @bind-Value="@_billing.Card_Code" T="string" Label="Card Verification Code (CVC)" Variant="Variant.Outlined"/>
+                </MudItem>
+                <MudItem xs="8"/>
+                
+                <MudItem xs="4">
+                    <MudTextField @bind-Value="@_billing.Zip" T="string" Label="Zip" Variant="Variant.Outlined" MaxLength="12"></MudTextField>
+                </MudItem>
+                <MudItem xs="8"/>
+            }
+            else
+            {
+                <MudItem sm="4">
+                    <MudCard Elevation="9" Style="width: 262px">
+                        <MudCardContent>
+                            <MudText Typo="Typo.body1">
+                                <b>CREDIT CARD</b>
+                            </MudText>
+                            <br/>
+                            <MudDivider Style="padding-top: 2px; background-color: white"/>
+                            <img alt="ship" src="images/credit-card-ship.png" style="width: 36px"/>
+                            <MudText Style="font-size: 1.5em" Typo="Typo.body2">
+                                <b>XXXX XXXX XXXX @((_billing?.Card_Number)?[^4..])</b>
+                            </MudText>
+                            <MudText Typo="Typo.caption">
+                                @($"XX{(_billing?.Exp_Date)[2..]}")
+                            </MudText>
+                            <MudText Style="font-size: 14px" Typo="Typo.body1">@_athlete.FirstName.ToUpper() @_athlete.LastName.ToUpper()</MudText>
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+            }
+
+            <MudItem xs="12">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ToggleEdit">@($"{(_isEditing ? "Save" : "Edit")}")</MudButton>
+            </MudItem>
+        }
+    </MudGrid>
+}
+
+@code {
+    private bool _isEditing;
+    private bool _showProgress;
+    private int _progressValue;
+
+    private string _plan;
+    private bool _loading;
+    private string _search = string.Empty;
+    private EntityBilling _billing = new();
+    private EntityPayments[] _elements = Array.Empty<EntityPayments>();
+
+    private AthleteDTO? _athlete;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _showProgress = true;
+        StateHasChanged();
+
+        _athlete = (await _localStorage.GetItemAsync<AccountDto>("account")).Athlete;
+        _progressValue = 34;
+        StateHasChanged();
+
+        var billingResponse = await _httpClient.GetFromJsonAsync<Response<EntityBilling>>($"/api/v1/creditcard/billing/{_athlete.Id}");
+
+        if (billingResponse?.Payload is not null)
+        {
+            _billing = billingResponse.Payload;
+            _plan = _billing.Plan;
+            _progressValue = 68;
+            StateHasChanged();
+        }
+
+        var paymentsResponse = await _httpClient.GetFromJsonAsync<Response<EntityPayments[]>>($"/api/v1/creditcard/payments/{_athlete.Id}");
+
+        if (paymentsResponse?.Payload is not null)
+        {
+            _elements = paymentsResponse.Payload;
+            _progressValue = 100;
+            StateHasChanged();
+        }
+
+        _showProgress = false;
+    }
+
+    private async Task ToggleEdit()
+    {
+        if (_isEditing)
+        {
+            await UpdateBilling();
+        }
+
+        _isEditing = !_isEditing;
+
+        StateHasChanged();
+    }
+
+    private async Task PayPlanTest()
+    {
+        CreditCardTransactionDTO credit = new CreditCardTransactionDTO
+        {
+            CardCode = _billing.Card_Code,
+            Address = _athlete.Address,
+            CardNumber = _billing.Card_Number,
+            ExpirationDate = _billing.Exp_Date,
+            FirstName = _athlete.FirstName,
+            LastName = _athlete.LastName,
+            Zip = _billing.Zip
+        };
+        var response = await _httpClient.PostAsJsonAsync($"/api/v1/creditcard/{_athlete.Id}/{_plan}?firstPayment=false", credit);
+
+        if (response.IsSuccessStatusCode)
+        {
+            _ = Task.Run(async () =>
+            {
+                _athlete.Plan = _plan;
+                var account = await _localStorage.GetItemAsync<AccountDto>("account");
+                account.Athlete = _athlete;
+                await _localStorage.SetItemAsync("account", account);
+
+                _navigationManager.NavigateTo(_navigationManager.Uri, true);
+
+                _snackBar.Add("Payment done!", Severity.Success);
+            });
+        }
+        else
+        {
+            _snackBar.Add("Please check, your credit card data is wrong...", Severity.Error, option => option.VisibleStateDuration = 8000);
+        }
+    }
+
+    private async Task UpdateBilling()
+    {
+        var response = await _httpClient.PostAsJsonAsync($"/api/v1/creditcard/billing/{_athlete.Id}/{_plan}", _billing);
+
+        if (response.IsSuccessStatusCode)
+        {
+            _snackBar.Add("Successfully update!", Severity.Success);
+        }
+    }
+
+    private bool FilterFunc1(EntityPayments element) => FilterFunc(element, _search);
+
+    private bool FilterFunc(EntityPayments element, string searchString)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+        if (!string.IsNullOrWhiteSpace(element.Plan) && element.Plan.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (element.Date.ToString(CultureInfo.InvariantCulture).Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (!string.IsNullOrWhiteSpace(element.Amount) && element.Amount.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return element.Promotion_Code?.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false;
+    }
+
+}

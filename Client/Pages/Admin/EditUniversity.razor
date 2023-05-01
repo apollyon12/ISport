@@ -1,0 +1,554 @@
+﻿@page "/universities/manage/{Id:int}/{UniversityName}"
+
+@using iSportsRecruiting.Client.Shared.Dialogs
+@using iSportsRecruiting.Shared.DTO
+@using iSportsRecruiting.Shared.Models
+@using System.IO
+@using System.Net.Http.Json
+@using System.Threading
+@using Microsoft.AspNetCore.Components.Forms
+
+@inject ISnackbar _snackBar
+@inject HttpClient _httpClient
+@inject IDialogService _dialogService;
+@inject NavigationManager _navigationManager
+
+<style>
+    .white-bg {
+        background-color: white;
+    }
+
+    .floating-button {
+        z-index: 2000;
+        bottom: 8px;
+        right: 22px;
+        position: fixed;
+    }
+</style>
+
+
+<MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+<MudTabs Elevation="9" Color="Color.Primary" SliderColor="Color.Success" Rounded="true" PanelClass="mt-6" Centered="true">
+<MudTabPanel Text="University">
+    <MudGrid>
+        @if (University is not null)
+        {
+            <MudItem xs="12" sm="4" md="3">
+
+                <MudCard Elevation="9">
+
+                    <MudCardContent>
+                        <div class="d-flex justify-center mb-4">
+                            @if (_uploadingUniversityLogo)
+                            {
+                                <MudSkeleton SkeletonType="SkeletonType.Circle" Width="180px" Height="180px"/>
+                            }
+                            else if (!string.IsNullOrEmpty(University.Image))
+                            {
+                                <MudAvatar Image="@($"https://isportsrecruiting.com/api/v1/file/logos/180/180/{University.Image}.png")" Style="height:180px; width:180px; margin: 10px"> </MudAvatar>
+                            }
+                            else
+                            {
+                                <MudAvatar Color="Color.Secondary" Style="height:180px; width:180px;"></MudAvatar>
+                            }
+                        </div>
+
+                        <MudText Style="font-weight: 500;" Typo="Typo.h6" Align="Align.Center">@University.University </MudText>
+                    </MudCardContent>
+                    <MudCardActions Class="d-flex justify-center">
+                        <InputFile id="fileInput" OnChange="UploadFiles" hidden accept=".jpg, .jpeg, .png"/>
+                        <MudButton HtmlTag="label"
+                                   Disabled="_uploadingUniversityLogo"
+                                   Variant="Variant.Text"
+                                   Color="Color.Primary"
+                                   Size="Size.Small"
+                                   StartIcon="@Icons.Filled.CloudUpload"
+                                   for="fileInput">
+                            Upload Image
+                        </MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12" sm="8" md="9">
+                <MudCard Elevation="9">
+                    <MudCardContent>
+                        <MudGrid>
+                            <MudItem xs="12" md="6">
+                                <MudTextField @bind-Value="University.University" Label="Name" Variant="Variant.Outlined" Required="true"/>
+                            </MudItem>
+
+                            <MudItem xs="12" md="6">
+                                <MudTextField @bind-Value="University.Address" Label="Address" Variant="Variant.Outlined"/>
+                            </MudItem>
+
+                            <MudItem xs="12" md="6">
+                                <MudTextField @bind-Value="University.Website" Label="Website" Variant="Variant.Outlined"/>
+                            </MudItem>
+
+                            <MudItem xs="12" md="6">
+                                <MudSelect OffsetY="true" T="string" Label="Division" Variant="Variant.Outlined" @bind-Value="University.Division">
+                                    @for (int i = 0; i < _divisions.Length; i++)
+                                    {
+                                        <MudSelectItem Value="@_divisions[i]"/>
+                                    }
+                                </MudSelect>
+                            </MudItem>
+
+                            <MudItem xs="12" md="6">
+                                <MudTextField @bind-Value="University.Tuisionin" Label="TuisionIn" Variant="Variant.Outlined"/>
+                            </MudItem>
+
+                            <MudItem xs="12" md="6">
+                                <MudTextField @bind-Value="University.Tuitionout" Label="TuitionOut" Variant="Variant.Outlined" Required="true"/>
+                            </MudItem>
+
+                            <MudItem xs="12" md="4">
+                                <MudTextField @bind-Value="University.GPA" Label="GPA" Variant="Variant.Outlined" Required="true"/>
+                            </MudItem>
+
+                            <MudItem xs="12" md="4">
+                                <MudTextField @bind-Value="University.SAT" Label="SAT" Variant="Variant.Outlined" Required="true"/>
+                            </MudItem>
+
+                            <MudItem xs="12" md="4">
+                                <MudTextField @bind-Value="University.ACT" Label="ACT" Variant="Variant.Outlined" Required="true"/>
+                            </MudItem>
+
+                            <MudItem xs="12" md="3">
+                                <MudTextField @bind-Value="University.Enrollement" Label="Enrollment" Variant="Variant.Outlined" Required="true"/>
+                            </MudItem>
+
+                            <MudItem xs="12" md="3">
+                                <MudTextField @bind-Value="University.State" Label="State" Variant="Variant.Outlined" Required="true"/>
+                            </MudItem>
+
+                            <MudItem xs="12" md="6">
+                                <MudTextField @bind-Value="University.AthleticWebSite" Label="Athletic Website" Variant="Variant.Outlined" Required="true"/>
+                            </MudItem>
+
+                            <MudItem xs="12" md="4">
+                                <MudTextField @bind-Value="University.CostOfAttendance" Label="Cost of Attendance" Variant="Variant.Outlined" Required="true"/>
+                            </MudItem>
+
+                            <MudItem xs="12" md="4">
+                                <MudTextField @bind-Value="University.CostOfAttendanceOut" Label="Cost of Attendance Out" Variant="Variant.Outlined" Required="true"/>
+                            </MudItem>
+
+                            <MudItem xs="12" md="4">
+                                <MudSelect T="string" @bind-Value="University.Type" Variant="Variant.Outlined">
+                                    <MudSelectItem Value="@("Public")"/>
+                                    <MudSelectItem Value="@("Private")"/>
+                                </MudSelect>
+                            </MudItem>
+
+                        </MudGrid>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        }
+
+    </MudGrid>
+</MudTabPanel>
+
+<MudTabPanel Text="Coaches">
+    <MudCard Elevation="9">
+        <MudCardContent>
+            <MudGrid>
+                <MudItem md="2" xs="12">
+                    <MudTextField @bind-Value="SportContact.Coach" Label="(HC) Full Name" Variant="Variant.Outlined"/>
+                </MudItem>
+                <MudItem md="2" xs="12">
+                    <MudTextField @bind-Value="SportContact.Email" Label="(HC) Email" Variant="Variant.Outlined"/>
+                </MudItem>
+
+                <MudItem md="2" xs="12">
+                    <MudTextField @bind-Value="SportContact.AssisantCoach" Label="(AC) Full Name" Variant="Variant.Outlined"/>
+                </MudItem>
+                <MudItem md="2" xs="12">
+                    <MudTextField @bind-Value="SportContact.AssCoachEmail" Label="(AC) Email" Variant="Variant.Outlined"/>
+                </MudItem>
+
+                <MudItem md="3" xs="12">
+                    <MudAutocomplete Required="true" Variant="Variant.Outlined" @bind-Value="SportContact.Sports" T="string" Label="Sport" SearchFunc="@SearchSport"
+                                     Clearable="true" ResetValueOnEmptyText="true" MaxItems="int.MaxValue"/>
+                </MudItem>
+
+                @if (isEditing)
+                {
+                    <MudItem md=1 xs="12">
+                        <MudIconButton Icon="@Icons.Material.Filled.Save" aria-label="Save" OnClick="EditSportContact" Style="margin-top:8px"/>
+                        <MudIconButton Icon="@Icons.Material.Filled.Cancel" aria-label="Cancel" OnClick="Cancel" Style="margin-top:8px"/>
+                    </MudItem>
+                }
+                else
+                {
+                    <MudItem md=1 xs="12">
+                        <MudIconButton Icon="@Icons.Material.Filled.Add" aria-label="Add" OnClick="Add" Style="margin-top:8px"/>
+                    </MudItem>
+                }
+
+                <MudItem sm="12" xs="12">
+                    <MudTable Items="@Items" @bind-SelectedItem="SelectedContact" Hover="true" Breakpoint="Breakpoint.Sm" LoadingProgressColor="@Color.Secondary"
+                              ReadOnly="false" CanCancelEdit="true" CommitEditTooltip="Save" OnCommitEditClick="EditSportContact" RowEditPreview="@(e => { })"
+                              RowEditCancel="@(o => { })" RowEditCommit="@(o => { })" IsEditRowSwitchingBlocked="false" Filter="new Func<SportContactDTO, bool>(FilterFunc)">
+                        <ToolBarContent>
+                            <MudText Typo="Typo.h6">COACHES AND ASSISTANTS</MudText>
+                            <MudSpacer/>
+                            <MudTextField @bind-Value="searchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+                        </ToolBarContent>
+                        <HeaderContent>
+                            <MudTh>(HC) Full Name</MudTh>
+                            <MudTh>(HC) Email</MudTh>
+                            <MudTh>(AC) Full Name</MudTh>
+                            <MudTh>(AC) Email</MudTh>
+                            <MudTh>Sport</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Coach">@context.Coach</MudTd>
+                            <MudTd DataLabel="Email">@context.Email</MudTd>
+                            <MudTd DataLabel="AssCoach">@context.AssisantCoach</MudTd>
+                            <MudTd DataLabel="AssEmail">@context.AssCoachEmail</MudTd>
+                            <MudTd DataLabel="Sport">@context.Sports.ToUpper()</MudTd>
+
+                            <MudTd DataLabel="Action">
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="Delete" OnClick="@(() => Delete(context.Coach, context.Id))" Color="Color.Error"/>
+                            </MudTd>
+                        </RowTemplate>
+                        <RowEditingTemplate>
+                            <MudTd DataLabel="Coach">
+                                <MudTextField @bind-Value="@context.Coach"/>
+                            </MudTd>
+                            <MudTd DataLabel="Email">
+                                <MudTextField @bind-Value="@context.Email"/>
+                            </MudTd>
+                            <MudTd DataLabel="AssCoach">
+                                <MudTextField @bind-Value="@context.AssisantCoach"/>
+                            </MudTd>
+                            <MudTd DataLabel="AssEmail">
+                                <MudTextField @bind-Value="@context.AssCoachEmail"/>
+                            </MudTd>
+                            <MudTd DataLabel="Sport">
+                                <MudText>
+                                    @context.Sports.ToUpper()
+                                </MudText>
+                            </MudTd>
+                        </RowEditingTemplate>
+                        <PagerContent>
+                            <MudTablePager PageSizeOptions="new[] {5, 10, 25, 50, 100}"/>
+                        </PagerContent>
+                    </MudTable>
+                </MudItem>
+            </MudGrid>
+        </MudCardContent>
+    </MudCard>
+
+</MudTabPanel>
+</MudTabs>
+</MudHidden>
+
+<MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+    <MudTabs Elevation="9" Color="Color.Primary" SliderColor="Color.Success" Rounded="true" PanelClass="mt-6" Centered="true">
+        <MudTabPanel Text="University">
+            <!-- Info basica de la universidad -->
+        </MudTabPanel>
+
+        <MudTabPanel Text="Coaches">
+            <!-- Lista de coaches -->
+        </MudTabPanel>
+    </MudTabs>
+</MudHidden>
+
+
+<br/>
+
+<MudFab Color="Color.Primary" Icon="@Icons.Material.Filled.Save" Class="floating-button" OnClick="UpdateUniversityAsync"/>
+
+@code
+{
+    [Parameter]
+    public int Id { get; set; }
+
+    [Parameter]
+    public string UniversityName { get; set; }
+
+    public SportDTO Sport { get; set; }
+
+    private SportContactDTO SportContact { get; set; } = new();
+    private SportContactDTO SelectedContact { get; set; } = new();
+
+    private UniversityDTO University { get; set; }
+
+    private string UrlImageUniversity { get; set; }
+
+    [Parameter]
+    public List<SportContactDTO> Items { get; set; } = new();
+
+    public bool _uploadingUniversityLogo;
+
+    private string[] _divisions = new string[6] {"NCAA DI", "NCAA DII", "NCAA DIII", "NAIA", "NJCAA", "OTHER"};
+
+    protected override async Task OnInitializedAsync()
+    {
+        _ = Task.Run(async () =>
+        {
+            var responseSport = await _httpClient.GetFromJsonAsync<Response<IEnumerable<SportContactDTO>>>($"api/v1/university/contact/{Id}");
+            var sports = responseSport?.Payload ?? Array.Empty<SportContactDTO>();
+            Items = sports.OrderBy(s => s.Sports).ToList();
+            StateHasChanged();
+        });
+
+        var responseUniversity = await _httpClient.GetFromJsonAsync<Response<IEnumerable<UniversityDTO>>>($"api/v1/university?id={Id}");
+
+        if (responseUniversity is null)
+        {
+            _navigationManager.NavigateTo("notfound");
+            return;
+        }
+
+        University = responseUniversity.Payload.FirstOrDefault();
+
+        if (University is not null)
+        {
+            if (University.University.Replace(" ", "-").Replace(",", "").ToLower() != UniversityName)
+            {
+                _navigationManager.NavigateTo("notfound");
+            }
+
+            UrlImageUniversity = $"https://isportsrecruiting.com/api/v1/file/logos/180/180/{University.Image}.png";
+        }
+        else
+        {
+            _navigationManager.NavigateTo("notfound");
+        }
+    }
+
+    public SportDTO[] Sports { get; set; } = Array.Empty<SportDTO>();
+
+    CancellationTokenSource _tokenSource = new();
+
+    private async Task<IEnumerable<string>> SearchSport(string value)
+    {
+        _tokenSource.Cancel();
+        _tokenSource = new();
+
+        var sportsResponse = await _httpClient.GetFromJsonAsync<Response<SportDTO[]>>($"api/v1/sport?search={value}&page=0&take=5", _tokenSource.Token);
+        if (sportsResponse is not null && sportsResponse.Status == ResponseStatus.Ok)
+        {
+            Sports = sportsResponse.Payload;
+        }
+
+        return Sports.Select(s => s.Name);
+    }
+
+    CancellationTokenSource _tokenSourceString = new();
+
+    private async Task<IEnumerable<string>> SearchSportString(string value)
+    {
+        _tokenSource.Cancel();
+        _tokenSource = new();
+
+        var sportsResponse = await _httpClient.GetFromJsonAsync<Response<SportDTO[]>>($"api/v1/sport?search={value}&page=1&take=5", _tokenSource.Token);
+        if (sportsResponse is not null && sportsResponse.Status == ResponseStatus.Ok)
+            return sportsResponse.Payload.Select(s => s.Name);
+
+        return Array.Empty<string>();
+    }
+
+    IList<CustomFile> files = new List<CustomFile>();
+
+    public void UploadFiles(InputFileChangeEventArgs e)
+    {
+        var entries = e.GetMultipleFiles();
+
+
+        foreach (var file in e.GetMultipleFiles())
+        {
+            string format = $".{e.File.Name.Split(".").Last()}";
+            if (file.Size / 10024 > 10024)
+            {
+                _snackBar.Add("Files larger than 10mb aren't accepted", Severity.Error);
+            }
+            else if (file.Name.Split(".").Last() == "png" || file.Name.Split(".").Last() == "jpeg" ||
+                     file.Name.Split(".").Last() == "jpg")
+            {
+                var customFile = new CustomFile(file)
+                {
+                    Description = e.File.Name,
+                    FileName = CleanNameForFileName(e.File.Name.Replace(format, "")) + format
+                };
+                customFile.ConvertedToBase64 += ImageFile_ConvertedToBase64;
+                customFile.StartConversion();
+            }
+            else
+            {
+                _snackBar.Add($"This file has the extension {entries.FirstOrDefault()?.Name.Split(".").Last()}",
+                    Severity.Error);
+            }
+        }
+    }
+
+    private static string CleanNameForFileName(string fileName)
+    {
+        return fileName.Replace(".", "").Replace("#", "").Replace("%", "").Replace("&", "").Replace("{", "")
+            .Replace("}", "").Replace("\\", "").Replace("<", "").Replace(">", "").Replace("*", "")
+            .Replace("?", "").Replace("/", "").Replace(" ", "").Replace("$", "").Replace("!", "")
+            .Replace("'", "").Replace("\"", "").Replace(":", "").Replace("@", "").Replace("+", "")
+            .Replace("`", "").Replace("|", "").Replace("=", "");
+    }
+
+    private async Task ImageFile_ConvertedToBase64(CustomFile file)
+    {
+        try
+        {
+            _uploadingUniversityLogo = true;
+            await _httpClient.PostAsJsonAsync($"api/v1/university/upload-image",
+                new FileModel {File_Name = file.FileName, Base64 = file.Base64, Description = file.Description, RelateId = Id});
+            _uploadingUniversityLogo = false;
+            UrlImageUniversity = $"https://isportsrecruiting.com/api/v1/file/logos/180/180/{file.Description}";
+            
+            StateHasChanged();
+        }
+        catch (Exception e)
+        {
+            _snackBar.Add(e.Message, Severity.Error, o => o.VisibleStateDuration = 10000);
+        }
+    }
+
+    private async Task UpdateUniversityAsync()
+    {
+        try
+        {
+            await _httpClient.PutAsJsonAsync("api/v1/university", University);
+            _snackBar.Add("Successfully Updated!", Severity.Success);
+        }
+        catch
+        {
+            _snackBar.Add("Sorry, it is not possible to save this data at this moment", Severity.Error);
+        }
+    }
+
+    bool isEditing;
+
+    private void OnEditSportContact(int? id)
+    {
+        isEditing = true;
+        SportContact = Items.FirstOrDefault(i => i.Id == id);
+    }
+
+    private async Task Add()
+    {
+        SportContact.UniversityId = Id;
+        var newSportContact = new SportContactDTO
+        {
+            Coach = SportContact.Coach,
+            Email = SportContact.Email,
+            AssisantCoach = SportContact.AssisantCoach,
+            AssCoachEmail = SportContact.AssCoachEmail,
+            Sports = SportContact.Sports
+        };
+        
+        var responseMessage = await _httpClient.PostAsJsonAsync("api/v1/coach", SportContact);
+        var result = await responseMessage.Content.ReadFromJsonAsync<Response<int>>();
+
+        if (result is not null && result.Status == ResponseStatus.Ok)
+        {
+            newSportContact.Id = result.Payload;
+            Items.Add(newSportContact);
+            Items = Items.OrderBy(i => i.Sports).ToList();
+            SportContact = new();
+            StateHasChanged();
+        }
+        else if (result is not null)
+        {
+            _snackBar.Add(result.Message, Severity.Error);
+        }
+    }
+
+    private async Task Delete(string coach, int? id)
+    {
+        var parameters = new DialogParameters();
+        parameters.Add("ContentText", $"Are you sure you want to delete {coach}?");
+        var reference = _dialogService.Show<DeleteConfirmation>("DeleteConfirmation", parameters: parameters);
+        var result = await reference.Result;
+
+        if (!result.Cancelled)
+        {
+            Items.Remove(Items.FirstOrDefault(i => i.Id == (id ?? -1))!);
+            StateHasChanged();
+
+            if (id.HasValue)
+                await _httpClient.DeleteAsync($"api/v1/coach/{id}");
+        }
+    }
+
+    private void EditSportContact()
+    {
+        Task.Run(async () => { await _httpClient.PutAsJsonAsync("api/v1/coach", SelectedContact); });
+
+        var item = Items.FirstOrDefault(i => i.Id == SelectedContact.Id);
+        item.Coach = SelectedContact.Coach;
+        item.Email = SelectedContact.Email;
+        item.AssisantCoach = SelectedContact.AssisantCoach;
+        item.AssCoachEmail = SelectedContact.AssCoachEmail;
+    }
+
+    private void Cancel()
+    {
+        SportContact = new();
+        isEditing = false;
+    }
+
+    private string searchString = "";
+
+    private bool FilterFunc(SportContactDTO element)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+        if (element.Coach.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (element.AssisantCoach.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        return false;
+    }
+
+    public class CustomFile
+    {
+        public long Id { get; set; }
+        public string FileName { get; set; }
+        public string Description { get; set; }
+        public bool IsDefault { get; set; }
+        public string Base64 { get; set; }
+        public bool Uploaded { get; set; }
+        private readonly IBrowserFile _file;
+
+        public event Func<CustomFile, Task> ConvertedToBase64;
+
+        public CustomFile()
+        {
+        }
+
+        public CustomFile(IBrowserFile file)
+        {
+            _file = file;
+        }
+
+        public void StartConversion()
+        {
+            Task.Run(async () =>
+            {
+                Base64 = await ConvertToBase64();
+                await ConvertedToBase64?.Invoke(this);
+            });
+        }
+
+        private async Task<string> ConvertToBase64()
+        {
+            await using var memoryStream = new MemoryStream();
+            await _file.OpenReadStream(maxAllowedSize: 5322075 * 2).CopyToAsync(memoryStream);
+
+            byte[] bytes = memoryStream.ToArray();
+            return Convert.ToBase64String(bytes);
+        }
+    }
+}

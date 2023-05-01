@@ -1,0 +1,64 @@
+﻿
+<style>
+    @if (IsVisible && Video is not null)
+    {
+        @styleVideo;
+    }
+    @if (IsVisible)
+    {
+        @styleBodyScroll;
+    }
+    
+</style>
+<MudOverlay OnClick="CloseOverlay" @bind-Visible="@IsVisible" DarkBackground="true" Style="@($"z-index: 99;")" AutoClose="true">
+    @if (Video is not null)
+    {
+    <MudGrid Style="height: 100%;" Justify="Justify.Center">
+        <MudItem xs="12">
+            @Video
+        </MudItem>
+    </MudGrid>
+    }
+    @if (Image is not null)
+    {
+        <MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+        <div style="max-height: 80vh; max-width: 90vh">
+            @Image
+        </div>
+        </MudHidden>
+        <MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+        <div style="max-height: 80vh; max-width: 46vh">
+            @Image
+        </div>
+        </MudHidden>
+
+    }
+</MudOverlay>
+
+@code {
+    [Parameter]
+    public RenderFragment Video { get; set; }
+
+    [Parameter]
+    public RenderFragment Image { get; set; }
+
+    [Parameter]
+    public bool IsVisible { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> OnCloseOverlay { get; set; }
+
+    private string styleBodyScroll = "body{overflow-y: hidden;}";
+
+    private string styleVideo = ".mud-overlay .mud-overlay-content {height: 69% !important; margin-top: 4% !important; width: 82% !important; position: fixed;}";
+
+    public void ToggleOverlay(bool value)
+    {
+        IsVisible = value;
+    }
+    private void CloseOverlay()
+    {
+        IsVisible = false;
+        OnCloseOverlay.InvokeAsync(false);
+    }
+}

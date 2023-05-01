@@ -1,0 +1,1176 @@
+@page "/athlete/profile"
+@page "/athlete/profile/tut/{Tut:bool}"
+@page "/athlete/profile/guide/{TabUp:int}/{TabDown:int}"
+
+@using iSportsRecruiting.Shared.DTO
+@using iSportsRecruiting.Shared.Models
+@using System.IO
+@using System.Net.Http.Json
+@using iSportsRecruiting.Client.Shared.Utils
+@using Microsoft.AspNetCore.Components.Forms
+@using System.Text.RegularExpressions
+@using System.ComponentModel.DataAnnotations
+@using iSportsRecruiting.Shared.Utils
+@using iSportsRecruiting.Shared.Utils.Enums
+
+
+@inject ISnackbar _snackBar
+@inject IJSRuntime runtime
+@inject HttpClient _httpClient
+@inject NavigationManager _navigationManager
+@inject Blazored.LocalStorage.ILocalStorageService _localStorage;
+
+<style>
+    .white-bg {
+        background-color: white;
+    }
+
+    .floating-button {
+        z-index: 2000;
+        bottom: 65px;
+        right: 22px;
+        position: fixed;
+    }
+</style>
+<ShowMediaOverlay OnCloseOverlay="CloseImageOverlay" IsVisible="_showImageOverlay">
+    <Image>
+        <MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+            <img src="@($"{_urlImageOverlay}")" alt="ISR" style="height: 100%; width: 75%; object-fit: contain;">
+        </MudHidden>
+        <MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+            <img src="@($"{_urlImageOverlay}")" alt="ISR" style="height: 100%; width: 100%; object-fit: contain;">
+        </MudHidden>
+
+    </Image>
+</ShowMediaOverlay>
+<MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+    <MudTabs @ref="parentTab" Elevation="9" Color="Color.Primary" SliderColor="Color.Success" Rounded="true" PanelClass="mt-6" Centered="true">
+        <MudTabPanel Text="My Info">
+            <Profile @bind-Athlete="Athlete" IsTutActive="Tut" />
+        </MudTabPanel>
+
+        <MudTabPanel Text="Academics">
+            <MudItem xs="12" sm="12" md="12">
+                <!-- Pantallas medianas a mas grande -->
+                <MudTabs @ref="childTab" SliderColor="Color.Success" Elevation="9" Outlined="true" Position="@Position.Left" Border="true"
+                         ApplyEffectsToContainer="true" PanelClass="pa-6 white-bg">
+                    <MudTabPanel Text="Scores" Style="color: black">
+                        <MudGrid>
+
+                            <MudItem xs="12" md="6">
+                                <MudSelect T="string" Label="Graduation" @bind-Value="Athlete.GraduationYear" Strict="true" Variant="Variant.Outlined" AdornmentIcon="@Icons.Filled.DateRange" AdornmentColor="Color.Primary" Required="true">
+                                    @for (int i = DateTime.Now.Year - 1; i <= DateTime.Now.Year + 7; i++)
+                                    {
+                                        <MudSelectItem T="string" Value="i.ToString()" />
+                                    }
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudTextField T="string" @bind-Value="Athlete.HighSchool" Label="High School" Variant="Variant.Outlined" Required="true" />
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudTextField @bind-Value="Athlete.GPA" Label="GPA" Variant="Variant.Outlined" Required="true" />
+                                @if (Athlete.GpaFileName is not null)
+                                {
+                                    <div style="text-align: center; margin-top: 12px;">
+                                        <label>@Athlete.GpaFileName</label>
+                                        <MudIconButton OnClick="@(()=> ShowImageOverlay(Athlete.GpaFileOrigin))" Icon="@Icons.Material.Filled.RemoveRedEye"></MudIconButton>
+                                    </div>
+                                }
+
+                                <div style="text-align: center; margin-top: 12px;">
+                                    <label>Upload New File JPG/PDF</label>
+                                    @if (_uploadingGpa)
+                                    {
+                                        <MudProgressCircular Class="ml-3" Indeterminate="true" Size="Size.Small" Color="Color.Primary" />
+                                    }
+                                    else
+                                    {
+                                        <InputFile id="fileInputGPA" OnChange="UploadFileGPA" hidden accept=".jpg, .jpeg, .pdf" />
+                                        <MudIconButton HtmlTag="label" for="fileInputGPA" Icon="@Icons.Material.Filled.FileUpload" aria-label="Upload JPG/PDF"></MudIconButton>
+                                    }
+                                </div>
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudTextField @bind-Value="Athlete.SAT" Label="SAT" Variant="Variant.Outlined" />
+                                @if (Athlete.SatFileName is not null)
+                                {
+                                    <div style="text-align: center; margin-top: 12px;">
+                                        <label>@Athlete.SatFileName</label>
+                                        <MudIconButton OnClick="@(()=> ShowImageOverlay(Athlete.SatFileOrigin))" Icon="@Icons.Material.Filled.RemoveRedEye"></MudIconButton>
+                                    </div>
+                                }
+                                <div style="text-align: center; margin-top: 12px;">
+                                    <label>Upload New File JPG/PDF</label>
+                                    @if (_uploadingSat)
+                                    {
+                                        <MudProgressCircular Class="ml-3" Indeterminate="true" Size="Size.Small" Color="Color.Primary" />
+                                    }
+                                    else
+                                    {
+                                        <InputFile id="fileInputSAT" OnChange="UploadFileSAT" hidden accept=".jpg, .jpeg, .pdf" />
+                                        <MudIconButton HtmlTag="label" for="fileInputSAT" Icon="@Icons.Material.Filled.FileUpload" aria-label="Upload JPG/PDF"></MudIconButton>
+                                    }
+                                </div>
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudTextField @bind-Value="Athlete.ACT" Label="ACT" Variant="Variant.Outlined" />
+                                @if (Athlete.ActFileName is not null)
+                                {
+                                    <div style="text-align: center; margin-top: 12px;">
+                                        <label>@Athlete.ActFileName</label>
+                                        <MudIconButton OnClick="@(()=> ShowImageOverlay(Athlete.ActFileOrigin))" Icon="@Icons.Material.Filled.RemoveRedEye"></MudIconButton>
+                                    </div>
+                                }
+                                <div style="text-align: center; margin-top: 12px;">
+                                    <label>Upload New File JPG/PDF</label>
+                                    @if (_uploadingAct)
+                                    {
+                                        <MudProgressCircular Class="ml-3" Indeterminate="true" Size="Size.Small" Color="Color.Primary" />
+                                    }
+                                    else
+                                    {
+                                        <InputFile id="fileInputACT" OnChange="UploadFileACT" hidden accept=".jpg, .jpeg, .pdf" />
+                                        <MudIconButton HtmlTag="label" for="fileInputACT" Icon="@Icons.Material.Filled.FileUpload" aria-label="Upload JPG/PDF"></MudIconButton>
+                                    }
+                                </div>
+                            </MudItem>
+                        </MudGrid>
+                    </MudTabPanel>
+                    <MudTabPanel Text="Honor" Style="color: black">
+                        <AddingList Athlete="Athlete" Label="Honor" @bind-Items="Honors" />
+                    </MudTabPanel>
+                    <MudTabPanel Text="Award" Style="color: black">
+                        <AddingList Athlete="Athlete" Label="Award" @bind-Items="Awards" />
+                    </MudTabPanel>
+                </MudTabs>
+
+                <MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+                    <MudTabs @ref="childTab" SliderColor="Color.Success" Elevation="9" Outlined="true" Position="@Position.Top" Border="true"
+                             ApplyEffectsToContainer="true" PanelClass="pa-6 white-bg">
+                        <MudTabPanel Text="Scores" Style="color: black">
+                            <MudGrid>
+                                <MudItem xs="12" md="6">
+                                    <MudSelect T="string" Label="Graduation" @bind-Value="Athlete.GraduationYear" Strict="true" Variant="Variant.Outlined" AdornmentIcon="@Icons.Filled.DateRange" AdornmentColor="Color.Primary" Required="true">
+                                        @for (int i = DateTime.Now.Year - 1; i <= 2025; i++)
+                                        {
+                                            <MudSelectItem T="string" Value="i.ToString()" />
+                                        }
+                                    </MudSelect>
+                                </MudItem>
+                                <MudItem xs="12" md="6">
+                                    <MudTextField T="string" @bind-Value="Athlete.HighSchool" Label="High School" Variant="Variant.Outlined" Required="true" />
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudTextField @bind-Value="Athlete.GPA" Label="GPA" Variant="Variant.Outlined" Required="true" />
+                                    @if (Athlete.GpaFileName is not null)
+                                    {
+                                        <div style="text-align: center; margin-top: 12px;">
+                                            <label>Athlete.GpaFileName</label>
+                                            <MudIconButton Icon="@Icons.Material.Filled.RemoveRedEye" Link="@($"/uploads/{Athlete.GpaFileOrigin}")" Target="_blank"></MudIconButton>
+                                        </div>
+                                    }
+
+                                    <div style="text-align: center; margin-top: 12px;">
+                                        <label>Upload New File JPG/PDF</label>
+                                        @if (_uploadingGpa)
+                                        {
+                                            <MudProgressCircular Class="ml-3" Indeterminate="true" Size="Size.Small" Color="Color.Primary" />
+                                        }
+                                        else
+                                        {
+                                            <InputFile id="fileInputGPA" OnChange="UploadFileGPA" hidden accept=".jpg, .jpeg, .pdf" />
+                                            <MudIconButton HtmlTag="label" for="fileInputGPA" Icon="@Icons.Material.Filled.FileUpload" aria-label="Upload JPG/PDF"></MudIconButton>
+                                        }
+                                    </div>
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudTextField @bind-Value="Athlete.SAT" Label="SAT" Variant="Variant.Outlined" Required="true" />
+                                    @if (Athlete.SatFileName is not null)
+                                    {
+                                        <div style="text-align: center; margin-top: 12px;">
+                                            <label>@Athlete.SatFileName</label>
+                                            <MudIconButton Icon="@Icons.Material.Filled.RemoveRedEye" Link="@($"/uploads/{Athlete.SatFileOrigin}")" Target="_blank"></MudIconButton>
+                                        </div>
+                                    }
+                                    <div style="text-align: center; margin-top: 12px;">
+                                        <label>Upload New File JPG/PDF</label>
+                                        @if (_uploadingSat)
+                                        {
+                                            <MudProgressCircular Class="ml-3" Indeterminate="true" Size="Size.Small" Color="Color.Primary" />
+                                        }
+                                        else
+                                        {
+                                            <InputFile id="fileInputSAT" OnChange="UploadFileSAT" hidden accept=".jpg, .jpeg, .pdf" />
+                                            <MudIconButton HtmlTag="label" for="fileInputSAT" Icon="@Icons.Material.Filled.FileUpload" aria-label="Upload JPG/PDF"></MudIconButton>
+                                        }
+                                    </div>
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudTextField @bind-Value="Athlete.ACT" Label="ACT" Variant="Variant.Outlined" Required="true" />
+                                    @if (Athlete.ActFileName is not null)
+                                    {
+                                        <div style="text-align: center; margin-top: 12px;">
+                                            <label>Athlete.ActFileName</label>
+                                            <MudIconButton Icon="@Icons.Material.Filled.RemoveRedEye" Link="@($"/uploads/{Athlete.ActFileOrigin}")" Target="_blank"></MudIconButton>
+                                        </div>
+                                    }
+                                    <div style="text-align: center; margin-top: 12px;">
+                                        <label>Upload New File JPG/PDF</label>
+                                        @if (_uploadingAct)
+                                        {
+                                            <MudProgressCircular Class="ml-3" Indeterminate="true" Size="Size.Small" Color="Color.Primary" />
+                                        }
+                                        else
+                                        {
+                                            <InputFile id="fileInputACT" OnChange="UploadFileACT" hidden accept=".jpg, .jpeg, .pdf" />
+                                            <MudIconButton HtmlTag="label" for="fileInputACT" Icon="@Icons.Material.Filled.FileUpload" aria-label="Upload JPG/PDF"></MudIconButton>
+                                        }
+                                    </div>
+                                </MudItem>
+                            </MudGrid>
+                        </MudTabPanel>
+                        <MudTabPanel Text="Honor" Style="color: black">
+                            <AddingList Athlete="Athlete" Label="Honor" @bind-Items="Honors" />
+                        </MudTabPanel>
+                        <MudTabPanel Text="Award" Style="color: black">
+                            <AddingList Athlete="Athlete" Label="Award" @bind-Items="Awards" />
+                        </MudTabPanel>
+                    </MudTabs>
+                </MudHidden>
+            </MudItem>
+        </MudTabPanel>
+
+        <MudTabPanel Text="Athletic">
+            <MudItem xs="12" sm="12" md="12">
+                @*<EditForm Model="@profileModel" OnValidSubmit="UpdateProfileAsync">*@
+                <MudTabs @ref="childTab" SliderColor="Color.Success" Elevation="9" Outlined="true" Position="@Position.Left" Border="true"
+                         ApplyEffectsToContainer="true" PanelClass="pa-6 white-bg">
+                    <MudTabPanel Text="Eligibility" Style="color: black">
+                        <MudGrid>
+                            <MudItem xs="12" md="6">
+                                <a href="https://web3.ncaa.org/ecwr3/register/CERTIFICATION" target="_blank" style="color: #64DD17; text-decoration: underline; cursor: pointer">NCAA Eligibility Center Registration</a>
+                                <MudTextField @bind-Value="Athlete.NCAA" Label="NCAA" Variant="Variant.Outlined" Required="true" />
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <a href="https://play.mynaia.org/" target="_blank" style="color: #64DD17; text-decoration: underline; cursor: pointer; ">NAIA Eligibility Center Registration</a>
+                                <MudTextField @bind-Value="Athlete.NAIA" Label="NAIA" Variant="Variant.Outlined" Required="true" />
+                            </MudItem>
+                        </MudGrid>
+                    </MudTabPanel>
+                    <MudTabPanel Text="High School" Style="color: black">
+                        <HighSchoolAddingList Athlete="Athlete" @bind-Items="HighSchools" Label="HighSchool" />
+                    </MudTabPanel>
+                    <MudTabPanel Text="Stats" Style="color: black">
+                        <MudGrid>
+                            <MudItem sm="12" lg="12">
+                                <MudTable Items="Items" Hover="true" Breakpoint="Breakpoint.Sm" ReadOnly="false" LoadingProgressColor="@Color.Secondary">
+                                    <HeaderContent>
+                                        @foreach (var stat in Stats)
+                                        {
+                                            <MudTh>@stat.Key</MudTh>
+                                        }
+                                    </HeaderContent>
+                                    <RowTemplate>
+                                        @foreach (var stat in Stats)
+                                        {
+                                            <MudTd DataLabel="@stat.Key">
+                                                <MudTextField id="@stat.Key.Replace(" ", "")" T="string" @bind-Value="Stats[stat.Key]" /> @*Text="@(stat.Value is null ? string.Empty : stat.Value)"*@
+                                            </MudTd>
+                                        }
+                                    </RowTemplate>
+                                </MudTable>
+                            </MudItem>
+                        </MudGrid>
+                    </MudTabPanel>
+                    <MudTabPanel Text="Clubs" Style="color: black">
+                        <AddingList Athlete="Athlete" Label="Club" @bind-Items="Clubs" />
+                    </MudTabPanel>
+                    <MudTabPanel Text="Coaches" Style="color: black">
+                        <CoachAddingList Athlete="Athlete" @bind-Items="Coaches" />
+                    </MudTabPanel>
+                    <MudTabPanel Text="Coaches Evaluation" Style="color: black">
+                        <MudGrid>
+                            <MudItem xs="12" md="12">
+                                <MudTextField Lines="8" @bind-Value="Athlete.CoachesEvaluation" Label="Coaches Evaluation" Variant="Variant.Outlined" Required="true" />
+                            </MudItem>
+                        </MudGrid>
+                    </MudTabPanel>
+                    <MudTabPanel Text="Videos" Style="color: black">
+                        <VideosAddingList Athlete="Athlete" @bind-Items="Videos" />
+                    </MudTabPanel>
+                </MudTabs>
+                @*</EditForm>*@
+            </MudItem>
+        </MudTabPanel>
+
+        <MudTabPanel Text="Contact">
+            <MudItem xs="12" sm="12" md="12">
+                @*<EditForm Model="@profileModel" OnValidSubmit="UpdateProfileAsync">*@
+
+                <MudTabs @ref="childTab" SliderColor="Color.Success" Elevation="9" Outlined="true" Position="@Position.Left" Border="true"
+                         ApplyEffectsToContainer="true" PanelClass="pa-6">
+                    <MudTabPanel Text="Me">
+                        <MudGrid>
+                            <MudItem xs="12" md="6">
+                                <MudTextField @bind-Value="Athlete.CellPhone" Mask="@(new PatternMask("(000) 000-0000"))" Label="Mobile" Variant="Variant.Outlined" Required="true" />
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudTextField Disabled="true" @bind-Value="Athlete.Email" Label="Email" Variant="Variant.Outlined" />
+                            </MudItem>
+                        </MudGrid>
+                    </MudTabPanel>
+                    <MudTabPanel Text="Guardian">
+                        <MudGrid>
+                            <MudItem xs="12" md="4">
+                                <MudTextField @bind-Value="Athlete.GuardianName" Label="Name" Variant="Variant.Outlined" Required="true" />
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudTextField @bind-Value="Athlete.GuardianPhone" Label="Mobile" Mask="@(new PatternMask("(000) 000-0000"))" Variant="Variant.Outlined" Required="true" />
+                            </MudItem>
+                            <MudItem xs="12" md="4">
+                                <MudTextField @bind-Value="Athlete.GuardianEmail" Label="Email" Variant="Variant.Outlined" Required="true" />
+                            </MudItem>
+                        </MudGrid>
+                    </MudTabPanel>
+                    <MudTabPanel Text="Social Media">
+                        <MudForm Style="width: 100%" @ref="form" @bind-IsValid="@success" @bind-Errors="@errors">
+                            <MudGrid>
+                                <MudItem xs="12" md="4">
+                                    <MudTextField Immediate="true" Validation="@(new SocialMediaUrlAttribute(iSportsRecruiting.Shared.Utils.Enums.SocialMedia.Instagram))" Placeholder="https://www.socialmedia.com/user/" @bind-Value="SocialMedia.Instagram" Label="Instagram" Variant="Variant.Outlined" Required="true" />
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudTextField Immediate="true" Validation="@(new SocialMediaUrlAttribute(iSportsRecruiting.Shared.Utils.Enums.SocialMedia.Facebook))" Placeholder="https://www.socialmedia.com/user/" @bind-Value="SocialMedia.Facebook" Label="Facebook" Variant="Variant.Outlined" Required="true" />
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudTextField Immediate="true" Validation="@(new SocialMediaUrlAttribute(iSportsRecruiting.Shared.Utils.Enums.SocialMedia.Twitter))" Placeholder="https://www.socialmedia.com/user/" @bind-Value="SocialMedia.Twitter" Label="Twitter" Variant="Variant.Outlined" Required="true" />
+                                </MudItem>
+                            </MudGrid>
+                        </MudForm>
+                    </MudTabPanel>
+                </MudTabs>
+
+                @*</EditForm>*@
+            </MudItem>
+        </MudTabPanel>
+
+        <MudTabPanel Text="Statement">
+            <MudItem xs="12" sm="12" md="12">
+                @*<EditForm Model="@profileModel" OnValidSubmit="UpdateProfileAsync">*@
+                <MudCard Elevation="9">
+                    <MudCardContent>
+                        <MudGrid>
+                            <MudItem xs="12" md="12">
+                                <MudTextField Lines="8" @bind-Value="Athlete.PersonalStatement" Label="Statement" Variant="Variant.Outlined" Required="true" />
+                            </MudItem>
+                        </MudGrid>
+                    </MudCardContent>
+                    <MudCardActions Class="pb-4 pl-4">
+
+                    </MudCardActions>
+                </MudCard>
+                @*</EditForm>*@
+            </MudItem>
+        </MudTabPanel>
+    </MudTabs>
+</MudHidden>
+
+<MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+    <MudTabs @ref="parentTab" Elevation="9" Color="Color.Primary" SliderColor="Color.Success" Rounded="true" PanelClass="mt-6" Centered="true">
+        <MudTabPanel Text="My Info">
+            <Profile @bind-Athlete="Athlete" IsTutActive="Tut" />
+        </MudTabPanel>
+
+        <MudTabPanel Text="Academics">
+            <MudItem xs="12" sm="12" md="12">
+                <!-- Pantallas medianas a mas grande -->
+                <MudTabs @ref="childTab" SliderColor="Color.Success" Elevation="9" Outlined="true" Position="@Position.Top" Border="true"
+                         ApplyEffectsToContainer="true" PanelClass="pa-6 white-bg">
+
+                    <MudTabPanel Text="Scores" Style="color: black">
+                        <MudGrid>
+                            <MudItem xs="12" md="6">
+                                <MudSelect T="string" Label="Graduation" @bind-Value="Athlete.GraduationYear" Strict="true" Variant="Variant.Outlined" AdornmentIcon="@Icons.Filled.DateRange" AdornmentColor="Color.Primary" Required="true">
+                                    @for (int i = DateTime.Now.Year - 1; i <= 2025; i++)
+                                    {
+                                        <MudSelectItem T="string" Value="i.ToString()" />
+                                    }
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudTextField T="string" @bind-Value="Athlete.HighSchool" Label="High School" Variant="Variant.Outlined" Required="true" />
+                            </MudItem>
+
+                            <MudItem xs="12">
+                                <MudDivider />
+                            </MudItem>
+
+                            <MudItem xs="12" md="4">
+                                <MudTextField @bind-Value="Athlete.GPA" Label="GPA" Variant="Variant.Outlined" Required="true" />
+
+                                @if (Athlete.GpaFileName is not null)
+                                {
+                                    <div style="text-align: center;margin-bottom: 1px">
+                                        <MudPaper Elevation="3">
+                                            <div style="width: 80%; display: inline-block; font-size: 14px">
+                                                <MudText Style="width: 100%;white-space: nowrap;text-overflow: ellipsis;overflow: hidden;transform: translate(10px, 10px);">@Athlete.GpaFileName</MudText>
+                                            </div>
+                                            <div style="width: 20%; display: inline; font-size: 14px">
+                                                <MudIconButton Icon="@Icons.Material.Outlined.RemoveRedEye" OnClick="@(()=> ShowImageOverlay(Athlete.GpaFileOrigin))"></MudIconButton>
+                                            </div>
+                                        </MudPaper>
+                                    </div>
+                                }
+
+                                <div style="text-align: center;margin-bottom: 1px">
+                                    <MudPaper Elevation="3">
+                                        <div style="width: 80%; display: inline-block">
+                                            <MudText Style="width: 100%;white-space: nowrap;text-overflow: ellipsis;overflow: hidden;transform: translate(10px, 10px);">Upload New File JPG/PDF</MudText>
+                                        </div>
+                                        <div style="width: 20%; display: inline">
+                                            @if (_uploadingGpa)
+                                            {
+                                                <MudProgressCircular Class="ml-3" Indeterminate="true" Size="Size.Small" Color="Color.Primary" />
+                                            }
+                                            else
+                                            {
+                                                <InputFile id="fileInputGPA" OnChange="UploadFileGPA" hidden accept=".jpg, .jpeg, .pdf" />
+                                                <MudIconButton HtmlTag="label" for="fileInputGPA" Icon="@Icons.Material.Outlined.FileUpload" aria-label="Upload JPG/PDF"></MudIconButton>
+                                            }
+                                        </div>
+                                    </MudPaper>
+                                </div>
+                            </MudItem>
+
+                            <MudItem xs="12">
+                                <MudDivider />
+                            </MudItem>
+
+                            <MudItem xs="12" md="4">
+                                <MudTextField @bind-Value="Athlete.SAT" Label="SAT" Variant="Variant.Outlined" />
+
+                                @if (Athlete.SatFileName is not null)
+                                {
+                                    <div style="text-align: center;margin-bottom: 1px">
+                                        <MudPaper Elevation="3">
+                                            <div style="width: 80%; display: inline-block; font-size: 14px">
+                                                <MudText Style="width: 100%;white-space: nowrap;text-overflow: ellipsis;overflow: hidden;transform: translate(10px, 10px);">@Athlete.SatFileName</MudText>
+                                            </div>
+                                            <div style="width: 20%; display: inline; font-size: 14px">
+                                                <MudIconButton Icon="@Icons.Material.Outlined.RemoveRedEye" OnClick="@(()=> ShowImageOverlay(Athlete.SatFileOrigin))"></MudIconButton>
+                                            </div>
+                                        </MudPaper>
+                                    </div>
+                                }
+
+                                <div style="text-align: center;margin-bottom: 1px">
+                                    <MudPaper Elevation="3">
+                                        <div style="width: 80%; display: inline-block">
+                                            <MudText Style="width: 100%;white-space: nowrap;text-overflow: ellipsis;overflow: hidden;transform: translate(10px, 10px);">Upload New File JPG/PDF</MudText>
+                                        </div>
+                                        <div style="width: 20%; display: inline">
+                                            @if (_uploadingSat)
+                                            {
+                                                <MudProgressCircular Class="ml-3" Indeterminate="true" Size="Size.Small" Color="Color.Primary" />
+                                            }
+                                            else
+                                            {
+                                                <InputFile id="fileInputSAT" OnChange="UploadFileSAT" hidden accept=".jpg, .jpeg, .pdf" />
+                                                <MudIconButton HtmlTag="label" for="fileInputSAT" Icon="@Icons.Material.Outlined.FileUpload" aria-label="Upload JPG/PDF"></MudIconButton>
+                                            }
+                                        </div>
+                                    </MudPaper>
+                                </div>
+                            </MudItem>
+
+                            <MudItem xs="12">
+                                <MudDivider />
+                            </MudItem>
+
+                            <MudItem xs="12" md="4">
+                                <MudTextField @bind-Value="Athlete.ACT" Label="ACT" Variant="Variant.Outlined" />
+                                @if (Athlete.ActFileName is not null)
+                                {
+                                    <div style="text-align: center;margin-bottom: 1px">
+                                        <MudPaper Elevation="3">
+                                            <div style="width: 80%; display: inline-block; font-size: 14px">
+                                                <MudText Style="width: 100%;white-space: nowrap;text-overflow: ellipsis;overflow: hidden;transform: translate(10px, 10px);">@Athlete.ActFileName</MudText>
+                                            </div>
+                                            <div style="width: 20%; display: inline; font-size: 14px">
+                                                <MudIconButton Icon="@Icons.Material.Outlined.RemoveRedEye" OnClick="@(()=> ShowImageOverlay(Athlete.ActFileOrigin))"></MudIconButton>
+                                            </div>
+                                        </MudPaper>
+                                    </div>
+                                }
+
+                                <div style="text-align: center;margin-bottom: 1px">
+                                    <MudPaper Elevation="3">
+                                        <div style="width: 80%; display: inline-block">
+                                            <MudText Style="width: 100%;white-space: nowrap;text-overflow: ellipsis;overflow: hidden;transform: translate(10px, 10px);">Upload New File JPG/PDF</MudText>
+                                        </div>
+                                        <div style="width: 20%; display: inline">
+                                            @if (_uploadingAct)
+                                            {
+                                                <MudProgressCircular Class="ml-3" Indeterminate="true" Size="Size.Small" Color="Color.Primary" />
+                                            }
+                                            else
+                                            {
+                                                <InputFile id="fileInputACT" OnChange="UploadFileACT" hidden accept=".jpg, .jpeg, .pdf" />
+                                                <MudIconButton HtmlTag="label" for="fileInputACT" Icon="@Icons.Material.Outlined.FileUpload" aria-label="Upload JPG/PDF"></MudIconButton>
+                                            }
+                                        </div>
+                                    </MudPaper>
+                                </div>
+                            </MudItem>
+                        </MudGrid>
+                    </MudTabPanel>
+
+                    <MudTabPanel Text="Honor" Style="color: black">
+                        <AddingList Athlete="Athlete" Label="Honor" @bind-Items="Honors" PhoneMode="true" />
+                    </MudTabPanel>
+
+                    <MudTabPanel Text="Award" Style="color: black">
+                        <AddingList Athlete="Athlete" Label="Award" @bind-Items="Awards" PhoneMode="true" />
+                    </MudTabPanel>
+
+                </MudTabs>
+            </MudItem>
+        </MudTabPanel>
+
+        <MudTabPanel Text="Athletic">
+            <MudItem xs="12" sm="12" md="12">
+                @*<EditForm Model="@profileModel" OnValidSubmit="UpdateProfileAsync">*@
+                <MudTabs @ref="childTab" SliderColor="Color.Success" Elevation="9" Outlined="true" Position="@Position.Top" Border="true"
+                         ApplyEffectsToContainer="true" PanelClass="pa-6 white-bg">
+                    <MudTabPanel Text="Eligibility" Style="color: black">
+                        <MudGrid>
+                            <MudItem xs="12" md="6">
+                                <a @onclick="@(async () => { await runtime.InvokeVoidAsync("openUrlNewWindow", "https://web3.ncaa.org/ecwr3/register/CERTIFICATION");  })" style="color: #64DD17; text-decoration: underline; ">NCAA Eligibility Center Registration</a>
+                                <MudTextField @bind-Value="Athlete.NCAA" Label="NCAA" Variant="Variant.Outlined" Required="true" />
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <a @onclick="@(async () => { await runtime.InvokeVoidAsync("openUrlNewWindow", "https://play.mynaia.org/");  })" style="color: #64DD17; text-decoration: underline; ">NAIA Eligibility Center Registration</a>
+                                <MudTextField @bind-Value="Athlete.NAIA" Label="NAIA" Variant="Variant.Outlined" Required="true" />
+                            </MudItem>
+                        </MudGrid>
+                    </MudTabPanel>
+                    <MudTabPanel Text="High School" Style="color: black">
+                        <HighSchoolAddingList Athlete="Athlete" @bind-Items="HighSchools" Label="HighSchool" PhoneMode="true" />
+                    </MudTabPanel>
+                    <MudTabPanel Text="Stats" Style="color: black">
+                        <MudGrid>
+                            <MudItem sm="12" lg="12">
+                                <MudTable Items="Items" Hover="true" Breakpoint="Breakpoint.Sm" ReadOnly="false" LoadingProgressColor="@Color.Secondary">
+                                    <HeaderContent>
+                                        @foreach (var stat in Stats)
+                                        {
+                                            <MudTh>@stat.Key</MudTh>
+                                        }
+                                    </HeaderContent>
+                                    <RowTemplate>
+                                        @foreach (var stat in Stats)
+                                        {
+                                            <MudTd DataLabel="@stat.Key">
+                                                <MudTextField id="@stat.Key.Replace(" ", "")" T="string" @bind-Value="Stats[stat.Key]" /> @*Text="@(stat.Value is null ? string.Empty : stat.Value)"*@
+                                            </MudTd>
+                                        }
+                                    </RowTemplate>
+                                </MudTable>
+                            </MudItem>
+                        </MudGrid>
+                    </MudTabPanel>
+                    <MudTabPanel Text="Clubs" Style="color: black">
+                        <AddingList Athlete="Athlete" Label="Club" @bind-Items="Clubs" PhoneMode="true" />
+                    </MudTabPanel>
+                    <MudTabPanel Text="Coaches" Style="color: black">
+                        <CoachAddingList Athlete="Athlete" @bind-Items="Coaches" PhoneMode="true" />
+                    </MudTabPanel>
+                    <MudTabPanel Text="Coaches Evaluation" Style="color: black">
+                        <MudGrid>
+                            <MudItem xs="12" md="12">
+                                <MudTextField Lines="8" @bind-Value="Athlete.CoachesEvaluation" Label="Coaches Evaluation" Variant="Variant.Outlined" Required="true" />
+                            </MudItem>
+                        </MudGrid>
+                    </MudTabPanel>
+
+                    <MudTabPanel Text="Videos" Style="color: black">
+                        <VideosAddingList Athlete="Athlete" @bind-Items="Videos" PhoneMode="true" />
+                    </MudTabPanel>
+                </MudTabs>
+                @*</EditForm>*@
+            </MudItem>
+        </MudTabPanel>
+
+        <MudTabPanel Text="Contact">
+            <MudItem xs="12" sm="12" md="12">
+                @*<EditForm Model="@profileModel" OnValidSubmit="UpdateProfileAsync">*@
+                <MudTabs @ref="childTab" SliderColor="Color.Success" Elevation="9" Outlined="true" Position="@Position.Top" Border="true"
+                         ApplyEffectsToContainer="true" PanelClass="pa-6 white-bg">
+                    <MudTabPanel Text="Me" Style="color: black">
+                        <MudGrid>
+                            <MudItem xs="12" sm="12" md="6">
+                                <MudTextField @bind-Value="Athlete.CellPhone" Label="Mobile" Mask="@(new PatternMask("(000) 000-0000"))" Variant="Variant.Outlined" Required="true" />
+                            </MudItem>
+                            <MudItem xs="12" sm="12" md="6">
+                                <MudTextField Disabled="true" @bind-Value="Athlete.Email" Label="Email" Variant="Variant.Outlined" />
+                            </MudItem>
+                        </MudGrid>
+                    </MudTabPanel>
+                    <MudTabPanel Text="Guardian" Style="color: black">
+                        <MudGrid>
+                            <MudItem xs="12" sm="12">
+                                <MudTextField @bind-Value="Athlete.GuardianName" Label="Name" Variant="Variant.Outlined" Required="true" />
+                            </MudItem>
+                            <MudItem xs="12" sm="12">
+                                <MudTextField @bind-Value="Athlete.GuardianPhone" Label="Mobile" Mask="@(new PatternMask("(000) 000-0000"))" Variant="Variant.Outlined" Required="true" />
+                            </MudItem>
+                            <MudItem xs="12" sm="12">
+                                <MudTextField @bind-Value="Athlete.GuardianEmail" Label="Email" Variant="Variant.Outlined" Required="true" />
+                            </MudItem>
+                        </MudGrid>
+                    </MudTabPanel>
+                </MudTabs>
+
+                @*</EditForm>*@
+            </MudItem>
+        </MudTabPanel>
+
+        <MudTabPanel Text="Statement">
+            <MudItem xs="12" sm="12" md="12">
+                @*<EditForm Model="@profileModel" OnValidSubmit="UpdateProfileAsync">*@
+                <MudCard Elevation="9">
+                    <MudCardContent>
+                        <MudGrid>
+                            <MudItem xs="12" md="12">
+                                <MudTextField Lines="8" @bind-Value="Athlete.PersonalStatement" Label="Statement" Variant="Variant.Outlined" Required="true" />
+                            </MudItem>
+                        </MudGrid>
+                    </MudCardContent>
+                    <MudCardActions Class="pb-4 pl-4">
+
+                    </MudCardActions>
+                </MudCard>
+                @*</EditForm>*@
+            </MudItem>
+        </MudTabPanel>
+    </MudTabs>
+</MudHidden>
+
+
+<br />
+
+@foreach (var alert in _incompleteProfileMessages)
+{
+    if (!alert.IsClosed)
+    {
+        <MudAlert Severity="Severity.Error" Class="mb-2" ShowCloseIcon="true" CloseIconClicked="@(() => CloseAlert(alert))">@alert.Message</MudAlert>
+    }
+}
+
+<MudFab Color="Color.Primary" Icon="@Icons.Material.Filled.Save" Class="floating-button" OnClick="UpdateAthlete" />
+
+@code
+{
+    [Parameter]
+    public bool Tut { get; set; }
+
+
+    [Parameter]
+    public int TabUp { get; set; }
+
+    [Parameter]
+    public int TabDown { get; set; }
+
+    private MudTabs parentTab;
+    private MudTabs childTab;
+
+    MudForm form = new();
+    bool success;
+    string[] errors = { };
+    DateTime? DateGraduation { get; set; }
+
+    List<string> Items { get; set; } = new() { "" };
+    Dictionary<string, string> Stats { get; set; } = new();
+
+    AthleteDTO Athlete { get; set; } = new();
+    SocialMediaModel SocialMedia { get; set; } = new();
+
+    List<(int Year, string Name, int? Id, Guid Guid)> Clubs { get; set; } = new();
+    List<(int Year, string Name, int? Id, Guid Guid)> Honors { get; set; } = new();
+    List<(int Year, string Name, int? Id, Guid Guid)> Awards { get; set; } = new();
+    List<(string Title, string Hoster, string URL, Guid Guid, int? Id)> Videos { get; set; } = new();
+    List<(int Year, string Team, string Name, Guid Guid, int? Id)> HighSchools { get; set; } = new();
+    List<(string Name, string Email, string Phone, string HighSchool, string Type, Guid Guid, int? Id)> Coaches { get; set; } = new();
+
+    public bool _uploadingGpa, _uploadingAct, _uploadingSat;
+    private bool _showImageOverlay = false;
+    string _urlImageOverlay = "";
+    protected override async Task OnInitializedAsync()
+    {
+        Athlete = (await _localStorage.GetItemAsync<AccountDto>("account")).Athlete;
+        var response = await _httpClient.GetFromJsonAsync<Response<SocialMediaModel>>($"api/v1/socialmedia/{Athlete.Id}");
+        if (response.Status == ResponseStatus.Ok)
+        {
+            SocialMedia = response.Payload;
+        }
+
+        await CheckIncompleteFields();
+
+        var statsStruct = Athlete.StatsStruct?.Split(',');
+        var statsValues = Athlete.StatsStructValues?.Split(',');
+
+        if (statsStruct is not null)
+        {
+            for (int i = 0; i < statsStruct.Length; i++)
+            {
+                if (statsValues is null || statsValues.Length == 1 && string.IsNullOrWhiteSpace(statsValues[0]))
+                {
+                    Stats.Add(statsStruct[i], null);
+                    continue;
+                }
+                else if (i < statsValues.Length)
+                    Stats.Add(statsStruct[i], statsValues[i]);
+            }
+        }
+
+        if (int.TryParse(Athlete.GraduationYear, out int graduation))
+            DateGraduation = new DateTime(graduation, 1, 1);
+
+        Awards = Athlete.Awards?.Select(a => (a.Year, a.Awards, (int?)a.Id, Guid.NewGuid())).OrderBy(a => a.Year).ToList();
+        Honors = Athlete.Honors?.Select(h => (h.Year, h.HonorRoll, (int?)h.Id, Guid.NewGuid())).OrderBy(a => a.Year).ToList();
+        Videos = Athlete.Videos?.Select(v => (v.Title, v.Host, v.Video, Guid.NewGuid(), (int?)v.Id)).ToList();
+        Clubs = Athlete.Clubs?.Select(a => (a.CompetitionYear, a.ClubName, (int?)a.Id, Guid.NewGuid())).OrderBy(a => a.CompetitionYear).ToList();
+        Coaches = Athlete.Coaches?.Select(h => (h.Name, h.Email, h.Phone, h.ClubName, h.Type, Guid.NewGuid(), (int?)h.Id)).ToList();
+        HighSchools = Athlete.HighSchools?.Select(h => (h.Year, h.Descriptions, h.HighSchool, Guid.NewGuid(), (int?)h.Id)).OrderBy(a => a.Year).ToList();
+
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(1100);
+
+            if (parentTab is not null)
+                parentTab.ActivePanelIndex = TabUp;
+            StateHasChanged();
+
+            await Task.Delay(500);
+
+            if (childTab is not null)
+                childTab.ActivePanelIndex = TabDown;
+            StateHasChanged();
+        });
+    }
+
+    IList<CustomFile> files = new List<CustomFile>();
+
+    private async Task UpdateAthlete()
+    {
+        try
+        {
+            if (await UpdateProfileBasicInfoAsync() && await UpdateProfileStatsAsync() && await UpdateSocialMediaAsync())
+            {
+                _ = Task.Run(async () =>
+                {
+                    var account = await _localStorage.GetItemAsync<AccountDto>("account");
+                    account.Athlete = Athlete;
+                    await _localStorage.SetItemAsync("account", account);
+
+                    _incompleteProfileMessages.Clear();
+
+                    _ = CheckIncompleteFields();
+
+                    _snackBar.Add("Successfully Updated", Severity.Success);
+                });
+            }
+        }
+        catch (Exception e)
+        {
+            _snackBar.Add("An error ocurred trying to update your data", Severity.Error);
+        }
+    }
+
+    private async Task<bool> UpdateProfileBasicInfoAsync()
+    {
+        try
+        {
+            var message = await _httpClient.PutAsJsonAsync("api/v1/athlete", Athlete);
+
+            if (message.IsSuccessStatusCode)
+            {
+                var response = await message.Content.ReadFromJsonAsync<Response<int>>();
+
+                if (response is not null && response.Payload > 0)
+                {
+                    return true;
+                }
+            }
+
+
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private async Task<bool> UpdateProfileStatsAsync()
+    {
+        try
+        {
+            var stats = string.Join(",", Stats.Values.ToArray());
+            var httpMessage = await _httpClient.PostAsJsonAsync($"api/v1/athlete/stats/{Athlete.UserId}",
+                new AthleteStatsModel { Sports_Id = Athlete.SportId, Stats = stats });
+
+            if (httpMessage.IsSuccessStatusCode)
+            {
+                var response = await httpMessage.Content.ReadFromJsonAsync<Response>();
+
+                if (response is not null && response.Status == ResponseStatus.Ok)
+                {
+                    Athlete.StatsStructValues = stats;
+                    return true;
+                }
+            }
+
+            _snackBar.Add("There was an error saving the stats", Severity.Error, o => o.VisibleStateDuration = 10000);
+            return false;
+        }
+        catch (Exception e)
+        {
+            return false;
+        }
+    }
+    private async Task<bool> UpdateSocialMediaAsync()
+    {
+        if (form.IsValid)
+        {
+            try
+            {
+                var response = await _httpClient.GetFromJsonAsync<Response<SocialMediaModel>>($"api/v1/socialmedia/{Athlete.Id}");
+                if (response.Payload is not null)
+                {
+                    var httpSocialMediaResponse = await _httpClient.PutAsJsonAsync("api/v1/socialmedia", SocialMedia);
+                    var socialMediaResponse = await httpSocialMediaResponse.Content.ReadFromJsonAsync<Response<int>>();
+                    return true;
+                }
+                else
+                {
+                    SocialMedia.User_id = Athlete.Id;
+                    var httpSocialMediaResponse = await _httpClient.PostAsJsonAsync("api/v1/socialmedia", SocialMedia);
+
+                    if (httpSocialMediaResponse.IsSuccessStatusCode)
+                    {
+                        var socialMediaResponse = await httpSocialMediaResponse.Content.ReadFromJsonAsync<Response<int>>();
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+            catch (Exception e)
+            {
+                return false;
+            }
+        }
+        else
+        {
+            _snackBar.Add("Error in Social Media Form", Severity.Error);
+            return false;
+        }
+    }
+
+    private void UploadFileGPA(InputFileChangeEventArgs e)
+    {
+        UploadFileGlobal($"gpa-{Athlete.Id}", e);
+    }
+
+    private void UploadFileACT(InputFileChangeEventArgs e)
+    {
+        UploadFileGlobal($"act-{Athlete.Id}", e);
+    }
+
+    private void UploadFileSAT(InputFileChangeEventArgs e)
+    {
+        UploadFileGlobal($"sat-{Athlete.Id}", e);
+    }
+
+    public void UploadFileGlobal(string description, InputFileChangeEventArgs e)
+    {
+        var entries = e.GetMultipleFiles();
+
+
+        foreach (var file in e.GetMultipleFiles())
+        {
+            if (file.Size / 10024 > 10024)
+            {
+                _snackBar.Add("Files larger than 10mb aren't accepted", Severity.Error);
+                return;
+            }
+            else if (file.Name.Split(".").Last() == "png" || file.Name.Split(".").Last() == "jpeg" || file.Name.Split(".").Last() == "jpg" || file.Name.Split(".").Last() == "pdf")
+            {
+                try
+                {
+                    var customFile = new CustomFile(file);
+                    customFile.Description = description;
+                    customFile.FileName = e.File.Name;
+                    customFile.ConvertedToBase64 += ImageFile_ConvertedToBase64;
+                    customFile.StartConversion();
+                    files.Add(customFile);
+                }
+                catch (Exception ex)
+                {
+                    _snackBar.Add(ex.Message, Severity.Error, o => o.VisibleStateDuration = 10000);
+                }
+            }
+            else
+            {
+                _snackBar.Add($"This file has the extension {entries.FirstOrDefault().Name.Split(".").Last()}", Severity.Error);
+                return;
+            }
+        }
+    }
+
+    private Task ImageFile_ConvertedToBase64(CustomFile file)
+    {
+        return Task.Run(async () =>
+        {
+            try
+            {
+                var extension = file.FileName.Split('.')[1];
+                var type = file.Description.Substring(0, 3);
+                switch (type.ToUpper())
+                {
+                    case "GPA":
+                        _uploadingGpa = true;
+                        StateHasChanged();
+
+                        Athlete.GpaFileName = file.FileName;
+                        Athlete.GpaFileOrigin = $"{file.Description}.{extension}";
+                        break;
+                    case "ACT":
+                        _uploadingAct = true;
+                        StateHasChanged();
+
+                        Athlete.ActFileName = file.FileName;
+                        Athlete.ActFileOrigin = $"{file.Description}.{extension}";
+                        break;
+                    case "SAT":
+                        _uploadingSat = true;
+                        StateHasChanged();
+
+                        Athlete.SatFileName = file.FileName;
+                        Athlete.SatFileOrigin = $"{file.Description}.{extension}";
+                        break;
+                }
+
+                await _httpClient.PostAsJsonAsync("api/v1/athlete/score",
+                    new FileModel { File_Name = file.FileName, RelateId = Athlete.Id, Base64 = file.Base64, Description = file.Description });
+                _uploadingGpa = false;
+                _uploadingAct = false;
+                _uploadingSat = false;
+                StateHasChanged();
+
+                _ = Task.Run(async () =>
+                {
+                    var account = await _localStorage.GetItemAsync<AccountDto>("account");
+                    account.Athlete = Athlete;
+                    await _localStorage.SetItemAsync("account", account);
+                });
+            }
+            catch (Exception e)
+            {
+                _snackBar.Add(e.Message, Severity.Error, o => o.VisibleStateDuration = 10000);
+                return;
+            }
+        });
+    }
+
+    public class CustomFile
+    {
+        public long Id { get; set; }
+        public string FileName { get; set; }
+        public string Description { get; set; }
+        public bool IsDefault { get; set; }
+        public string Base64 { get; set; }
+        public bool Uploaded { get; set; }
+        private readonly IBrowserFile _file;
+
+        public event Func<CustomFile, Task> ConvertedToBase64;
+
+        public CustomFile()
+        {
+        }
+
+        public CustomFile(IBrowserFile file)
+        {
+            _file = file;
+        }
+
+        public void StartConversion()
+        {
+            Task.Run(async () =>
+            {
+                Base64 = await ConvertToBase64();
+                await ConvertedToBase64?.Invoke(this);
+            });
+        }
+
+        private async Task<string> ConvertToBase64()
+        {
+            await using var memoryStream = new MemoryStream();
+            await _file.OpenReadStream(maxAllowedSize: 5322075 * 2).CopyToAsync(memoryStream);
+
+            byte[] bytes = memoryStream.ToArray();
+            return Convert.ToBase64String(bytes);
+        }
+    }
+
+    public class CusAlert
+    {
+        public string Name { get; set; }
+        public string Message { get; set; }
+        public bool IsClosed { get; set; }
+
+        public CusAlert(string name, string message, bool isClosed)
+        {
+            Name = name;
+            Message = message;
+            IsClosed = isClosed;
+        }
+    }
+
+    List<CusAlert> _incompleteProfileMessages = new();
+
+    private async Task CheckIncompleteFields()
+    {
+        if (Athlete.StatsStructValues is null)
+        {
+            if (!(await _localStorage.ContainKeyAsync(nameof(Athlete.StatsStructValues))))
+            {
+                _incompleteProfileMessages.Add(new(nameof(Athlete.StatsStructValues), "Please fill your stats", false));
+            }
+        }
+
+        if (Athlete.StatsStructValues is null)
+        {
+            if (!(await _localStorage.ContainKeyAsync(nameof(Athlete.StatsStructValues))))
+            {
+                _incompleteProfileMessages.Add(new(nameof(Athlete.StatsStructValues), "Please fill your stats", false));
+            }
+        }
+
+        if (Athlete.Weight < 1)
+        {
+            if (!(await _localStorage.ContainKeyAsync(nameof(Athlete.Weight))))
+            {
+                _incompleteProfileMessages.Add(new(nameof(Athlete.Weight), "Please specify your weight", false));
+            }
+        }
+
+        if (Athlete.Height < 1)
+        {
+            if (!(await _localStorage.ContainKeyAsync(nameof(Athlete.Height))))
+            {
+                _incompleteProfileMessages.Add(new(nameof(Athlete.Height), "Please specify your height", false));
+            }
+        }
+
+        if (Athlete.NCAA < 1)
+        {
+            if (!(await _localStorage.ContainKeyAsync(nameof(Athlete.NCAA))))
+            {
+                _incompleteProfileMessages.Add(new(nameof(Athlete.NCAA), "Please specify your NCAA identification", false));
+            }
+        }
+
+        if (Athlete.NAIA < 1)
+        {
+            if (!(await _localStorage.ContainKeyAsync(nameof(Athlete.NAIA))))
+            {
+                _incompleteProfileMessages.Add(new(nameof(Athlete.NAIA), "Please specify your NAIA identification", false));
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(Athlete.CellPhone))
+        {
+            if (!(await _localStorage.ContainKeyAsync(nameof(Athlete.CellPhone))))
+            {
+                _incompleteProfileMessages.Add(new(nameof(Athlete.CellPhone), "Please specify your phone number", false));
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(Athlete.GraduationYear))
+        {
+            if (!(await _localStorage.ContainKeyAsync(nameof(Athlete.GraduationYear))))
+            {
+                _incompleteProfileMessages.Add(new(nameof(Athlete.GraduationYear), "Please specify your graduation year", false));
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(Athlete.GPA))
+        {
+            if (!(await _localStorage.ContainKeyAsync(nameof(Athlete.GPA))))
+            {
+                _incompleteProfileMessages.Add(new(nameof(Athlete.GPA), "Please specify your GPA score", false));
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(Athlete.SAT) && string.IsNullOrWhiteSpace(Athlete.ACT))
+        {
+            if (!(await _localStorage.ContainKeyAsync(nameof(Athlete.SAT))))
+            {
+                _incompleteProfileMessages.Add(new(nameof(Athlete.SAT), "Please specify your SAT score", false));
+            }
+
+            if (!(await _localStorage.ContainKeyAsync(nameof(Athlete.ACT))))
+            {
+                _incompleteProfileMessages.Add(new(nameof(Athlete.ACT), "Please specify your ACT score", false));
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(Athlete.PersonalStatement))
+        {
+            if (!(await _localStorage.ContainKeyAsync(nameof(Athlete.PersonalStatement))))
+            {
+                _incompleteProfileMessages.Add(new(nameof(Athlete.PersonalStatement), "Please fill your personal statement", false));
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(Athlete.ImageProfile))
+        {
+            if (!(await _localStorage.ContainKeyAsync(nameof(Athlete.ImageProfile))))
+            {
+                _incompleteProfileMessages.Add(new(nameof(Athlete.ImageProfile), "Please upload an image for your profile", false));
+            }
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task CloseAlert(CusAlert alert)
+    {
+        alert.IsClosed = true;
+        StateHasChanged();
+
+        await _localStorage.SetItemAsync<bool?>(alert.Name, true);
+    }
+    private void CloseImageOverlay(bool isVisible)
+    {
+        _showImageOverlay = isVisible;
+        StateHasChanged();
+    }
+    private void ShowImageOverlay(string description)
+    {
+        _urlImageOverlay = $"https://isportsrecruiting.com/uploads/{description}";
+        _showImageOverlay = true;
+        StateHasChanged();
+    }
+    private async Task AddSocialMedia(SocialMediaModel socialMedia)
+    {
+        var httpSocialMediaResponse = await _httpClient.PostAsJsonAsync("api/v1/socialmedia", socialMedia);
+
+        if (httpSocialMediaResponse.IsSuccessStatusCode)
+        {
+            var socialMediaResponse = await httpSocialMediaResponse.Content.ReadFromJsonAsync<Response<int>>();
+        }
+    }
+}

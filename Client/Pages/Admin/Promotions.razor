@@ -1,0 +1,247 @@
+﻿@page "/promotions"
+
+@using iSportsRecruiting.Shared.DTO;
+@using iSportsRecruiting.Shared.Models
+@using iSportsRecruiting.Client.Shared.Dialogs
+@using System.Net.Http.Json
+
+@inject HttpClient _httpClient
+@inject IDialogService _dialogService
+@inject Blazored.LocalStorage.ILocalStorageService _localStorage;
+
+
+<MudExpansionPanels Elevation="9">
+    <MudExpansionPanel Text="Manage" @bind-IsExpanded="_isExpanded">
+        <MudGrid>
+            <MudItem sm="6" xs="12">
+                <MudSelect @bind-Value="@_promotion.Plan_Id" T="string" Label="Plan" AutoFocus="true">
+                    <MudSelectItem T="string" Value="@("P1")">P1 - $1.999 (One Payment) </MudSelectItem>
+                    <MudSelectItem T="string" Value="@("P2")">P2 - $2.499 (6 Payments of $416) </MudSelectItem>
+                    <MudSelectItem T="string" Value="@("P3")">
+                        <b style="color: #ff4700">P3 - $2.999 (12 Payments of $249)</b>
+                    </MudSelectItem>
+                    <MudSelectItem T="string" Value="@("30DF")">30DF - First 30 days Free, then $29.99/month.</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem sm="3" xs="12">
+                <MudTextField @bind-Value="_promotion.Code" T="string" Label="CODE"/>
+            </MudItem>
+            <MudItem sm="3" xs="12">
+                <MudNumericField T="int" @bind-Value="_promotion.Discount" Label="Discount" Max="100" Min="1"/>
+            </MudItem>
+            <MudItem xs="12">
+
+            </MudItem>
+
+            <MudItem sm="9" xs="12">
+                <MudTextField @bind-Value="_promotion.Description" T="string" Label="Description"/>
+            </MudItem>
+            <MudItem sm="2" xs="12">
+                <MudDatePicker Label="Expiration" @bind-Date="Expiration"/>
+            </MudItem>
+            <MudItem sm="12" xs="12">
+                <MudButtonGroup Color="Color.Primary" Variant="Variant.Filled" Style="float: right">
+                    @if (EditMode)
+                    {
+                        <MudButton OnClick="Reset" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Cancel" Style="background-color: #db1e1e">Cancel</MudButton>
+                        <MudButton OnClick="@(async () => await Edit())" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" Color="Color.Primary">Save</MudButton>
+                    }
+                    else
+                    {
+                        <MudButton OnClick="@(async () => await Save())" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add" Color="Color.Primary">ADD</MudButton>
+                    }
+                </MudButtonGroup>
+            </MudItem>
+        </MudGrid>
+    </MudExpansionPanel>
+</MudExpansionPanels>
+
+<MudPaper Elevation="9" Square="true" Class="pa-3 mt-4">
+    <MudGrid>
+        <MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+            <MudItem sm="12" xs="12">
+                <MudText Typo="Typo.h6">Promotions</MudText>
+            </MudItem>
+        </MudHidden>
+
+        <MudItem sm="12" xs="12">
+            <MudTextField Class="mr-1" T="string" TextChanged="Search" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Search" AdornmentColor="Color.Primary"/>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+<MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+    <MudTable Elevation="9" Class="mb-4" Items="Elements" Dense="true" Hover="true" Square="true" SortLabel="Sort By" Loading="_loading" LoadingProgressColor="@Color.Secondary">
+        <ToolBarContent>
+            <MudGrid>
+                <MudItem sm="12" xs="12">
+                    <MudChip Color="Color.Primary" Style="float: right; font-weight: bold">@Elements.Count</MudChip>
+                </MudItem>
+            </MudGrid>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<PromotionModel, object>(x => x.Code)">Code</MudTableSortLabel>
+            </MudTh>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<PromotionModel, object>(x => x.Discount)">Discount</MudTableSortLabel>
+            </MudTh>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<PromotionModel, object>(x => x.Description)">Description</MudTableSortLabel>
+            </MudTh>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<PromotionModel, object>(x => x.Expiration)">Expiration</MudTableSortLabel>
+            </MudTh>
+            <MudTh Style="text-align:center">Action</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Code">@context.Code</MudTd>
+            <MudTd DataLabel="Discount">@context.Discount</MudTd>
+            <MudTd DataLabel="Descriptiojn">@context.Description</MudTd>
+            <MudTd DataLabel="Expiration">@context.Expiration</MudTd>
+            <MudTd DataLabel="Action" Style="text-align:center">
+                <MudTooltip Text="Edit">
+                    <MudIconButton OnClick="@(() => OnEdit(context))" Icon="@Icons.Material.Filled.Edit" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+                </MudTooltip>
+                <MudTooltip Text="Delete">
+                    <MudIconButton OnClick="@(async () => await Delete(context.Id))" Icon="@Icons.Material.Filled.Delete" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+                </MudTooltip>
+            </MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new int[] {10, 25, 50, 100}"/>
+        </PagerContent>
+    </MudTable>
+</MudHidden>
+
+@if (_account is not null)
+{
+    <MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+        <ListMobile Elevation="9" SearchBy="@(a => a.Param.Description.Contains(_search, StringComparison.InvariantCultureIgnoreCase))" @ref="_listMobile" Style="margin-left: 16px; margin-right: 16px" T="PromotionModel" Title="Promotions" EndPoint="Promotion?">
+            <CardTitle>
+                @context.Description
+            </CardTitle>
+            <CardSubtitle>
+                @context.Discount% - EXP: @context.Expiration.ToShortDateString()
+            </CardSubtitle>
+            <CardOptions>
+                <MudTooltip Text="Edit">
+                    <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+                </MudTooltip>
+                <MudTooltip Text="Delete">
+                    <MudIconButton Color="Color.Error" OnClick="() => Delete(context.Id)" Icon="@Icons.Material.Outlined.Delete" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+                </MudTooltip>
+            </CardOptions>
+        </ListMobile>
+    </MudHidden>
+}
+
+@code {
+
+    private DateTime? Expiration { get; set; } = DateTime.Now.AddDays(7);
+        private const string _path = "/api/v1/promotion";
+
+    private PromotionModel _promotion = new();
+    private List<PromotionModel> _elements;
+
+    private List<PromotionModel> Elements
+    {
+        get => _elements is null ?
+            Enumerable.Empty<PromotionModel>().ToList() :
+            _elements.Where(e => string.IsNullOrWhiteSpace(_search) ||
+                                 (e.Code.Contains(_search, StringComparison.InvariantCultureIgnoreCase)
+                                  || e.Description.Contains(_search, StringComparison.InvariantCultureIgnoreCase))).ToList();
+
+        set => _elements = value;
+    }
+
+    private bool EditMode => _promotion.Id != 0;
+
+    private bool _isExpanded;
+    private string _search = string.Empty;
+    private bool _loading = true;
+    private AccountDto? _account;
+    private ListMobile<PromotionModel>? _listMobile;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _account = await _localStorage.GetItemAsync<AccountDto>("account");
+
+        await GetPromotions();
+    }
+
+    private async Task GetPromotions()
+    {
+        var response = await _httpClient.GetFromJsonAsync<Response<List<PromotionModel>>>(_path);
+        Elements = response.Payload;
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private void Search(string value)
+    {
+        _search = value;
+    }
+
+    private void OnEdit(PromotionModel promotion)
+    {
+        _promotion = promotion;
+        Expiration = _promotion.Expiration;
+
+        _isExpanded = true;
+    }
+
+    private async ValueTask Edit()
+    {
+        if (_promotion.Id > 0)
+        {
+            _promotion.Expiration = Expiration.Value;
+
+            _loading = true;
+            StateHasChanged();
+
+            await _httpClient.PutAsJsonAsync(_path, _promotion);
+
+            Reset();
+
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async ValueTask Save()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        _promotion.Expiration = Expiration.Value;
+
+        await _httpClient.PostAsJsonAsync(_path, _promotion);
+
+        Reset();
+        _ = GetPromotions();
+    }
+
+    private void Reset()
+    {
+        _promotion = new PromotionModel();
+        _isExpanded = false;
+    }
+
+    private async Task Delete(int id)
+    {
+        var reference = _dialogService.Show<DeleteConfirmation>();
+        var result = await reference.Result;
+
+        if (!result.Cancelled)
+        {
+            _loading = true;
+            StateHasChanged();
+
+            await _httpClient.DeleteAsync($"{_path}/{id}");
+            _ = GetPromotions();
+        }
+    }
+
+}

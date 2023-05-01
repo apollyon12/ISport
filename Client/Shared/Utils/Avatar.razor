@@ -1,0 +1,29 @@
+﻿@using iSportsRecruiting.Client.Services
+@using iSportsRecruiting.Shared.DTO
+
+<MudTooltip Text="Profile">
+    @if (Account is not null)
+    {
+        @if (Account.Type == UserType.Athlete && !string.IsNullOrWhiteSpace(Account.Image))
+        {
+            <MudAvatar Class="user-img" Image="@($"{Account.Athlete.ImageProfile}")" Style="height:32px; width:32px; display: block; margin-left: auto; margin-right: auto;" />
+        }
+        else if (Account.Type == UserType.AssisCoord || Account.Type == UserType.Coach && !string.IsNullOrEmpty(Account.Image))
+        {
+            <MudAvatar Class="user-img" Image="@($"https://isportsrecruiting.com/api/v1/file/logos/70/70/{Account.Image}.jpg?{DateTime.Now.Ticks}")" Style="height:32px; width:32px; display: block; margin-left: auto; margin-right: auto;" />
+        }
+        else if (Account.Type == UserType.Admin || Account.Type == UserType.AssisAdmin)
+        {
+            <MudAvatar Class="user-img" Color="Color.Secondary" Style="height:32px; width:32px; font-size: 1.2em;">ISR</MudAvatar>
+        }
+        else
+        {
+            <MudAvatar Class="user-img" Color="Color.Secondary" Style="height:32px; width:32px; font-size: 1.2em;">@Account.Name[0].ToString().ToUpper()</MudAvatar>
+        }
+    }
+</MudTooltip>
+
+@code {
+    [Parameter]
+    public AccountDto Account { get; set; }
+}

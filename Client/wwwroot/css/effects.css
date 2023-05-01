@@ -1,0 +1,350 @@
+@import url('https://fonts.googleapis.com/css?family=Roboto:700');
+
+html {
+    height: 100%;
+    background-color: #ffffff;
+}
+
+body {
+    height: 100%;
+}
+
+#app{
+    height: 100%;
+}
+
+.button-size
+{
+    height: 42.25px;
+    width: 100%;
+}
+
+.mud-dialog-width-sm {
+    max-width: 96%;
+}
+
+.mud-badge.mud-badge-top.right.mud-badge-overlap {
+    inset: auto auto calc(100% - 24px) calc(100% - 22px);
+}
+
+.mud-dialog-content{
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@keyframes showTopText {
+    0% { transform: translate3d(0, 100%, 0); }
+    40%, 60% { transform: translate3d(0, 50%, 0); }
+    100% { transform: translate3d(0, 0, 0); }
+}
+@keyframes showBottomText {
+    0% { transform: translate3d(0, -100%, 0); }
+    100% { transform: translate3d(0, 0, 0); }
+}
+
+.correr-hacia-arriba {
+    animation: correrHaciaArriba 1s;
+    animation-fill-mode: forwards;
+}
+
+@keyframes aparecerDesdeLaDerecha {
+    from {
+        opacity: 0;
+        right: 20px;
+    }
+    to {
+        opacity: 1;
+        right: 32px;
+    }
+}
+
+.aparecer-desde-derecha {
+    animation: aparecerDesdeLaDerecha 500ms;
+    animation-fill-mode: forwards;
+}
+
+#spinImage {
+    animation: spin 1.5s infinite;
+    width: 300px;
+}
+
+@keyframes spin {
+    from {
+        transform: rotateY(360deg);
+    }
+    to {
+        transform: rotateY(1deg);
+    }
+}
+
+@keyframes correrHaciaArriba {
+    from {
+        transform: translateY(-50%);
+    }
+    to {
+        transform: translateY(-80%);
+    }
+}
+
+.aparecer-desde-arriba {
+    animation: aparecerDesdeArriba 2s;
+    animation-fill-mode: forwards;
+    position: absolute;
+}
+
+.aparecer {
+    animation: aparecer 1s;
+    animation-fill-mode: forwards;
+}
+
+@keyframes aparecerDesdeArriba {
+    from {
+        opacity: 0;
+        bottom: 20%;
+    }
+    to {
+        opacity: 1;
+        bottom: 3%;
+    }
+}
+
+@keyframes aparecer {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.animated-title {
+    color: #222;
+    font-family: Roboto, Arial, sans-serif;
+    /* height: 90vmin; */
+    /* left: 50%; */
+    /* position: absolute; */
+    /* top: 50%; */
+    transform: translate(8%, -11%);
+    /* width: 54vmin; */
+}
+.animated-title > div {
+    height: 50%;
+    overflow: hidden;
+    position: absolute;
+    width: 100%;
+}
+.animated-title > div div {
+    font-size: 12vmin;
+    padding: 2vmin 0;
+    position: absolute;
+}
+.animated-title > div div span {
+    display: block;
+}
+.animated-title > div.text-top {
+    border-bottom: 1vmin solid #4a4a4a;
+    top: 0;
+}
+.animated-title > div.text-top div {
+    animation: showTopText 1s;
+    animation-delay: 0.5s;
+    animation-fill-mode: forwards;
+    bottom: 0;
+    transform: translate(0, 100%);
+}
+.animated-title > div.text-top div span:first-child {
+    color: white;
+}
+.animated-title > div.text-bottom {
+    bottom: 0;
+}
+.animated-title > div.text-bottom div {
+    animation: showBottomText 0.5s;
+    animation-delay: 1.75s;
+    animation-fill-mode: forwards;
+    top: 0;
+    transform: translate(0, -100%);
+}
+
+/* Hover Effect */
+
+.athlete-hover-effect {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    margin: 20px auto;
+    width: 250px;
+    height: 250px;
+    background: white;
+    border-radius: 75px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 20px;
+    font-weight: lighter;
+    letter-spacing: 2px;
+    transition: 1s box-shadow;
+}
+
+.athlete-hover-effect:hover {
+    box-shadow: 0 5px 35px 0px rgba(0,0,0,.1);
+}
+
+.athlete-hover-effect:hover::before, .athlete-hover-effect:hover::after {
+    display: block;
+    content: '';
+    position: absolute;
+    width: 250px;
+    height: 250px;
+    background: #20ee00;
+    border-radius: 75px;
+    z-index: -1;
+    animation: 1s clockwise infinite;
+}
+
+.athlete-hover-effect:hover:after {
+    background: #0c0c0c;
+    animation: 2s counterclockwise infinite;
+}
+
+@keyframes clockwise {
+    0% {
+        top: -5px;
+        left: 0;
+    }
+    12% {
+        top: -2px;
+        left: 2px;
+    }
+    25% {
+        top: 0;
+        left: 5px;
+    }
+    37% {
+        top: 2px;
+        left: 2px;
+    }
+    50% {
+        top: 5px;
+        left: 0;
+    }
+    62% {
+        top: 2px;
+        left: -2px;
+    }
+    75% {
+        top: 0;
+        left: -5px;
+    }
+    87% {
+        top: -2px;
+        left: -2px;
+    }
+    100% {
+        top: -5px;
+        left: 0;
+    }
+}
+
+@keyframes counterclockwise {
+    0% {
+        top: -5px;
+        right: 0;
+    }
+    12% {
+        top: -2px;
+        right: 2px;
+    }
+    25% {
+        top: 0;
+        right: 5px;
+    }
+    37% {
+        top: 2px;
+        right: 2px;
+    }
+    50% {
+        top: 5px;
+        right: 0;
+    }
+    62% {
+        top: 2px;
+        right: -2px;
+    }
+    75% {
+        top: 0;
+        right: -5px;
+    }
+    87% {
+        top: -2px;
+        right: -2px;
+    }
+    100% {
+        top: -5px;
+        right: 0;
+    }
+}
+
+.carreaux_presentation_light
+{
+    display:table-cell;
+    width:250px; height:250px;
+    background-size:cover;
+    overflow: hidden;
+    position: relative;
+}
+.carreaux_presentation_light .shadow_swhow_mini
+{
+    background-color:rgba(19,30,33,0.4);
+    position: absolute;
+    z-index: 1000;
+    top:0;left:0;right:0;bottom:0;
+
+}
+.carreaux_presentation_light:hover .shadow_swhow_mini
+{
+    background-color:rgba(16,23,41,0);
+}
+.carreaux_presentation_light .deroul_titre
+{
+    position: absolute;
+    text-transform: uppercase;
+    font-family: 'Roboto';
+    padding: 7px;
+    z-index: 1000;
+    top:60%;left:-80%;
+    color: #ffffff;
+    font-weight: 300;
+    font-size: 13px; width: 80%;
+    -webkit-transition: all 0.7s;
+    -moz-transition: all 0.7s;
+    -ms-transition: all 0.7s;
+    transition: all 0.7s;
+
+}
+.carreaux_presentation_light:hover .deroul_titre
+{
+    background-color: #707070; left:0px;
+
+}
+.carreaux_presentation_light .deroul_soustitre
+{
+    position: absolute;
+    font-family: 'Roboto';
+    padding: 5px;
+    z-index: 1000;
+    top:60%;right:-85%;
+    margin-top: 25px;
+    color: #ffffff;
+    font-weight: 300;
+    font-size: 11px; width: 80%;
+    -webkit-transition: all 0.7s;
+    -moz-transition: all 0.7s;
+    -ms-transition: all 0.7s;
+    transition: all 0.7s;
+}
+.carreaux_presentation_light:hover .deroul_soustitre
+{
+    background-color: #000000;right:0px;
+}

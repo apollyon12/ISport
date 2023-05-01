@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+	<PropertyGroup>
+		<TargetFramework>net6.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="AuthorizeNet" Version="2.0.3" />
+		<PackageReference Include="LazZiya.ImageResize" Version="4.1.0" />
+		<PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="6.0.8" />
+		<PackageReference Include="Twilio" Version="5.78.1" />
+		<PackageReference Include="WebPush" Version="1.0.12" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Client\iSportsRecruiting.Client.csproj" />
+		<ProjectReference Include="..\Shared\iSportsRecruiting.Shared.csproj" />
+	</ItemGroup>
+
+
+</Project>

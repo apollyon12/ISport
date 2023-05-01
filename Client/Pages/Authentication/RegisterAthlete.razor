@@ -1,0 +1,349 @@
+﻿@page "/register/athlete"
+@page "/register/athlete/{TempOffer}"
+@page "/register/promo/{PromotionCode}"
+@page "/register/referral/{Name}/{Id:int}"
+@page "/register/referral/{Name}/{Id:int}/promo/{PromotionCode}"
+
+@page "/register/{Referral}"
+
+@layout PublicLayout
+
+@using iSportsRecruiting.Shared.DTO
+@using iSportsRecruiting.Client.Pages.Authentication.Components;
+@using iSportsRecruiting.Client.Shared
+@using iSportsRecruiting.Shared.Models
+@using System.Net.Http.Json
+@using iSportsRecruiting.Client.Shared.Dialogs
+@using MudBlazor.Utilities
+
+@inject ISnackbar _snackBar
+@inject HttpClient _httpClient
+@inject IJSRuntime _runtime
+@inject IDialogService _dialogService;
+@inject NavigationManager _navigationManager
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center" Style="@ContainerStyle">
+    <MudPaper Elevation="9" Style="width: 500px;">
+        <MudGrid Class="pa-8" Style="margin: 0 !important">
+
+            <MudItem xs="12" Style="text-align: center; padding: 22px;">
+                <div class="align-center" style="display: inline-flex;">
+                    @switch (Step)
+                    {
+                        case 0:
+                            <MudAvatar Style="margin-right: 5px;" Color="Color.Primary">1</MudAvatar>
+                            <MudText Style="margin-right: 5px;" Typo="Typo.h5">2</MudText>
+                            <MudText Style="margin-right: 5px;" Typo="Typo.h5">3</MudText>
+                            break;
+                        case 1:
+                            <MudText Style="margin-right: 5px;" Typo="Typo.h5">1</MudText>
+                            <MudAvatar Style="margin-right: 5px;" Color="Color.Primary">2</MudAvatar>
+                            <MudText Style="margin-right: 5px;" Typo="Typo.h5">3</MudText>
+                            break;
+                        case 2:
+                            <MudText Style="margin-right: 5px;" Typo="Typo.h5">1</MudText>
+                            <MudText Style="margin-right: 5px;" Typo="Typo.h5">2</MudText>
+                            <MudAvatar Style="margin-right: 5px;" Color="Color.Primary">3</MudAvatar>
+                            break;
+                    }
+                </div>
+            </MudItem>
+
+            <MudItem xs="12">
+                <div class="d-flex justify-center">
+                    <img src="images/ISR_BLACK.png" width="200" @onclick="@(() => _navigationManager.NavigateTo("/"))" style="cursor: pointer" />
+                </div>
+            </MudItem>
+
+            <MudItem xs="12">
+                <div class="d-flex justify-center">
+                    <MudText Typo="Typo.h4">Register Athlete</MudText>
+                </div>
+            </MudItem>
+
+            <MudItem xs="12">
+                <div class="d-flex justify-center">
+                    <MudText>Already have an account? <MudLink Href="/login">Sign In</MudLink></MudText>
+                </div>
+            </MudItem>
+
+            @switch (Step)
+            {
+                case 0:
+                    <RegisterStepOne @ref="_stepOne" Model="_model" />
+                    break;
+                case 1:
+                    <RegisterStepTwo @ref="_stepTwo" Sports="_sports" Model="_model" />
+                    break;
+                case 2:
+                    <RegisterStepThree @ref="_stepThree" Model="_model" Billing="_billing" @bind-ShowButtons="_showLastButtons" PromotionCode="@PromotionCode" IsTempOffer="@(TempOffer != null)" />
+                    break;
+            }
+
+            @if (Step != 2)
+            {
+                @if (Step == 0)
+                {
+                    <MudItem xs="12" Class="d-flex justify-center">
+                        <MudButton Disabled="IsLoading" ButtonType="ButtonType.Button" OnClick="NextStep" Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" Style="width: 100%;">Next</MudButton>
+                    </MudItem>
+                }
+                else
+                {
+                    <MudItem xs="6" Class="d-flex justify-center">
+                        <MudButton Disabled="IsLoading" ButtonType="ButtonType.Button" OnClick="BackStep" Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" Style="width: 100%;">Back</MudButton>
+                    </MudItem>
+                    <MudItem xs="6" Class="d-flex justify-center">
+                        <MudButton Disabled="IsLoading" ButtonType="ButtonType.Button" OnClick="NextStep" Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" Style="width: 100%;">Next</MudButton>
+                    </MudItem>
+                }
+            }
+            else if (_showLastButtons)
+            {
+                <MudItem xs="6" Class="d-flex justify-center">
+                    <MudButton Disabled="IsLoading" ButtonType="ButtonType.Button" OnClick="BackStep" Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" Style="width: 100%;">Back</MudButton>
+                </MudItem>
+                <MudItem xs="6" Class="d-flex justify-center">
+                    <MudButton Disabled="IsLoading" ButtonType="ButtonType.Button" OnClick="SubmitAsync" Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" Style="width: 100%;">REGISTER</MudButton>
+                </MudItem>
+            }
+        </MudGrid>
+
+        @if (IsLoading)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Success" />
+        }
+    </MudPaper>
+</MudContainer>
+
+<MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+    <MudItem @ref="_mudItem" />
+</MudHidden>
+
+<MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+    <MudDrawer Style="@_drawerCss" @bind-Open="@_open" DisableOverlay="true" Anchor="@Anchor.Right" Elevation="1" Variant="@DrawerVariant.Temporary">
+        <MudDrawerHeader>
+            <MudText Typo="Typo.h6" Align="Align.Left">
+                <b>ACCESS TO</b>
+            </MudText>
+        </MudDrawerHeader>
+        <MudDrawerContainer Class="pa-5" Style="height: 100%; width: 340px;">
+            <MudItem xs="12">
+                <MudText Style="font-size: 16px; padding-top: 10px" Typo="Typo.subtitle2">
+                    ✔️ Online Profile Access
+                    <br />
+                    ✔️ Access to Schools Requirements
+                    <br />
+                    ✔️ Upload Transcripts, SAT/ACT
+                    <br />
+                    ✔️ Save Favorite Schools
+                    <br />
+                    ✔️ Access to All Divisions
+                    <br />
+                    ✔️ Upload Unlimited Highlights
+                    <br />
+                    ✔️ Unlimited Direct Emails to Coaches
+                </MudText>
+            </MudItem>
+
+            <MudItem Class="mb-6 mt-6" xs=12 Style="height: 1px; background-color: #cbcbcb !important" />
+
+            <MudItem xs="12">
+                <MudText Typo="Typo.h6" Align="Align.Left">
+                    <b>PLANS</b>
+                </MudText>
+                @if (TempOffer != null)
+                {
+                    <MudRadioGroup @bind-SelectedOption="PaymentMode">
+                        <MudRadio Option="@("Weekly")" Color="Color.Primary">$1.00 Fifteen Days Promotion</MudRadio>
+                    </MudRadioGroup>
+                }
+                else
+                {
+                    <MudRadioGroup @bind-SelectedOption="PaymentMode">
+                        <MudRadio Option="@("Monthly")" Color="Color.Primary">$24.99 (Monthly)</MudRadio>
+                    </MudRadioGroup>
+                }
+
+            </MudItem>
+
+            <div style="position: absolute; bottom: 1%; right: 5%">
+                <MudText Align="Align.Right" Typo="Typo.h5">TOTAL <b>$@(Total.ToString("#.00"))</b></MudText>
+            </div>
+        </MudDrawerContainer>
+    </MudDrawer>
+</MudHidden>
+
+@code {
+
+    [Parameter]
+    public string Name { get; set; }
+
+    [Parameter]
+    public int Id { get; set; }
+
+    [Parameter]
+    public string PromotionCode { get; set; }
+
+    [Parameter]
+    public string Referral { get; set; }
+
+    [Parameter]
+    public string? TempOffer { get; set; }
+
+    public bool ButtonDisabled { get; set; }
+
+    private MudItem? _mudItem;
+    private bool _isMobile => _mudItem is not null;
+
+    private bool _showLastButtons;
+
+    private string ContainerStyle => _isMobile ? string.Empty : "height: 100vh;";
+
+    private string _paymentMode = "Monthly";
+
+    string PaymentMode
+    {
+        get => _paymentMode;
+        set
+        {
+            _paymentMode = value;
+            _billing.Plan = PaymentMode == "Weekly" ? "WS" : "MS";
+        }
+    }
+
+    private decimal _total;
+    public decimal Total
+    {
+        get
+        {
+            return _total;
+        }
+        set
+        {
+            if (TempOffer is not null)
+                _total = new decimal(1.00);
+            else
+                _total = PaymentMode == "Weekly" 
+                    ? new decimal(7.99) 
+                    : new decimal(24.99);
+        }
+    }
+
+    bool _open;
+
+    private string _drawerCss => _open ? "width: 340px; visibility: visible" : "width: 340px; visibility: hidden";
+    private RegisterStepOne _stepOne;
+    private RegisterStepTwo _stepTwo;
+    private RegisterStepThree _stepThree;
+    private RegisterStepFour _stepFour;
+
+    private readonly EntityBilling _billing = new() { Plan = "MS" };
+    private readonly AthleteRegisterDto _model = new() { Info = new AthleteDTO() };
+
+    private SportDTO[] _sports;
+
+    private int Step { get; set; }
+    private bool IsLoading { get; set; }
+
+    protected override void OnInitialized()
+    {
+
+        Total = decimal.Zero;
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (Step == 2 && _stepThree.IsFirstSubscription())
+            _stepThree.RerenderRequest += StateHasChanged;
+    }
+
+    private async Task NextStep()
+    {
+        switch (Step)
+        {
+            case 0:
+                await StepOne();
+                break;
+            case 1:
+                StepTwo();
+                break;
+            case 2:
+                StepThree();
+                break;
+        }
+    }
+
+    private async Task BackStep()
+    {
+        Step--;
+        _showLastButtons = false;
+        StateHasChanged();
+
+        await _runtime.InvokeVoidAsync("resetButtonLoaded");
+    }
+
+    private async Task StepOne()
+    {
+        if (await _stepOne.CheckIfCompleted())
+        {
+            IsLoading = true;
+            StateHasChanged();
+
+            _ = Task.Run(async () =>
+            {
+                var sportsResponse = await _httpClient.GetFromJsonAsync<Response<SportDTO[]>>("api/v1/sport");
+
+                if (sportsResponse is not null)
+                    _sports = sportsResponse.Payload;
+
+                Step++;
+
+                IsLoading = false;
+                StateHasChanged();
+            });
+        }
+        else
+        {
+            _snackBar.Add("Please complete the form", Severity.Warning);
+        }
+    }
+
+    private void StepTwo()
+    {
+        if (_stepTwo.CheckIfCompleted())
+        {
+            if (Step == 2)
+            {
+                _open = false;
+            }
+
+            Step++;
+
+            if (!_isMobile)
+            {
+                _open = true;
+            }
+            else
+            {
+                _dialogService.Show<AthletePlansContent>();
+            }
+
+            StateHasChanged();
+        }
+        else
+        {
+            _snackBar.Add("Please complete the form", Severity.Warning);
+        }
+    }
+
+    private void StepThree()
+    {
+        _stepThree.CheckIfCompleted();
+
+        Step++;
+
+        StateHasChanged();
+    }
+
+}

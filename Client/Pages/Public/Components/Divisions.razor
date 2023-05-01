@@ -1,0 +1,53 @@
+﻿<MudItem md="4">
+    <div class="aparecer-desde-arriba" style="width: 33%">
+        <MudTooltip Style="" Text="@($"{Count} Universities Available")">
+            <MudText id="@Division" Align="Align.Center" Typo="Typo.h2" Style="color:#000000;font-weight: bold">@_count</MudText>
+        </MudTooltip>
+
+        <MudText Align="Align.Center" Typo="Typo.h5" Style="color:#000000;">@Division</MudText>
+    </div>
+</MudItem>
+
+@code {
+    [Parameter]
+    public int Count { get; set; }
+
+    [Parameter]
+    public string Division { get; set; }
+
+    private int _count;
+
+    protected override void OnInitialized()
+    {
+        Task.Run(async () =>
+        {
+            int increment = 1;
+
+            await Task.Delay(1000);
+
+            for (; _count <= Count; _count += increment)
+            {
+                if (_count < 200)
+                {
+                    increment++;
+                    await Task.Delay(60);
+                }
+                else if (_count > 200 && _count < 400)
+                {
+                    increment++;
+                    await Task.Delay(40);
+                }
+                else
+                {
+                    increment++;
+                    await Task.Delay(20);
+                }
+
+                StateHasChanged();
+            }
+
+            _count = Count;
+            StateHasChanged();
+        });
+    }
+}

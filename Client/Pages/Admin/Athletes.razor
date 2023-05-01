@@ -1,0 +1,467 @@
+﻿@layout MainLayout
+@page "/athletes"
+
+@using iSportsRecruiting.Shared.DTO;
+@using iSportsRecruiting.Client.Shared.Dialogs
+@using System.Net.Http.Json
+
+@inject ISnackbar _snackBar
+@inject HttpClient _httpClient
+@inject IDialogService _dialogService
+@inject Blazored.LocalStorage.ILocalStorageService _localStorage;
+
+
+<MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+    <div class="mb-6" style="text-align: right">
+        <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Message" Color="Color.Secondary" OnClick="SendMessages">SMS</MudButton>
+    </div>
+    <MudPaper Square="true" Class="pa-3 mt-4">
+        <MudGrid>
+            <MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+                <MudItem sm="12">
+                    <MudText Typo="Typo.h6">Athletes</MudText>
+                </MudItem>
+            </MudHidden>
+
+            @if (_account is not null && _account.Type == UserType.Admin)
+            {
+                <MudItem sm="10" xs="12">
+                    <MudTextField T="string" TextChanged="SearchAthletes" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Search" AdornmentColor="Color.Primary" />
+                </MudItem>
+                <MudItem sm="2" xs="12">
+                    <MudCheckBox T="bool" @bind-Checked="ShowOnlyReferrals" Label="Only Referrals" Style="margin-top: 10px" />
+                </MudItem>
+            }
+            else
+            {
+                <MudItem sm="12" xs="12">
+                    <MudTextField T="string" TextChanged="SearchAthletes" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Search" AdornmentColor="Color.Primary" />
+                </MudItem>
+            }
+        </MudGrid>
+    </MudPaper>
+
+    <MudTable Class="mb-4" Items="Elements" Dense="true" Hover="true" Square="true" SortLabel="Sort By" Loading="_loading" LoadingProgressColor="@Color.Secondary">
+        <ToolBarContent>
+            <MudGrid>
+                <MudItem sm="12" xs="12">
+                    <MudChip Color="Color.Primary" Style="float: right; font-weight: bold">@Elements.Length</MudChip>
+                </MudItem>
+            </MudGrid>
+        </ToolBarContent>
+        <ColGroup>
+            <col style="width: 60px;" />
+            <col style="width: 40px;" />
+            <col style="width: 60px;" />
+            <col />
+            <col />
+            <col />
+            <col style="width: 60px;" />
+            <col />
+            <col />
+        </ColGroup>
+        <HeaderContent>
+            <MudTh></MudTh>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<AthleteDTO, object>(x => x.Id)">Id</MudTableSortLabel>
+            </MudTh>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<AthleteDTO, object>(x => x.FirstName)">Graduation</MudTableSortLabel>
+            </MudTh>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<AthleteDTO, object>(x => x.SportName)">Sport</MudTableSortLabel>
+            </MudTh>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<AthleteDTO, object>(x => x.FirstName)">Name</MudTableSortLabel>
+            </MudTh>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<AthleteDTO, object>(x => x.Email)">Email</MudTableSortLabel>
+            </MudTh>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<AthleteDTO, object>(x => x.GPA)">GPA</MudTableSortLabel>
+            </MudTh>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<AthleteDTO, object>(x => x.Enabled)">Status</MudTableSortLabel>
+            </MudTh>
+            <MudTh Style="text-align:center">Action</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>
+                @if (!string.IsNullOrWhiteSpace(context.ImageProfile))
+                {
+                    <MudAvatar Image="@($"https://isportsrecruiting.com/api/v1/file/uploads/50/50/{context.ImageProfile}")" Style="width: 50px; height: 50px" />
+                }
+                else
+                {
+                    <MudAvatar Color="Color.Secondary" Style="width: 50px; height: 50px">@GetInitial(context)</MudAvatar>
+                }
+            </MudTd>
+            <MudTd DataLabel="Id">@context.Id</MudTd>
+            <MudTd DataLabel="Graduation Year">
+                <b style="font-size: 24px">@context.GraduationYear</b>
+            </MudTd>
+            <MudTd DataLabel="Sport">@context.SportName</MudTd>
+            <MudTd DataLabel="Name">@context.FirstName @context.LastName</MudTd>
+            <MudTd DataLabel="Email">@context.Email</MudTd>
+            <MudTd DataLabel="GPA">@context.GPA</MudTd>
+            @if (context.Enabled)
+            {
+                <MudTd DataLabel="Status"><MudChip Color="Color.Success">Enabled</MudChip></MudTd>
+            }
+            else
+            {
+                <MudTd DataLabel="Status"><MudChip Color="Color.Error">Disabled</MudChip></MudTd>
+            }
+            <MudTd DataLabel="Action" Style="text-align: center">
+                @if (_account.Type == UserType.Admin)
+                {
+                    <MudTooltip Text="Send Blast Email">
+                        <MudIconButton Icon="@Icons.Material.Filled.Email" Size="Size.Medium" Style="display: inline-block" OnClick="@(() => SendBlastEmailAsync(context))"></MudIconButton>
+                    </MudTooltip>
+                }
+
+                @if (_account.Type == UserType.Coach)
+                {
+                    <MudTooltip Text="Set as Favorite">
+                        @if (context.IsFavorite)
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Star" Style="cursor: pointer; color: #ffdb00; display: inline-block" @onclick="@(() => RemoveFavoriteAsync(context.Id))" />
+                        }
+                        else
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Star" Style="cursor: pointer" @onclick="@(() => SetFavoriteAsync(context.Id))" />
+                        }
+                    </MudTooltip>
+                }
+
+                <MudTooltip Text="Check Athlete">
+                    <MudIconButton Link="@($"athletes/{context.Id}/{$"{context.FirstName} {context.LastName}".Replace(" ", "-").Replace(",", "").ToLower()}")"
+                                   Icon="@Icons.Material.Filled.RemoveRedEye" Size="Size.Medium" Style="display: inline-block">
+                    </MudIconButton>
+                </MudTooltip>
+                @if (_account.Type == UserType.Admin || _account.Type == UserType.AssisAdmin)
+                {
+                    <MudTooltip Text="Edit">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+                    </MudTooltip>
+                    @if (context.Enabled)
+                    {
+                        <MudTooltip Text="Disable">
+                            <MudIconButton OnClick="() => ToggleEnable(context.Id, !context.Enabled)" Icon="@Icons.Material.Filled.Close" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+                        </MudTooltip>
+                    }
+                    else
+                    {
+                        <MudTooltip Text="Enable">
+                            <MudIconButton OnClick="() => ToggleEnable(context.Id, !context.Enabled)" Icon="@Icons.Material.Filled.Check" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+                        </MudTooltip>
+                    }
+
+                }
+            </MudTd>
+
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new int[] {10, 25, 50, 100}" />
+        </PagerContent>
+    </MudTable>
+</MudHidden>
+
+<MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+    <ListMobile SearchBy="@(a => $"{a.Param.FirstName} {a.Param.LastName}".Contains(_search, StringComparison.InvariantCultureIgnoreCase))" @ref="_listMobile" Style="margin-left: 16px; margin-right: 16px" T="AthleteDTO" Title="Athletes" EndPoint="@_athleteEndpoint">
+        <Filters>
+            <MudGrid>
+                @if (_account is not null && _account.Type == UserType.Admin)
+                {
+                    <MudItem sm="10" xs="12">
+                        <MudTextField T="string" TextChanged="SearchAthletes" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Search" AdornmentColor="Color.Primary" />
+                    </MudItem>
+                    <MudItem sm="2" xs="12">
+                        <MudCheckBox T="bool" @bind-Checked="ShowOnlyReferrals" Label="Only Referrals" Style="margin-top: 10px" />
+                    </MudItem>
+                }
+                else
+                {
+                    <MudItem sm="12" xs="12">
+                        <MudTextField T="string" TextChanged="SearchAthletes" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Search" AdornmentColor="Color.Primary" />
+                    </MudItem>
+                }
+            </MudGrid>
+        </Filters>
+        <CardImage>
+            @if (!string.IsNullOrWhiteSpace(context.ImageProfile))
+            {
+                <MudAvatar Image="@($"https://isportsrecruiting.com/api/v1/file/uploads/50/50/{context.ImageProfile}")" Style="width: 50px; height: 50px" />
+            }
+            else
+            {
+                <MudAvatar Color="Color.Secondary" Style="width: 50px; height: 50px">@GetInitial(context)</MudAvatar>
+            }
+        </CardImage>
+        <CardTitle>
+            @context.FirstName @context.LastName
+        </CardTitle>
+        <CardSubtitle>
+            @context.Email
+        </CardSubtitle>
+        <CardOptions>
+            @if (_account.Type == UserType.Admin)
+            {
+                <MudTooltip Text="Send Blast Email">
+                    <MudIconButton Icon="@Icons.Material.Outlined.Email" Size="Size.Medium" Style="display: inline-block" OnClick="@(() => SendBlastEmailAsync(context))"></MudIconButton>
+                </MudTooltip>
+            }
+
+            @if (_account.Type == UserType.Coach)
+            {
+                <MudTooltip Text="Set as Favorite">
+                    @if (context.IsFavorite)
+                    {
+                        <MudIconButton Icon="@Icons.Material.Outlined.Star" Style="cursor: pointer; color: #ffdb00; display: inline-block" @onclick="@(() => RemoveFavoriteAsync(context.Id))" />
+                    }
+                    else
+                    {
+                        <MudIconButton Icon="@Icons.Material.Outlined.Star" Style="cursor: pointer" @onclick="@(() => SetFavoriteAsync(context.Id))" />
+                    }
+                </MudTooltip>
+            }
+
+            <MudTooltip Text="Check Athlete">
+                <MudIconButton Link="@($"athletes/{context.Id}/{$"{context.FirstName} {context.LastName}".Replace(" ", "-").Replace(",", "").ToLower()}")"
+                               Icon="@Icons.Material.Outlined.RemoveRedEye" Size="Size.Medium" Style="display: inline-block">
+                </MudIconButton>
+            </MudTooltip>
+            @if (_account.Type == UserType.Admin || _account.Type == UserType.AssisAdmin)
+            {
+                <MudTooltip Text="Edit">
+                    <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+                </MudTooltip>
+                @if (context.Enabled)
+                {
+                    <MudTooltip Text="Disable">
+                        <MudIconButton OnClick="() => ToggleEnable(context.Id, !context.Enabled)" Icon="@Icons.Material.Filled.Close" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+                    </MudTooltip>
+                }
+                else
+                {
+                    <MudTooltip Text="Enable">
+                        <MudIconButton OnClick="() => ToggleEnable(context.Id, !context.Enabled)" Icon="@Icons.Material.Filled.Check" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+                    </MudTooltip>
+                }
+            }
+        </CardOptions>
+    </ListMobile>
+</MudHidden>
+
+@code {
+    private string? _athleteEndpoint => _account is not null && _account?.Type != UserType.Admin || _account?.Type == UserType.Admin && ShowOnlyReferrals
+        ? $"Athlete/referral/{_account?.Id}?"
+        : "Athlete?";
+
+    private bool _showOnlyReferrals;
+
+    private bool ShowOnlyReferrals
+    {
+        get => _showOnlyReferrals;
+        set
+        {
+            _showOnlyReferrals = value;
+            Task.Run(async () => await GetInitialDataAsync());
+        }
+    }
+
+    private AthleteDTO[] _elements = Array.Empty<AthleteDTO>();
+
+    private AthleteDTO[] Elements
+    {
+        get
+        {
+            return _elements.Where(a => (string.IsNullOrWhiteSpace(_search)
+                                         || (a.FirstName + a.LastName).Contains(_search,
+                                             StringComparison.InvariantCultureIgnoreCase))).ToArray();
+        }
+        set => _elements = value;
+    }
+
+    private string _search = string.Empty;
+    private bool _loading;
+    private bool _editMode;
+    private string _description;
+    private AccountDto _account;
+    DateRange _dateRange = new(DateTime.Now.Date, DateTime.Now.AddDays(5).Date);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetInitialDataAsync();
+    }
+
+    private ListMobile<AthleteDTO>? _listMobile;
+
+    private async Task GetInitialDataAsync()
+    {
+        try
+        {
+            if (_listMobile is not null)
+            {
+                await _listMobile.ResetItemsAsync();
+                return;
+            }
+
+            _loading = true;
+            StateHasChanged();
+
+            _account = await _localStorage.GetItemAsync<AccountDto>("account");
+
+            if (_account.Type == UserType.Coach)
+            {
+                var responseAthletes = await _httpClient.GetFromJsonAsync<Response<AthleteDTO[]>>($"api/v1/athlete/sport/{_account.Coach.SportId}");
+                Elements = responseAthletes?.Payload;
+            }
+            else if (_account.Type != UserType.Admin || (_account.Type == UserType.Admin && ShowOnlyReferrals))
+            {
+                var response = await _httpClient.GetFromJsonAsync<Response<AthleteDTO[]>>($"api/v1/athlete/referral/{_account.Id}");
+                Elements = response?.Payload;
+            }
+            else
+            {
+                var response = await _httpClient.GetFromJsonAsync<Response<AthleteDTO[]>>("api/v1/athlete");
+                Elements = response?.Payload;
+            }
+
+            var favoriteResponse = await _httpClient.GetFromJsonAsync<Response<int[]>>($"api/v1/athlete/favorites/{_account.Id}");
+
+            if (favoriteResponse is not null && favoriteResponse.Status == ResponseStatus.Ok)
+            {
+                Elements = Elements.Select(e =>
+                {
+                    e.IsFavorite = favoriteResponse.Payload.Contains(e.Id);
+                    return e;
+                }).ToArray();
+            }
+
+            Elements = Elements.ToArray();
+
+            _loading = false;
+            StateHasChanged();
+        }
+        catch (Exception e)
+        {
+        }
+    }
+
+    private async Task SendMessages()
+    {
+        _dialogService.Show<SendSMS>("MASSIVE SMS",
+            new DialogParameters { ["IsAthletes"] = true },
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
+
+        _snackBar.Add("Messages started sending", Severity.Success, o => o.VisibleStateDuration = 8000);
+    }
+
+    private string GetInitial(AthleteDTO athlete)
+    {
+        if (!string.IsNullOrWhiteSpace(athlete.FirstName))
+        {
+            var letter = athlete.FirstName[0].ToString().ToUpper();
+            if (!string.IsNullOrWhiteSpace(letter))
+                return letter;
+        }
+        else if (!string.IsNullOrWhiteSpace(athlete.LastName))
+        {
+            var letter = athlete.LastName[0].ToString().ToUpper();
+            if (!string.IsNullOrWhiteSpace(letter))
+                return letter;
+        }
+
+        return "?";
+    }
+
+    private bool _loadingBlast;
+    private async Task SendBlastEmailAsync(AthleteDTO athlete)
+    {
+        if (_loadingBlast) return;
+
+        _loading = true;
+        _loadingBlast = true;
+
+        StateHasChanged();
+
+        _snackBar.Add("Please wait while we look for the universities...", Severity.Info);
+
+        var responseCount = await _httpClient.GetFromJsonAsync<Response<int>>($"api/v1/email/blastemail/{athlete.Id}/count");
+        if (responseCount is not null)
+        {
+            bool? result = await _dialogService.ShowMessageBox($"Blast Emails - {athlete.FirstName} {athlete.LastName}", $"You're about to send emails to {responseCount.Payload} universities", yesText: "Send", cancelText: "Cancel");
+            var state = result == null ? "Cancelled" : "Deleted!";
+
+            if (result is not null)
+            {
+                var response = await _httpClient.GetFromJsonAsync<Response>($"api/v1/email/blastemail/{athlete.Id}");
+
+                if (response is not null && response.Status == ResponseStatus.Ok)
+                {
+                    _snackBar.Add("Blast Email Started!", Severity.Success);
+                }
+                else
+                {
+                    _snackBar.Add(response.Message, Severity.Error);
+                }
+            }
+        }
+
+        _loading = false;
+        _loadingBlast = false;
+
+        StateHasChanged();
+    }
+
+    private void SearchAthletes(string value)
+    {
+        _search = value;
+    }
+
+    private async Task ToggleEnable(int athleteId, bool enable)
+    {
+        var reference = _dialogService.Show<DeleteConfirmation>();
+        var result = await reference.Result;
+
+        if (!result.Cancelled)
+        {
+            await _httpClient.GetAsync($"api/v1/athlete/toggle/{athleteId}?enabled={enable.ToString()}");
+            await GetInitialDataAsync();
+        }
+    }
+
+    public async Task SetFavoriteAsync(int athleteId)
+    {
+        var athlete = Elements.First(i => i.Id == athleteId);
+        athlete.IsFavorite = true;
+        StateHasChanged();
+
+        var response = await _httpClient.PostAsync($"api/v1/athlete/favorites/{_account.Id}/{athleteId}", new StringContent(string.Empty));
+        if (!response.IsSuccessStatusCode)
+        {
+            athlete.IsFavorite = false;
+            StateHasChanged();
+
+            _snackBar.Add("There was an error adding this university to favorites", Severity.Warning);
+        }
+    }
+
+    public async Task RemoveFavoriteAsync(int athleteId)
+    {
+        var athlete = Elements.First(i => i.Id == athleteId);
+        athlete.IsFavorite = false;
+        StateHasChanged();
+
+        var response = await _httpClient.DeleteAsync($"api/v1/athlete/favorites/{_account.Id}/{athleteId}");
+        if (!response.IsSuccessStatusCode)
+        {
+            athlete.IsFavorite = true;
+            StateHasChanged();
+
+            _snackBar.Add("There was an error adding this university to favorites", Severity.Warning);
+        }
+    }
+
+}

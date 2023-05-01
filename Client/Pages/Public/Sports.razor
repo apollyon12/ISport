@@ -1,0 +1,226 @@
+﻿@page "/public/sports"
+
+@layout PublicLayout
+
+@using iSportsRecruiting.Shared.DTO
+@using iSportsRecruiting.Client.Pages.Public.Components
+@using System.Globalization
+@using System.Net.Http.Json
+@using iSportsRecruiting.Client.Shared
+
+@inject IJSRuntime _jsRuntime
+@inject HttpClient _httpClient
+@inject NavigationManager _navigationManager
+
+<style>
+    .mud-tooltip-root.mud-tooltip-inline {
+        display: block !important;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    html, body, #app {
+        height: 100%;
+    }
+
+    #whole-container {
+        padding: 5%;
+        color: #0c0c0c;
+    }    
+</style>
+
+<AppBar Elevation="3"/>
+
+<div style="height: 91%; width: 100%; background-image: url('images/sports-background.jpg'); background-repeat: no-repeat; background-size: cover;padding: 5vh;">
+    <MudText Align="Align.Center" Typo="Typo.h3" Style="font-weight: bold;margin-bottom: 100px;color: black;margin-top: 2vh;">DON'T MISS PLAYING NEXT LEVEL</MudText>
+
+    <div style="width: 250px;height: 250px;box-shadow: 1px 1px 27px 2px black;margin: 0;left: 50%;top: 50%;position: absolute;transform: translate(-50%, -30%);border-radius: 50%;background-color: black;">
+        <img alt="logo" src="images/ISR_WHITE.png" style="margin: 0;left: 50%;width: 65%;top: 50%;position: absolute;transform: translate(-50%, -50%);"/>
+    </div>
+
+    <div style="height: 33%">
+        <MudGrid Style="height: 100%">
+            @foreach (var division in divisions)
+            {
+                <Divisions Division="@(division.Division)" Count="@division.Count"/>
+            }
+        </MudGrid>
+    </div>
+
+</div>
+<div style="width: 100%; height: 4px; background-color: #949494">
+</div>
+
+<MudGrid id="whole-container">
+    <MudItem md="6">
+        <img alt="mens" src="images/1.png" style="width: 70%;height: 95%;display: block;margin-left: auto;"/>
+    </MudItem>
+
+    <MudItem md="6">
+        <div style="padding: 5%;position: relative;width: 70%; height: 100%;">
+            <div class="@(UniversitiesMens.Any() ? "correr-hacia-arriba" : "")" style="margin: 0;position: relative;top: 50%;-ms-transform: translateY(-50%);transform: translateY(-50%);">
+                <MudText Style="font-weight: bold" Typo="Typo.h2" Align="Align.Center">MEN'S</MudText>
+                <div class="ma-6" style="height: 2px; width: 15%;background-color: #2ebb0e;display: block;margin-right: auto !important;margin-left: auto !important;"></div>
+
+                <MudAutocomplete Required="true" @bind-Value="SportMen" T="SportDTO" Label="Sport" SearchFunc="@SearchSportMen" MaxItems="int.MaxValue" ToStringFunc="sport => sport.Name"/>
+                <MudNumericField T="decimal" @bind-Value="GpaMen" Label="GPA" Min="1" Max="4" Step=".01M"/>
+                <MudButton Class="mt-6 mb-4" Style="background-color: #0c0c0c;color: #f7f7f7;font-weight: bolder;border-radius: 21px;width: 130px;display: block;margin-left: auto;margin-right: auto;" @onclick="LoadUniversitiesMens">GO</MudButton>
+            </div>
+
+            <div style="position: absolute;bottom: 8%;">
+                @if (UniversitiesMens.Any())
+                {
+                    <MudText Class="mb-6" Align="Align.Center" Typo="Typo.h6">
+                        <b>@UniversitiesMensCount+</b>
+                    </MudText>
+                }
+
+                @foreach (var university in UniversitiesMens)
+                {
+                    <img class="aparecer" style="margin-right: 8px;width: 17%;border-radius: 50%;box-shadow: 1px 1px 9px; display: inline-block" alt="@university.University" src=@($"https://isportsrecruiting.com/api/v1/file/logos/50/50/{university.Image}.jpg")/>
+                }
+            </div>
+        </div>
+    </MudItem>
+
+    <MudItem md="6">
+        <div style="padding: 5%;position: relative;width: 70%; height: 100%;display: block;margin-left: auto;">
+            <div class="@(UniversitiesWomens.Any() ? "correr-hacia-arriba" : "")" style="margin: 0;position: relative;top: 50%;-ms-transform: translateY(-50%);transform: translateY(-50%);">
+                <MudText Style="font-weight: bold" Typo="Typo.h2" Align="Align.Center">WOMEN'S</MudText>
+                <div class="ma-6" style="height: 2px; width: 20%;background-color: #2ebb0e;display: block;margin-right: auto !important;margin-left: auto !important;"></div>
+
+                <MudAutocomplete Required="true" @bind-Value="SportWomen" T="SportDTO" Label="Sport" SearchFunc="@SearchSportWomen" MaxItems="int.MaxValue" ToStringFunc="sport => sport.Name"/>
+                <MudNumericField T="decimal" @bind-Value="GpaWomen" Label="GPA" Min="1" Max="4" Step=".01M"/>
+                <MudButton Class="mt-6 mb-4" Style="background-color: #0c0c0c;color: #f7f7f7;font-weight: bolder;border-radius: 21px;width: 130px;display: block;margin-left: auto;margin-right: auto;" @onclick="LoadUniversitiesWomens">GO</MudButton>
+            </div>
+
+            <div style="position: absolute;bottom: 8%;">
+                @if (UniversitiesWomens.Any())
+                {
+                    <MudText Class="mb-6" Align="Align.Center" Typo="Typo.h6">
+                        <b>@UniversitiesWomensCount+</b>
+                    </MudText>
+                }
+
+                @foreach (var university in UniversitiesWomens)
+                {
+                    <img class="aparecer" style="margin-right: 8px;width: 17%;border-radius: 50%;box-shadow: 1px 1px 9px; display: inline-block" alt="@university.University" src=@($"https://isportsrecruiting.com/api/v1/file/logos/50/50/{university.Image}.jpg")/>
+                }
+            </div>
+        </div>
+    </MudItem>
+
+    <MudItem md="6">
+        <img alt="mens" src="images/2.png" style="width: 70%;height: 95%;display: block;"/>
+    </MudItem>
+</MudGrid>
+
+@code {
+    public bool ShowUniversities;
+    public string forMen { get; set; } = "men-check";
+    public string forWomen { get; set; } = "women-check";
+
+    public decimal GpaMen { get; set; }
+    public SportDTO SportMen { get; set; }
+
+    public decimal GpaWomen { get; set; }
+    public SportDTO SportWomen { get; set; }
+
+    private SportDTO[] _elements = Array.Empty<SportDTO>();
+
+    private bool _loadingMensUniversities;
+    private bool _loadingWomensUniversities;
+
+    private UniversityDTO[] UniversitiesMens { get; set; } = Array.Empty<UniversityDTO>();
+    private int UniversitiesMensCount { get; set; }
+
+    private UniversityDTO[] UniversitiesWomens { get; set; } = Array.Empty<UniversityDTO>();
+    private int UniversitiesWomensCount { get; set; }
+
+    private DivisionCount[] divisions { get; set; } = Array.Empty<DivisionCount>();
+
+    protected override void OnInitialized()
+    {
+        Task.Run(async () =>
+        {
+            var divisionsResponse = await _httpClient.GetFromJsonAsync<Response<DivisionCount[]>>("api/v1/university/divisions");
+            divisions = divisionsResponse?.Payload;
+            StateHasChanged();
+        });
+
+        Task.Run(async () =>
+        {
+            var response = await _httpClient.GetFromJsonAsync<Response<SportDTO[]>>("api/v1/sport");
+            _elements = response?.Payload;
+            StateHasChanged();
+        });
+    }
+
+    private async Task<IEnumerable<SportDTO>> SearchSportWomen(string value)
+    {
+        await Task.Delay(0);
+
+        return string.IsNullOrEmpty(value)
+            ? _elements.Where(s => s.Name.Contains("Women's", StringComparison.InvariantCultureIgnoreCase))
+            : _elements
+                .Where(s => s.Name.Contains("Women's", StringComparison.InvariantCultureIgnoreCase))
+                .Where(x => x.Name.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+    }
+
+    private async Task<IEnumerable<SportDTO>> SearchSportMen(string value)
+    {
+        await Task.Delay(0);
+
+        return string.IsNullOrEmpty(value)
+            ? _elements.Where(s => !s.Name.Contains("Women's", StringComparison.InvariantCultureIgnoreCase))
+            : _elements
+                .Where(s => !s.Name.Contains("Women's", StringComparison.InvariantCultureIgnoreCase))
+                .Where(x => x.Name.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+    }
+
+
+    private async Task LoadUniversitiesMens()
+    {
+        if (_loadingMensUniversities)
+            return;
+
+        if (SportMen is null)
+            return;
+
+        _loadingMensUniversities = true;
+        UniversitiesMens = Array.Empty<UniversityDTO>();
+        StateHasChanged();
+
+        string sportName = SportMen.Name.Replace(@"'", "");
+        string uri = $"api/v1/university/without-community?sportName={SportMen.Name}&gpa={GpaMen.ToString(CultureInfo.InvariantCulture).Replace(",", ".")}&takeOnly=5&randomizer=true";
+        var universitiesResponse = await _httpClient.GetFromJsonAsync<Response<UniversityDTO[]>>(uri);
+        UniversitiesMens = universitiesResponse?.Payload;
+        UniversitiesMensCount = universitiesResponse?.Total ?? 0;
+
+        _loadingMensUniversities = false;
+        StateHasChanged();
+    }
+
+    private async Task LoadUniversitiesWomens()
+    {
+        if (_loadingWomensUniversities)
+            return;
+
+        if (SportWomen is null)
+            return;
+
+        _loadingWomensUniversities = true;
+        UniversitiesWomens = Array.Empty<UniversityDTO>();
+        StateHasChanged();
+
+        string sportName = SportWomen.Name.Replace(@"'", "");
+        string uri = $"api/v1/university/without-community?sportName={SportWomen.Name}&gpa={GpaWomen.ToString(CultureInfo.InvariantCulture).Replace(",", ".")}&takeOnly=5&randomizer=true";
+        var universitiesResponse = await _httpClient.GetFromJsonAsync<Response<UniversityDTO[]>>(uri);
+        UniversitiesWomens = universitiesResponse?.Payload;
+        UniversitiesWomensCount = universitiesResponse?.Total ?? 0;
+
+        _loadingWomensUniversities = false;
+        StateHasChanged();
+    }
+
+}

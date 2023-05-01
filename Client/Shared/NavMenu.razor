@@ -1,0 +1,226 @@
+@using System.Security.Claims
+@using iSportsRecruiting.Shared.DTO;
+@using System.Net.Http.Json
+@using iSportsRecruiting.Client.Shared.Utils
+@using Microsoft.AspNetCore.Components.Routing
+
+@inject ISnackbar _snackBar
+@inject HttpClient _httpClient
+@inject IJSRuntime Runtime
+@inject NavigationManager _navigationManager
+@inject Blazored.LocalStorage.ILocalStorageService _localStorage;
+
+
+<style>
+</style>
+<MudSnackbarProvider/>
+
+@if (Account is not null)
+{
+    if (Account.Type == UserType.Athlete)
+    {
+        <UserCard ShowTut="@(Account.Athlete.ShowTut && !_tutFinalized)" CutEmail="true" Account="Account"/>
+
+    }
+    else
+    {
+        <UserCard CutEmail="true" Account="Account"/>
+    }
+}
+
+<MudDivider Class="mb-4"/>
+
+@* @if (_tutFinalized) *@
+@* { *@
+@*     <WelcomePopover Open="_tutFinalized" Style="margin-right: 4vh;margin-top: 39vh;"> *@
+@*         <Title> *@
+@*             Online Profile *@
+@*         </Title> *@
+@*         <Description> *@
+@*             <b>Online Profile;</b> we always recommend copying link to share with coaches and/or social media <br/> *@
+@*         </Description> *@
+@*         <Buttons> *@
+@*             <MudButton OnClick="@(async () => { })" Class="ml-auto" Color="Color.Primary">COPY LINK</MudButton> *@
+@*             <MudButton OnClick="@(() => { _tutFinalized = true; StateHasChanged(); })" Class="ml-auto" Color="Color.Primary">CLOSE</MudButton> *@
+@*         </Buttons> *@
+@*     </WelcomePopover> *@
+@* } *@
+<MudNavMenu>
+    @if (Account is not null)
+    {
+        @if (Account?.Type == UserType.Athlete)
+        {
+            <MudNavLink Href="/dashboard" Icon="@Icons.Material.Outlined.Dashboard">Dashboard</MudNavLink>
+            <MudNavLink Href="/athlete/profile" Icon="@Icons.Material.Outlined.Person">Edit Profile</MudNavLink>
+            <MudNavLink Href="@($"/athletes/{Account.Athlete.Id}/{(Account.Athlete.FirstName + "-" + Account.Athlete.LastName).ToLower()}")" Icon="@Icons.Material.Outlined.Public">View Profile</MudNavLink>
+            <MudListSubheader Class="mt-2 mb-n2">Universities</MudListSubheader>
+
+            <MudNavLink Href="/athlete/universities" Icon="@Icons.Material.Outlined.Search">Search</MudNavLink>
+
+            <MudNavLink Href="/athlete/universities/favorites" Icon="@Icons.Material.Outlined.Star">Favorites</MudNavLink>
+            <MudListSubheader Class="mt-2 mb-n2">Communication</MudListSubheader>
+
+            <MudNavLink Href="/emails" Icon="@Icons.Material.Outlined.Email">
+                @("Emails")
+            </MudNavLink>
+
+            <MudListSubheader Class="mt-2 mb-n2">Services</MudListSubheader>
+            <MudNavLink Href="/services/advisor" Icon="@Icons.Material.Outlined.PersonAdd">Recruiting Advisor</MudNavLink>
+            <MudNavLink Href="/services/blast-email" Icon="@Icons.Material.Outlined.Email">Blast Emails</MudNavLink>
+            <MudNavLink Href="/services/video-editing" Icon="@Icons.Material.Outlined.Videocam">Video Editing</MudNavLink>
+        }
+        else if (Account?.Type == UserType.Admin || Account?.Type == UserType.AssisAdmin)
+        {
+            <MudNavLink Href="/dashboard" Icon="@Icons.Material.Outlined.Dashboard">
+                Dashboard
+            </MudNavLink>
+            <MudNavLink Href="/schedules" Icon="@Icons.Material.Outlined.Schedule">Schedules</MudNavLink>
+            <MudNavLink Href="/leads" Icon="@Icons.Material.Outlined.Leaderboard">Leads</MudNavLink>
+            <MudNavLink Href="/athletes" Icon="@Icons.Material.Outlined.SportsHandball">Athletes</MudNavLink>
+            <MudNavLink Href="/universities" Icon="@Icons.Material.Outlined.School">Universities</MudNavLink>
+            <MudNavLink Href="/sports" Icon="@Icons.Material.Outlined.Sports">Sports</MudNavLink>
+            <MudNavLink Href="/assistants" Icon="@Icons.Material.Outlined.Assistant">Assistants</MudNavLink>
+            <MudNavLink Href="/promotions" Icon="@Icons.Material.Outlined.LocalOffer">Promotions</MudNavLink>
+            <MudNavLink Href="/notify" Icon="@Icons.Material.Outlined.Notifications">Notify</MudNavLink>
+            <MudNavLink Href="/messages-inbox" Icon="@Icons.Material.Outlined.Sms">Sms Inbox</MudNavLink>
+            <MudNavLink Href="/schedulednotifications" Icon="@Icons.Material.Outlined.Schedule">Scheduled Notifications</MudNavLink>
+        @*<MudNavLink Href="/goals" Icon="@Icons.Material.Outlined.Star">@localizer["Goals"]</MudNavLink>*@
+        }
+        else if (Account?.Type == UserType.AssisCoord || Account?.Type == UserType.Coach)
+        {
+            <MudNavLink Href="/dashboard" Icon="@Icons.Material.Outlined.Dashboard">
+                Dashboard
+            </MudNavLink>
+            <MudNavLink Href="/schedules" Icon="@Icons.Material.Outlined.Schedule">Schedules</MudNavLink>
+            @if (Account.Type == UserType.AssisCoord)
+            {
+                <MudNavLink Href="/leads" Icon="@Icons.Material.Outlined.Leaderboard">Leads</MudNavLink>
+            }
+
+            @if (Account.Type == UserType.Coach)
+            {
+                <MudListSubheader Class="mt-2 mb-n2">Athletes</MudListSubheader>
+                <MudNavLink Href="/athletes" Icon="@Icons.Material.Outlined.SportsHandball">Athletes</MudNavLink>
+                <MudNavLink Href="/favorites" Icon="@Icons.Material.Outlined.Star">Favorites</MudNavLink>
+                <MudListSubheader Class="mt-2 mb-n2">Communication</MudListSubheader>
+                <MudNavLink Href="/emails" Icon="@Icons.Material.Outlined.Chat">
+                    Emails
+                </MudNavLink>
+            }
+            else
+            {
+                <MudNavLink Href="/athletes" Icon="@Icons.Material.Outlined.SportsHandball">Athletes</MudNavLink>
+            }
+        @*<MudNavLink Href="/goals" Icon="@Icons.Material.Outlined.Star">@localizer["Goals"]</MudNavLink>*@
+        }
+    }
+</MudNavMenu>
+
+@code {
+    private ClaimsPrincipal AuthenticationStateProviderUser { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+    //AuthenticationStateProviderUser = await _stateProvider.GetAuthenticationStateProviderUserAsync();
+    }
+
+    [Parameter]
+    public AccountDto? Account { get; set; }
+
+    private int _sentEmails;
+    private int _receiveEmails;
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        StateManagement<AccountDto>.AddRender("ImageProfile", account =>
+        {
+            Account = account;
+            StateHasChanged();
+        }, GetHashCode());
+    }
+
+    bool _tutFinalized;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Account = await _localStorage.GetItemAsync<AccountDto>("account");
+
+        if (Account.Type == UserType.Athlete)
+        {
+            if(Account.Athlete.ResumeTut)
+            _tutFinalized = !Account.Athlete.ShowTut;
+        }
+        
+        StateHasChanged();
+
+        if (Account is null)
+            return;
+
+        if (Account.Type == UserType.Athlete)
+        {
+            _ = Task.Run(async () =>
+            {
+                var response = await _httpClient.GetFromJsonAsync<Response<int>>($"/api/v1/email/receive/{Account.Id}/count");
+                _receiveEmails = response?.Payload ?? 0;
+
+                StateHasChanged();
+            });
+
+            _ = Task.Run(async () =>
+            {
+                var response = await _httpClient.GetFromJsonAsync<Response<int>>($"/api/v1/email/sent/{Account.Id}/count");
+                _sentEmails = response?.Payload ?? 0;
+
+                StateHasChanged();
+            });
+        }
+        else if (Account.Type == UserType.Coach)
+        {
+            _ = Task.Run(async () =>
+            {
+                var response = await _httpClient.GetFromJsonAsync<Response<int>>($"/api/v1/email/receive/{Account.Coach.Id}/count");
+                _receiveEmails = response?.Payload ?? 0;
+
+                StateHasChanged();
+            });
+
+            _ = Task.Run(async () =>
+            {
+                var response = await _httpClient.GetFromJsonAsync<Response<int>>($"/api/v1/email/sent/{Account.Coach.Id}/count");
+                _sentEmails = response?.Payload ?? 0;
+
+                StateHasChanged();
+            });
+        }
+    }
+
+    private void BlastEmailMessage()
+    {
+        _snackBar.Add("Upgrade your plan", Severity.Info, config =>
+        {
+            config.VisibleStateDuration = 15000;
+            config.HideTransitionDuration = 500;
+            config.ShowTransitionDuration = 500;
+            config.CloseAfterNavigation = true;
+            config.Action = "UPGRADE";
+            config.ActionColor = Color.Primary;
+            config.Onclick = _ =>
+            {
+                _navigationManager.NavigateTo("/athlete/billing");
+                return Task.CompletedTask;
+            };
+        });
+    }
+
+    public async Task CopyUrl()
+    {
+        var account = await _localStorage.GetItemAsync<AccountDto>("account");
+
+        string url = $"https://www.isportsrecruiting.com/athletes/{account.Athlete.Id}/" +
+                     $"{(account.Athlete.FirstName + "-" + account.Athlete.LastName).ToLower()}";
+
+        await Runtime.InvokeVoidAsync("navigator.clipboard.writeText", url);
+        _snackBar.Add("Successfully copied!", Severity.Success);
+    }
+
+}

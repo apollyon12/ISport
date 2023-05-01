@@ -1,0 +1,417 @@
+﻿@using iSportsRecruiting.Shared.DTO
+@using iSportsRecruiting.Shared.Models
+@using iSportsRecruiting.Client.Shared.Dialogs
+@using System.Net.Http.Json
+
+@inject ISnackbar _snackBar
+@inject HttpClient _httpClient
+@inject IDialogService _dialogService
+@inject Blazored.LocalStorage.ILocalStorageService _localStorage;
+
+@if (!PhoneMode)
+{
+    <MudGrid>
+        <MudItem lg="3" md="3">
+            <MudSelect T="int" Label="Year" @bind-Value="Year" Strict="true" Variant="Variant.Outlined" AdornmentIcon="@Icons.Filled.DateRange" AdornmentColor="Color.Primary" Required="true" Error="MissingYear">
+                @for (int i = DateTime.Now.Year - 3; i <= DateTime.Now.Year; i++)
+                {
+                    <MudSelectItem T="int" Value="i" />
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem lg="8" md="8">
+            <MudTextField @bind-Value="Value" Label="@Label" Variant="Variant.Outlined" Error="MissingValue" />
+        </MudItem>
+        <MudItem lg="1" md="1">
+            <MudIconButton Icon="@Icons.Material.Filled.Add" aria-label="Add" OnClick="Add" Style="margin-top:8px" />
+        </MudItem>
+        <MudItem lg="12" md="12">
+            <MudTable Items="@Items" Hover="true" Breakpoint="Breakpoint.Sm" LoadingProgressColor="@Color.Secondary" >
+                <HeaderContent>
+                    <MudTh>Year</MudTh>
+                    <MudTh>@Label</MudTh>
+                    <MudTh>Action</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Year">
+                        <MudChip Icon="@Icons.Material.Filled.DateRange" Color="Color.Primary" Style="color: #3FFF00">@context.Year</MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Name">@context.Name</MudTd>
+                    @if (context.Id is not null)
+                    {
+                        <MudTd DataLabel="Action">
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="Delete" OnClick="@(() => Delete(context.Id))" Color="Color.Error" />
+                        </MudTd>
+                    }
+                    else
+                    {
+                        <MudTd DataLabel="Action">
+                            <MudProgressCircular Size="Size.Small" Color="Color.Primary" />
+                        </MudTd>
+                    }
+                </RowTemplate>
+            </MudTable>
+        </MudItem>
+    </MudGrid>
+}
+else
+{
+    <MudGrid>
+        <MudItem sm="12" xs="12" >
+            <MudSelect T="int" Label="Year" @bind-Value="Year" Strict="true" Variant="Variant.Outlined" AdornmentIcon="@Icons.Filled.DateRange" AdornmentColor="Color.Primary" Required="true" Error="MissingYear">
+                @for (int i = DateTime.Now.Year - 3; i <= DateTime.Now.Year; i++)
+                {
+                    <MudSelectItem T="int" Value="i" />
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem sm="12" xs="12">
+            <MudTextField @bind-Value="Value" Label="@Label" Variant="Variant.Outlined" Error="MissingValue" />
+        </MudItem>
+        <MudItem sm="12" xs="12">
+            <MudIconButton Icon="@Icons.Material.Filled.Add" aria-label="Add" OnClick="Add" Style="margin-top:8px" />
+        </MudItem>
+        <MudItem sm="12" xs="12">
+            <MudTable Items="@Items" Hover="true" Breakpoint="Breakpoint.Sm" LoadingProgressColor="@Color.Secondary" >
+                <HeaderContent>
+                    <MudTh>Year</MudTh>
+                    <MudTh>@Label</MudTh>
+                    <MudTh>Action</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Year">
+                        <MudChip Icon="@Icons.Material.Filled.DateRange" Color="Color.Primary" Style="color: #3FFF00">@context.Year</MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Name">@context.Name</MudTd>
+                    @if (context.Id is not null)
+                    {
+                        <MudTd DataLabel="Action">
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="Delete" OnClick="@(() => Delete(context.Id))" Color="Color.Error" />
+                        </MudTd>
+                    }
+                    else
+                    {
+                        <MudTd DataLabel="Action">
+                            <MudProgressCircular Size="Size.Small" Color="Color.Primary" />
+                        </MudTd>
+                    }
+                </RowTemplate>
+            </MudTable>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    [Parameter]
+    public string Label { get; set; }
+
+    [Parameter]
+    public AthleteDTO Athlete { get; set; }
+    
+    [Parameter]
+    public bool PhoneMode { get; set; }
+
+    private int _year;
+    public int Year
+    {
+        get => _year;
+        set
+        {
+            MissingYear = false;
+            _year = value;
+        }
+    }
+
+    private string _value;
+    public string Value
+    {
+        get => _value;
+        set
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+                MissingValue = false;
+
+            _value = value;
+        }
+    }
+
+    public bool MissingYear { get; set; }
+    public bool MissingValue { get; set; }
+
+    [Parameter]
+    public List<(int Year, string Name, int? Id, Guid Guid)> Items { get; set; }
+
+    [Parameter]
+    public EventCallback<List<(int Year, string Name, int? Id, Guid Guid)>> ItemsChanged { get; set; }
+
+    public async Task Add()
+    {
+        bool shouldReturn = false;
+
+        if (Year == 0)
+        {
+            MissingYear = true;
+            shouldReturn = true;
+        }
+
+        if (Value is null)
+        {
+            MissingValue = true;
+            shouldReturn = true;
+        }
+
+        if (shouldReturn) return;
+
+        var guid = Guid.NewGuid();
+        var item = (Year, Value, (int?)null, guid);
+        Items.Add(item);
+
+        var yearBk = Year;
+        var valueBk = Value;
+
+        Year = 0;
+        Value = null;
+
+        StateHasChanged();
+
+        switch (Label.ToUpper())
+        {
+            case "HONOR":
+                await AddHonorAsync(null, yearBk, valueBk, guid);
+                break;
+            case "AWARD":
+                await AddAwardAsync(null, yearBk, valueBk, guid);
+                break;
+            case "CLUB":
+                await AddClubAsync(null, yearBk, valueBk, guid);
+                break;
+        }
+
+        await ItemsChanged.InvokeAsync(Items);
+    }
+
+    public async Task AddHonorAsync(int? id, int year, string honor, Guid guid)
+    {
+        var httpMessage = await _httpClient.PostAsJsonAsync($"api/v1/athlete/honor/{Athlete.UserId}",
+            new AthleteHonorsModel { Honor_Roll = honor, Year = year.ToString() });
+
+        if (httpMessage.IsSuccessStatusCode)
+        {
+            var response = await httpMessage.Content.ReadFromJsonAsync<Response<int>>();
+
+            if (!(response is not null && response.Status == ResponseStatus.Ok))
+            {
+                _snackBar.Add("There was a problem trying to add this honor...", Severity.Error,
+                    o => o.VisibleStateDuration = 8000);
+                Items = Items.Where(i => i.Guid != guid).ToList();
+                return;
+            }
+
+            Items = Items.Select(i =>
+            {
+                if (i.Guid == guid)
+                    i.Id = response.Payload;
+                return i;
+            }).ToList();
+            StateHasChanged();
+
+            _ = Task.Run(async () =>
+            {
+                var account = await _localStorage.GetItemAsync<AccountDto>("account");
+                Athlete.Honors = Items.Select(i => new AthleteHonorsDTO { Id = i.Id ?? 0, HonorRoll = i.Name, Year = i.Year });
+                account.Athlete = Athlete;
+                await _localStorage.SetItemAsync("account", account);
+            });
+        }
+    }
+
+    public async Task AddAwardAsync(int? id, int year, string award, Guid guid)
+    {
+        var httpMessage = await _httpClient.PostAsJsonAsync($"api/v1/athlete/award/{Athlete.UserId}",
+            new AthleteAwardsModel { Awards = award, Year = year });
+
+        if (httpMessage.IsSuccessStatusCode)
+        {
+            var response = await httpMessage.Content.ReadFromJsonAsync<Response<int>>();
+
+            if (!(response is not null && response.Status == ResponseStatus.Ok))
+            {
+                _snackBar.Add("There was a problem trying to add this award...", Severity.Error,
+                    o => o.VisibleStateDuration = 8000);
+                Items = Items.Where(i => i.Guid != guid).ToList();
+                return;
+            }
+
+            Items = Items.Select(i =>
+            {
+                if (i.Guid == guid)
+                    i.Id = response.Payload;
+                return i;
+            }).ToList();
+            StateHasChanged();
+
+            _ = Task.Run(async () =>
+            {
+                var account = await _localStorage.GetItemAsync<AccountDto>("account");
+                Athlete.Awards = Items.Select(i => new AthleteAwardsDTO {Id = i.Id ?? 0, Awards = i.Name, Year = i.Year });
+                account.Athlete = Athlete;
+                await _localStorage.SetItemAsync("account", account);
+            });
+        }
+    }
+
+    public async Task AddClubAsync(int? id, int year, string club, Guid guid)
+    {
+        var httpMessage = await _httpClient.PostAsJsonAsync($"api/v1/athlete/club/{Athlete.UserId}",
+            new AthleteClubsModel { Club_Name = club, Competition_Year = year });
+
+        if (httpMessage.IsSuccessStatusCode)
+        {
+            var response = await httpMessage.Content.ReadFromJsonAsync<Response<int>>();
+
+            if (!(response is not null && response.Status == ResponseStatus.Ok))
+            {
+                _snackBar.Add("There was a problem trying to add this club...", Severity.Error,
+                    o => o.VisibleStateDuration = 8000);
+                Items = Items.Where(i => i.Guid != guid).ToList();
+                return;
+            }
+
+            Items = Items.Select(i =>
+            {
+                if (i.Guid == guid)
+                    i.Id = response.Payload;
+                return i;
+            }).ToList();
+            StateHasChanged();
+
+            _ = Task.Run(async () =>
+            {
+                var account = await _localStorage.GetItemAsync<AccountDto>("account");
+                Athlete.Clubs = Items.Select(i => new AthleteClubsDTO { Id = i.Id ?? 0, ClubName = i.Name, CompetitionYear = i.Year });
+                account.Athlete = Athlete;
+                await _localStorage.SetItemAsync("account", account);
+            });
+        }
+    }
+
+    public async Task Delete(int? id)
+    {
+        var reference = _dialogService.Show<DeleteConfirmation>();
+        var result = await reference.Result;
+
+        if (!result.Cancelled)
+        {
+            switch (Label.ToUpper())
+            {
+                case "HONOR":
+                    await RemoveHonorAsync(id);
+                    break;
+                case "AWARD":
+                    await RemoveAwardAsync(id);
+                    break;
+                case "CLUB":
+                    await RemoveClubAsync(id);
+                    break;
+            }
+
+            await ItemsChanged.InvokeAsync(Items);
+        }
+    }
+
+    public async Task RemoveHonorAsync(int? id)
+    {
+        var httpMessage = await _httpClient.DeleteAsync($"api/v1/athlete/honor/{id}");
+
+        if (httpMessage.IsSuccessStatusCode)
+        {
+            var response = await httpMessage.Content.ReadFromJsonAsync<Response>();
+
+            if (!(response is not null && response.Status == ResponseStatus.Ok))
+            {
+                _snackBar.Add("There was an error trying to delete this record", Severity.Error,
+                    options => options.VisibleStateDuration = 10000);
+                return;
+            }
+
+            Items = Items.Where(i => i.Id != id).ToList();
+            StateHasChanged();
+
+            Athlete.Honors = Items.Select(i => new AthleteHonorsDTO { Id = i.Id ?? 0, HonorRoll = i.Name, Year = i.Year }).ToList();
+
+            _snackBar.Add("Deleted successfully", Severity.Success,
+                options => options.VisibleStateDuration = 10000);
+
+            _ = Task.Run(async () =>
+            {
+                var account = await _localStorage.GetItemAsync<AccountDto>("account");
+                account.Athlete = Athlete;
+                await _localStorage.SetItemAsync("account", account);
+            });
+        }
+    }
+
+    public async Task RemoveAwardAsync(int? id)
+    {
+        var httpMessage = await _httpClient.DeleteAsync($"api/v1/athlete/award/{id}");
+
+        if (httpMessage.IsSuccessStatusCode)
+        {
+            var response = await httpMessage.Content.ReadFromJsonAsync<Response>();
+
+            if (response is not null && response.Status == ResponseStatus.Ok)
+            {
+                Items = Items.Where(i => i.Id != id).ToList();
+                StateHasChanged();
+
+                Athlete.Awards = Items.Select(i => new AthleteAwardsDTO { Id = i.Id ?? 0, Awards = i.Name, Year = i.Year }).ToList();
+
+                _ = Task.Run(async () =>
+                {
+                    var account = await _localStorage.GetItemAsync<AccountDto>("account");
+                    account.Athlete = Athlete;
+                    await _localStorage.SetItemAsync("account", account);
+                });
+
+                _snackBar.Add("Deleted successfully", Severity.Success,
+            options => options.VisibleStateDuration = 10000);
+                return;
+            }
+        }
+
+        _snackBar.Add("There was an error trying to delete this record", Severity.Error,
+            options => options.VisibleStateDuration = 10000);
+    }
+
+    public async Task RemoveClubAsync(int? id)
+    {
+        var httpMessage = await _httpClient.DeleteAsync($"api/v1/athlete/club/{id}");
+
+        if (httpMessage.IsSuccessStatusCode)
+        {
+            var response = await httpMessage.Content.ReadFromJsonAsync<Response>();
+
+            if (response is not null && response.Status == ResponseStatus.Ok)
+            {
+                Items = Items.Where(i => i.Id != id).ToList();
+                StateHasChanged();
+
+                Athlete.Clubs = Items.Select(i => new AthleteClubsDTO { Id = i.Id ?? 0, ClubName = i.Name, CompetitionYear = i.Year }).ToList();
+
+                _ = Task.Run(async () =>
+                {
+                    var account = await _localStorage.GetItemAsync<AccountDto>("account");
+                    account.Athlete = Athlete;
+                    await _localStorage.SetItemAsync("account", account);
+                });
+
+                _snackBar.Add("Deleted successfully", Severity.Success,
+                options => options.VisibleStateDuration = 10000);
+                return;
+            }
+        }
+
+        _snackBar.Add("There was an error trying to delete this record", Severity.Error,
+            options => options.VisibleStateDuration = 10000);
+    }
+}

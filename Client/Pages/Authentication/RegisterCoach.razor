@@ -1,0 +1,240 @@
+﻿@page "/register/coach/"
+@page "/register/coach/{Token}"
+
+@layout PublicLayout
+
+@using iSportsRecruiting.Shared.DTO
+@using iSportsRecruiting.Shared.Models
+@using iSportsRecruiting.Client.Pages.Authentication.Components;
+@using iSportsRecruiting.Client.Shared
+@using iSportsRecruiting.Client.Shared.Dialogs
+@using System.Net.Http.Json
+
+@inject ISnackbar _snackBar
+@inject HttpClient _httpClient
+@inject IDialogService _dialogService
+@inject NavigationManager _navigationManager
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center" Style="height: 100vh;">
+    <MudPaper Elevation="9" Style="width: 500px;">
+        <MudGrid Class="pa-8">
+            <MudItem xs="12">
+                <div class="d-flex justify-center">
+                    <img src="images/ISR_BLACK.png" width="200" @onclick="@(() => _navigationManager.NavigateTo("/"))" style="cursor: pointer"/>
+                </div>
+            </MudItem>
+
+            @if (Token is not null)
+            {
+                if (!IsInvalidToken && IsLoading && !_creatingAccount)
+                {
+                    <MudItem xs="12" Class="mt-5">
+                        <MudText Typo="Typo.h5" Align="Align.Center">We're validating your email, please wait...</MudText>
+                    </MudItem>
+                }
+                else if (IsInvalidToken && !IsLoading && !_creatingAccount)
+                {
+                    <MudItem xs="12" Class="mt-5">
+                        <MudText Typo="Typo.h5" Align="Align.Center">This confirmation link is wrong or has already expired..."]</MudText>
+                    </MudItem>
+                }
+                else
+                {
+                    <MudItem xs="12" Class="mt-5">
+                        <MudText Typo="Typo.h5" Align="Align.Center">Please set a password</MudText>
+                    </MudItem>
+
+                    <MudItem xs="12">
+                        <MudTextField @ref="_passwordField" Variant="Variant.Outlined" InputType="@_passwordInput" Adornment="Adornment.End" AdornmentIcon="@_passwordInputIcon" OnAdornmentClick="TogglePasswordVisibility"
+                                      Validation="@(new Func<string, IEnumerable<string>>(PasswordStrength))" @bind-Value="_password" Required="true" Label="Password" ReadOnly="IsLoading"/>
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField Variant="Variant.Outlined" Validation="@(new Func<string, string>(PasswordMatch))" InputType="InputType.Password" Required="true" OnAdornmentClick="TogglePasswordVisibility" @bind-Value="_confirmPassword" Label="Confirm Password" ReadOnly="IsLoading"/>
+                    </MudItem>
+
+                    <MudItem xs="12" Class="d-flex justify-center">
+                        <MudButton Disabled="IsLoading" ButtonType="ButtonType.Button" OnClick="SubmitAsync" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" Style="width: 100%;">Register</MudButton>
+                    </MudItem>
+                }
+            }
+            else
+            {
+                @if (!_hiddeRegisterBtn)
+                {
+                    <MudItem xs="12">
+                        <div class="d-flex justify-center">
+                            <MudText Typo="Typo.h4">Register Coach</MudText>
+                        </div>
+                    </MudItem>
+                    <MudItem xs="12">
+                        <div class="d-flex justify-center">
+                            <MudText>Already have an account? <MudLink Href="/login">Sign In</MudLink></MudText>
+                        </div>
+                    </MudItem>
+                }
+
+
+                @switch (Step)
+                {
+                    case 0:
+                        <RegisterCoachStepOne @ref="_stepOne" @bind-Model="Model" @bind-Sport="Sport" @bind-University="University" @bind-CoachType="CoachType"/>
+                        break;
+                    case 1:
+                        <RegisterCoachStepTwo @ref="_stepTwo" @bind-Model="Model" SportId="@(Sport?.Id ?? 0)" UniversityId="@(University?.Id ?? 0)"
+                                              CoachType="CoachType" CoachName="@CoachName" CoachEmail="@CoachEmail" UpdateContact="UpdateContact" ContactId="ContactId"/>
+                        break;
+                }
+
+                @if (Step == 0)
+                {
+                    <MudItem xs="12" Class="d-flex justify-center">
+                        <MudButton Disabled="IsLoading" ButtonType="ButtonType.Button" OnClick="NextStep" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" Style="width: 100%;">Next</MudButton>
+                    </MudItem>
+                }
+                else if (!_hiddeRegisterBtn)
+                {
+                    <MudItem xs="12" Class="d-flex justify-center">
+                        <MudButton Disabled="IsLoading" ButtonType="ButtonType.Button" OnClick="SubmitAsync" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" Style="width: 100%;">Register</MudButton>
+                    </MudItem>
+                }
+            }
+
+        </MudGrid>
+
+        @if (IsLoading)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Success"/>
+        }
+    </MudPaper>
+</MudContainer>
+
+
+@code{
+
+    [Parameter]
+    public string Name { get; set; }
+
+    [Parameter]
+    public int Id { get; set; }
+
+    [Parameter]
+    public string Token { get; set; }
+
+    public bool _hiddeRegisterBtn;
+
+    public int CoachType { get; set; } = 1;
+
+    public bool ButtonDisabled { get; set; }
+
+    private RegisterCoachStepOne _stepOne;
+    private RegisterCoachStepTwo _stepTwo;
+    private RegisterStepThree _stepThree;
+    private RegisterStepFour _stepFour;
+
+    private SportDTO[] _sports;
+
+    private CoachDTO Model { get; set; } = new();
+
+    public SportDTO Sport { get; set; } = new();
+
+    public UniversityDTO University { get; set; } = new();
+
+    public SportContactModel SportContact { get; set; } = new();
+
+    private int Step { get; set; }
+    private bool IsLoading { get; set; }
+
+    public string CoachName { get; set; }
+    public string CoachEmail { get; set; }
+    public bool UpdateContact { get; set; }
+    public int ContactId { get; set; }
+    public bool IsInvalidToken { get; set; }
+
+    private ConfirmEmail _confirmEmail;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Token is not null)
+        {
+            IsLoading = true;
+            StateHasChanged();
+
+            if (Guid.TryParse(Token, out var _))
+            {
+                var responseConfirmEmail = await _httpClient.GetFromJsonAsync<Response<ConfirmEmail>>($"api/v1/account/register/{Token}/validate");
+
+                if (responseConfirmEmail is not null && responseConfirmEmail.Status == ResponseStatus.Ok)
+                {
+                    _confirmEmail = responseConfirmEmail.Payload;
+                }
+                else
+                {
+                    IsInvalidToken = true;
+                }
+            }
+            else
+            {
+                IsInvalidToken = true;
+            }
+
+            IsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task NextStep()
+    {
+        await StepOne();
+    }
+
+    private void BackStep()
+    {
+        Step--;
+        StateHasChanged();
+    }
+
+    private async Task StepOne()
+    {
+        if (_stepOne.CheckIfCompleted())
+        {
+            IsLoading = true;
+            StateHasChanged();
+
+            var response = await _httpClient.GetFromJsonAsync<Response<SportContactModel>>($"api/v1/coach/contact/{University.Id}/{Sport.Name}");
+
+            IsLoading = false;
+            StateHasChanged();
+
+            if (response.Status == ResponseStatus.Ok)
+            {
+                bool isCoach = CoachType == 1;
+                SportContact = response.Payload;
+                CoachName = isCoach ? SportContact.Coach : SportContact.AssisantCoach;
+                CoachEmail = isCoach ? SportContact.Email : SportContact.AssCoachEmail;
+                UpdateContact = true;
+                ContactId = SportContact.Id;
+            }
+
+            Step++;
+            StateHasChanged();
+        }
+        else
+        {
+            _snackBar.Add("Please complete the form", Severity.Warning);
+        }
+    }
+
+    private async Task<bool> CheckLastStep()
+    {
+        if (await _stepTwo.CheckIfCompleted())
+        {
+            return true;
+        }
+        else
+        {
+            _snackBar.Add("Please complete the form", Severity.Warning);
+            return false;
+        }
+    }
+
+}

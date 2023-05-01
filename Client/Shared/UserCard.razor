@@ -1,0 +1,116 @@
+﻿@namespace iSportsRecruiting.Client.Shared
+
+@using System.Globalization
+@using iSportsRecruiting.Shared.DTO
+
+@inject NavigationManager Navigation;
+@inject IJSRuntime runtime
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage;
+@inject Blazored.SessionStorage.ISessionStorageService SessionStorage
+
+
+<MudCard Elevation="0" Square="true" Class="@Class">
+    <div>
+        @if (Account is not null)
+        {
+            @if (Account.Type == UserType.Athlete && !string.IsNullOrWhiteSpace(Account.Image))
+            {
+                <MudAvatar Image="@($"{Account.Athlete.ImageProfile}")" Style="height:70px; width:70px; display: block; margin-left: auto; margin-right: auto; margin-top:15px;" />
+            }
+            else if (Account.Type == UserType.AssisCoord || Account.Type == UserType.Coach && !string.IsNullOrEmpty(Account.Image))
+            {
+                <MudAvatar Image="@($"https://isportsrecruiting.com/api/v1/file/logos/70/70/{Account.Image}.jpg?{DateTime.Now.Ticks}")" Style="height:70px; width:70px; display: block; margin-left: auto; margin-right: auto; margin-top:15px;" />
+            }
+            else if(Account.Type == UserType.Admin || Account.Type == UserType.AssisAdmin)
+            {
+                <div style="height:70px; width:70px; display: block; margin-left: auto; margin-right: auto; margin-top:15px;box-shadow: 0px 0px 4px 0px rgb(0 0 0 / 20%), 0 6px 20px 0 rgb(0 0 0 / 19%);border-radius: 50%">
+                    <img alt="coach" src="https://isportsrecruiting.com/api/v1/file/images/50/50/ISR_BLACK.png" style="margin-left: auto;margin-right: auto;top: 50%;-ms-transform: translateY(150%);transform: translateY(150%);display:block">
+                </div>
+            }
+            else
+            {
+                <div style="height:73px; width:73px; display: block; margin-left: auto; margin-right: auto; margin-top:15px;">
+                    <MudAvatar Color="Color.Secondary" Style="height:70px; width:70px;font-size: 2em">@Account.Name[0].ToString().ToUpper()</MudAvatar>
+                </div>
+            }
+
+            <div style="text-align: center">
+                <div style="padding:20px">
+                    @switch (Account.Type)
+                    {
+                        case UserType.Admin:
+                            <MudText Typo="Typo.body2" Style="font-size: 20px; font-weight: bold; color: #000000;">@Account.Admin.Username</MudText>
+                            break;
+                        case UserType.AssisAdmin:
+                        case UserType.AssisCoord:
+                            <MudText Typo="Typo.body2" Style="font-size: 20px; font-weight: bold; color: #000000;">@Account.Assistant.FullName</MudText>
+                            break;
+                        case UserType.Athlete:
+                            <MudText Typo="Typo.body2" Style="font-size: 20px; font-weight: bold; color: #000000;">@Account.Athlete.FirstName @Account.Athlete.LastName</MudText>
+                            break;
+                        case UserType.Coach:
+                            <MudText Typo="Typo.body2" Style="font-size: 20px; font-weight: bold; color: #000000;">@Account.Coach.FirstName @Account.Coach.LastName</MudText>
+                            break;
+                        default:
+                            break;
+                    }
+                </div>
+
+
+                @if (Account.Type == UserType.Athlete)
+                {
+                    <MudDivider />
+                    <div style="padding:15px">
+                        <MudGrid>
+                            <MudItem>
+                                <MudProgressCircular Size="Size.Medium" Color="Color.Tertiary" Value="(double)Account.Athlete.PercentCompletionProfile" />
+                            </MudItem>
+                            <MudItem Style="text-align: center; margin-top: 3px">
+
+                                <MudText Typo="Typo.h5" Color="Color.Tertiary">
+                                    <b>@Account.Athlete.PercentCompletionProfile.ToString(CultureInfo.InvariantCulture) %</b>
+                                </MudText>
+
+                                @if (ShowTut && TutOpen && !_tutFinalized)
+                                {
+                                    <WelcomePopover Open="TutOpen" ClickNext="NextFromTutorial" Style="margin-left: 220px">
+                                        <Title>
+                                            Welcome to iSportsRecruiting
+                                        </Title>
+                                        <Description>
+                                            Complete atleast 90% of your profile in order to connect with College Coaches; <br />
+                                            upload your picture 240 x 240 (recommended), personal statement, <br />
+                                            transcript, SAT/ACT results, club and/or high school information, stats, <br />
+                                            highlight videos.
+                                        </Description>
+                                    </WelcomePopover>                                   
+                                    
+                                }
+
+                            </MudItem>
+                        </MudGrid>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</MudCard>
+
+
+@code {
+
+    [Parameter] public bool ShowTut { get; set; }
+
+    private bool TutOpen { get; set; } = true;
+
+    private bool TutOpenMobile { get; set; } = true;
+
+
+    private void NextFromTutorial()
+    {
+        TutOpen = false;
+        StateHasChanged();
+
+        Navigation.NavigateTo("athlete/profile/tut/true");
+    }
+}

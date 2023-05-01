@@ -1,0 +1,38 @@
+@page "/account/forgot-password"
+@using iSportsRecruiting.Client.Shared
+
+@layout PublicLayout
+
+@inject ISnackbar _snackBar
+@inject HttpClient _httpClient;
+@inject NavigationManager _navigationManager
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center" Style="height: 100vh;">
+    <MudPaper Elevation="9" Style="width: 500px;">
+        <MudForm @ref="form" @bind-IsValid="@success" @bind-Errors="@errors">
+            <MudGrid Class="pa-8">
+                <MudItem xs="12" >
+                    <div class="d-flex justify-center">
+                        <img src="images/ISR_BLACK.png" width="200" @onclick="@(() => _navigationManager.NavigateTo("/"))" style="cursor: pointer" />
+                    </div>
+                </MudItem>
+                <MudItem xs="12">
+                    <div class="d-flex justify-center">
+                        <MudText Typo="Typo.h4">Forgot password?</MudText>
+                    </div>
+                </MudItem>
+                <MudItem xs="12">
+                    <div class="d-flex justify-center">
+                        <MudText Typo="Typo.subtitle2" Class="mb-n4">Enter email for password reset</MudText>
+                    </div>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField Label="E-mail" @bind-Value="Email" For="@(() => Email)" Required="true" Variant="Variant.Outlined"/>
+                </MudItem>
+                <MudItem xs="12" Class="d-flex justify-center">
+                    <MudButton Disabled="success" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" OnClick="SubmitAsync" FullWidth="true">Reset Password</MudButton>
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </MudPaper>
+</MudContainer>

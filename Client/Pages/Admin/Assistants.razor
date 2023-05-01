@@ -1,0 +1,287 @@
+﻿@page "/assistants"
+
+@using iSportsRecruiting.Shared.DTO;
+@using System.Threading
+@using iSportsRecruiting.Client.Shared.Dialogs
+@using System.Net.Http.Json
+
+@inject ISnackbar _snackBar
+@inject IDialogService _dialogService
+@inject HttpClient _httpClient
+
+<MudExpansionPanels Elevation="9">
+    <MudExpansionPanel Text="Manage" @bind-IsExpanded="_isExpanded">
+        <MudGrid>
+            <MudItem sm="4" xs="12">
+                <MudSelect T="int" @bind-Value="_assistant.Type">
+                    <MudSelectItem Value="2">Admin</MudSelectItem>
+                    <MudSelectItem Value="3">Coordinador</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem sm="4" xs="12">
+                <MudTextField @bind-Value="_assistant.FullName" T="string" Label="Full Name"/>
+            </MudItem>
+            <MudItem sm="4" xs="12">
+                <MudTextField @bind-Value="_assistant.Email" T="string" Label="Email"/>
+            </MudItem>
+            <MudItem sm="6" xs="12">
+                <MudTextField @bind-Value="_assistant.Phone" T="string" Label="Phone"/>
+            </MudItem>
+            <MudItem sm="6" xs="12">
+                <MudAutocomplete Required="true" Disabled="_universityIsLoading" Variant="Variant.Outlined" @bind-Value="University" T="UniversityDTO" Label="University" SearchFunc="@SearchUniversity"
+                                     Clearable="true" MaxItems="10" ToStringFunc="university => university.University" />
+                @if (_universityIsLoading)
+                {
+                    <MudProgressLinear Indeterminate="true" Color="Color.Success"/>
+                }
+            </MudItem>
+            <MudItem sm="12" xs="12">
+                <MudButtonGroup Color="Color.Primary" Variant="Variant.Filled" Style="float: right">
+                    @if (_editMode)
+                    {
+                        <MudButton OnClick="Reset" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Cancel" Style="background-color: #db1e1e">Cancel</MudButton>
+                        <MudButton OnClick="@(async () => await Edit())" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" Color="Color.Primary">Save</MudButton>
+                    }
+                    else
+                    {
+                        <MudButton Disabled="_loading" OnClick="@(async () => await Save())" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add" Color="Color.Primary">ADD</MudButton>
+                    }
+                </MudButtonGroup>
+            </MudItem>
+        </MudGrid>
+    </MudExpansionPanel>
+</MudExpansionPanels>
+
+<MudPaper Elevation="9" Square="true" Class="pa-3 mt-4">
+    <MudGrid>
+        <MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+            <MudItem sm="12">
+                <MudText Typo="Typo.h6">Assistants</MudText>
+            </MudItem>
+        </MudHidden>
+
+        <MudItem sm="12" xs="12">
+            <MudTextField Class="mr-1" T="string" TextChanged="Search" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Search" AdornmentColor="Color.Primary"/>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+<MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+    <MudTable Elevation="9" Class="mb-4" Items="Elements" Dense="true" Hover="true" Square="true" SortLabel="Sort By" Loading="_loading" LoadingProgressColor="@Color.Secondary">
+        <ToolBarContent>
+            <MudGrid>
+                <MudItem sm="12" xs="12">
+                    <MudChip Color="Color.Primary" Style="float: right; font-weight: bold">@Elements.Count</MudChip>
+                </MudItem>
+            </MudGrid>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<AssistantDTO, object>(x => x.FullName)">Name</MudTableSortLabel>
+            </MudTh>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<AssistantDTO, object>(x => x.Email)">Email</MudTableSortLabel>
+            </MudTh>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<AssistantDTO, object>(x => x.Phone)">Phone</MudTableSortLabel>
+            </MudTh>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<AssistantDTO, object>(x => x.Type)">Type</MudTableSortLabel>
+            </MudTh>
+            <MudTh Style="text-align:center">Action</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Name">@context.FullName</MudTd>
+            <MudTd DataLabel="Email">@context.Email</MudTd>
+            <MudTd DataLabel="Phone">@context.Phone</MudTd>
+            <MudTd DataLabel="Type">
+                <MudChip>
+                    @GetType(context.Type)
+                </MudChip>
+            </MudTd>
+            <MudTd DataLabel="Action" Style="text-align:center">
+                <MudTooltip Text="Edit">
+                    <MudIconButton OnClick="@(() => OnEdit(context))" Icon="@Icons.Material.Filled.Edit" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+                </MudTooltip>
+                <MudTooltip Text="Delete">
+                    <MudIconButton OnClick="@(() => Delete(context))" Icon="@Icons.Material.Filled.Delete" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+                </MudTooltip>
+            </MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new int[] {10, 25, 50, 100}"/>
+        </PagerContent>
+    </MudTable>
+</MudHidden>
+
+<MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+    <ListMobile Elevation="9" SearchBy="@(a => a.Param.FullName.Contains(_search, StringComparison.InvariantCultureIgnoreCase))" @ref="_listMobile" Style="margin-left: 16px; margin-right: 16px" T="AssistantDTO" Title="Assistants" EndPoint="Assistant?">
+        <CardTitle>
+            @context.FullName
+        </CardTitle>
+        <CardSubtitle>
+            @context.Email
+        </CardSubtitle>
+        <CardOptions>
+            <MudTooltip Text="Edit">
+                <MudIconButton OnClick="@(() => OnEdit(context))" Icon="@Icons.Material.Outlined.Edit" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+            </MudTooltip>
+            <MudTooltip Text="Delete">
+                <MudIconButton OnClick="@(() => Delete(context))" Icon="@Icons.Material.Outlined.Delete" Color="Color.Error" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+            </MudTooltip>
+        </CardOptions>
+    </ListMobile>
+</MudHidden>
+
+@code {
+    private bool _universityIsLoading;
+    private const string _path = "/api/v1/assistant";
+    private UniversityDTO _university;
+
+    private ListMobile<AssistantDTO>? _listMobile;
+
+    private UniversityDTO University
+    {
+        get => _university;
+        set
+        {
+            _university = value;
+            _assistant.UniversityId = _university.Id;
+        }
+    }
+
+    private AssistantDTO _assistant = new();
+    private List<AssistantDTO> _elements;
+
+    private List<AssistantDTO> Elements
+    {
+        get => _elements is null ?
+            Enumerable.Empty<AssistantDTO>().ToList() :
+            _elements.Where(e => string.IsNullOrWhiteSpace(_search) ||
+                                 e.FullName.Contains(_search, StringComparison.InvariantCultureIgnoreCase)).ToList();
+
+        set => _elements = value;
+    }
+
+    private bool _isExpanded;
+    private string _search = string.Empty;
+    private bool _loading = true;
+    private bool _editMode => _assistant.Id != 0;
+    private string _description;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetAssistants();
+    }
+
+    private string GetType(int type)
+        => type switch
+        {
+            2 => "Admin",
+            3 => "Coordinator",
+            _ => throw new KeyNotFoundException()
+        };
+
+    private async Task GetAssistants()
+    {
+        var response = await _httpClient.GetFromJsonAsync<Response<List<AssistantDTO>>>(_path);
+        Elements = response.Payload;
+
+        Reset();
+    }
+
+    private void Search(string value)
+    {
+        _search = value;
+        _listMobile.ForceRender();
+    }
+
+    private void OnEdit(AssistantDTO assistant)
+    {
+        _university = new();
+        _assistant = assistant;
+
+        _ = Task.Run(async () =>
+        {
+            _universityIsLoading = true;
+            StateHasChanged();
+
+            var universities = await _httpClient.GetFromJsonAsync<Response<UniversityDTO[]>>($"api/v1/university?id={_assistant.UniversityId}");
+            _university = universities.Payload.FirstOrDefault();
+
+            _universityIsLoading = false;
+            StateHasChanged();
+        });
+
+        _isExpanded = true;
+    }
+
+    private async ValueTask Edit()
+    {
+        if (_assistant.Id > 0)
+        {
+            _loading = true;
+            StateHasChanged();
+
+            await _httpClient.PutAsJsonAsync(_path + $"/{_assistant.Id}", _assistant);
+
+            Reset();
+        }
+    }
+
+    private async ValueTask Save()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        var message = await _httpClient.PostAsJsonAsync(_path, _assistant);
+        var response = await message.Content.ReadFromJsonAsync<Response<int>>();
+
+        if (response is not null && response.Status != ResponseStatus.Ok)
+        {
+            _snackBar.Add(response.Message, Severity.Error);
+        }
+
+        _ = GetAssistants();
+    }
+
+    private void Reset()
+    {
+        _assistant = new();
+        _university = new();
+        _isExpanded = false;
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task Delete(AssistantDTO assistant)
+    {
+        var reference = _dialogService.Show<DeleteConfirmation>();
+        var result = await reference.Result;
+
+        if (!result.Cancelled)
+        {
+            _loading = true;
+            StateHasChanged();
+
+            await _httpClient.DeleteAsync($"{_path}/{assistant.Id}?email={assistant.Email}");
+            _ = GetAssistants();
+        }
+    }
+
+    CancellationTokenSource _tokenSourceUniversity = new();
+    private async Task<IEnumerable<UniversityDTO>> SearchUniversity(string value)
+    {
+        _tokenSourceUniversity.Cancel();
+        _tokenSourceUniversity = new();
+
+        var universitiesSports = await _httpClient.GetFromJsonAsync<Response<UniversityDTO[]>>($"api/v1/university?search={value}&page=0&take=10", _tokenSourceUniversity.Token);
+        if (universitiesSports is not null && universitiesSports.Status == ResponseStatus.Ok)
+        {
+            var universities = universitiesSports.Payload;
+            return universities;
+        }
+
+        return default;
+    }
+}

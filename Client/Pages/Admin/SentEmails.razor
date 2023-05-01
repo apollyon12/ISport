@@ -1,0 +1,442 @@
+﻿@page "/emails"
+
+@using System.Net.Http.Json
+@using Blazored.LocalStorage
+@using iSportsRecruiting.Shared.DTO
+@using iSportsRecruiting.Shared.Models
+@using iSportsRecruiting.Client.Shared.Dialogs
+
+
+@inject HttpClient HttpClient;
+@inject ILocalStorageService LocalStorage;
+@inject NavigationManager Navigation
+@inject IDialogService _dialogService
+@inject ISnackbar _snackBar
+
+<style>
+
+    .mud-table-container {
+        overflow-x: hidden;
+    }
+</style>
+<MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+    <MudTabs ActivePanelIndexChanged="ActivePanelIndexChanged" Elevation="0" Rounded="false" ApplyEffectsToContainer="true" Style="margin-top: 8px; width: 520px; float: left; margin-right: 68px;">
+        <MudTabPanel Text="Inbox">
+            <MudPaper Square="true" Class="pa-3" Elevation="0">
+                <MudGrid>
+                    <MudItem sm="12" xs="12">
+                        <MudTextField Class="mr-1" T="string" TextChanged="Search" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Search" AdornmentColor="Color.Primary" />
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+            <MudTable HorizontalScrollbar="false" Elevation="0" Class="mb-4" Items="Elements" Dense="true" Hover="true" Square="true" SortLabel="Sort By" Loading="_loading" LoadingProgressColor="@Color.Secondary">
+                <HeaderContent>
+                    <MudTh style="width: 90px"></MudTh>
+                    @if (_account?.Type == UserType.Athlete)
+                    {
+                        <MudTh>
+
+                        </MudTh>
+                    }
+                    <MudTh>
+
+                    </MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>
+                        @if (string.IsNullOrWhiteSpace(context.Sender_Image))
+                        {
+                            <MudAvatar Color="Color.Secondary" Style="height:50px; width:50px;font-size: 2em">@_account.Name[0].ToString().ToUpper()</MudAvatar>
+                        }
+                        else
+                        {
+                            <MudAvatar Image="@context.Sender_Image" Style="width: 50px; height: 50px" />
+                        }
+                    </MudTd>
+                    @if (_account?.Type == UserType.Athlete)
+                    {
+                        <MudTd Style="cursor: pointer;" @onclick="@(() => SelectItem(context))">
+                            @if ((int)_selectedValue == 1)
+                            {
+                                <b style="font-weight: 500;vertical-align: top;">@context.University_Name</b>
+                            }
+                            else
+                            {
+                                <b style="font-weight: 500;vertical-align: top;">@context.Sender_Name</b>
+                            }
+
+                            <p style="width: 40vh; white-space: nowrap;overflow: hidden;text-overflow: ellipsis;">
+                                @context.Content
+                            </p>
+
+                            <MudText Typo="Typo.caption">@context.Date.ToString("MM/dd/yyyy")</MudText>
+                        </MudTd>
+                    }
+                </RowTemplate>
+            </MudTable>
+        </MudTabPanel>
+
+        <MudTabPanel Text="Sent">
+            <MudPaper Square="true" Class="pa-3" Elevation="0">
+                <MudGrid>
+                    <MudItem sm="12" xs="12">
+                        <MudTextField Class="mr-1" T="string" TextChanged="Search" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Search" AdornmentColor="Color.Primary" />
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+            <MudTable HorizontalScrollbar="false" Elevation="0" Class="mb-4" Items="Elements" Dense="true" Hover="true" Square="true" SortLabel="Sort By" Loading="_loading" LoadingProgressColor="@Color.Secondary">
+                <HeaderContent>
+                    <MudTh style="width: 90px"></MudTh>
+                    @if (_account?.Type == UserType.Athlete)
+                    {
+                        <MudTh>
+
+                        </MudTh>
+                    }
+                    <MudTh>
+
+                    </MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>
+                        @if (string.IsNullOrWhiteSpace(context.Sender_Image))
+                        {
+                            <MudAvatar Color="Color.Secondary" Style="height:50px; width:50px;font-size: 2em">@_account.Name[0].ToString().ToUpper()</MudAvatar>
+                        }
+                        else
+                        {
+                            <MudAvatar Image="@context.Sender_Image" Style="width: 50px; height: 50px" />
+                        }
+                    </MudTd>
+                    @if (_account?.Type == UserType.Athlete)
+                    {
+                        <MudTd Style="cursor: pointer;" @onclick="@(() => SelectItem(context))">
+                            @if ((int)_selectedValue == 1)
+                            {
+                                <b style="font-weight: 500;vertical-align: top;">@context.University_Name</b>
+                            }
+                            else
+                            {
+                                <b style="font-weight: 500;vertical-align: top;">@context.Sender_Name</b>
+                            }
+
+                            <p style="width: 40vh; white-space: nowrap;overflow: hidden;text-overflow: ellipsis;">
+                                @context.Content
+                            </p>
+
+                            <MudText Typo="Typo.caption">@context.Date.ToString("MM/dd/yyyy")</MudText>
+                        </MudTd>
+                    }
+                </RowTemplate>
+            </MudTable>
+        </MudTabPanel>
+    </MudTabs>
+
+    <div style="height: 100%;
+                        vertical-align: top;
+                        margin-top: 6px;
+                        font-size: medium;
+                        padding: 20px">
+        @if (_selectedElement is not null)
+        {
+            <div style="display: inline-block">
+                @if (string.IsNullOrWhiteSpace(_selectedElement.Sender_Image))
+                {
+                    <MudAvatar Color="Color.Secondary" Style="height:50px; width:50px;font-size: 2em">@_account.Name[0].ToString().ToUpper()</MudAvatar>
+                }
+                else
+                {
+                    <MudAvatar Image="@_selectedElement.Sender_Image" Style="width: 50px; height: 50px" />
+                }
+            </div>
+            <div Style="display: inline-block;vertical-align: top;margin-left: 10px">
+                @if ((int)_selectedValue == 1)
+                {
+                    <b style="font-weight: 500;vertical-align: top;">@_selectedElement.University_Name</b>
+                }
+                else
+                {
+                    <b style="font-weight: 500;vertical-align: top;">@_selectedElement.Sender_Name</b>
+                    <MudText Style="display: block" Typo="Typo.caption">@_selectedElement.University_Name (@_selectedElement.Receiver_Name)</MudText>
+                }
+
+                <MudText Style="display: block" Typo="Typo.caption">@_selectedElement.Date.ToString("MM/dd/yyyy")</MudText>
+            </div>
+            <div Style="display: inline-block;vertical-align: top;margin-left: 10px; width: 24%;">
+                @if (_selectedIndex == 1)
+                {
+                    <MudGrid Justify="Justify.FlexEnd">
+                        <MudItem xs="2">
+                            <div style="align-content:flex-end">
+                                <MudIconButton Style="width: 211% !important" Icon="@Icons.Filled.Reply" @onclick="@(() => SendEmailDialog(_selectedElement))" Size="Size.Small" Color="Color.Primary"></MudIconButton>
+                            </div>
+                        </MudItem>
+                        <MudItem xs="2">
+                            <div style="align-content:flex-end">
+                                <MudIconButton Style="width: 120% !important" Icon="@Icons.Filled.Delete" @onclick="@(async () => await DeleteEmail(_selectedElement))" Size="Size.Small" Color="Color.Primary"></MudIconButton>
+                            </div>
+                        </MudItem>
+                    </MudGrid>
+                }
+            </div>
+            <div style="display: block;margin-top: 21px;padding: 36px">
+                @_selectedElement.Content
+            </div>
+
+        }
+    </div>
+</MudHidden>
+<MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+    @if (!emailView)
+    {
+        <MudTabs ActivePanelIndexChanged="ActivePanelIndexChanged" Elevation="0" Rounded="false" ApplyEffectsToContainer="true" Style="margin-top: 8px; width: 100%; float: left; margin-right: 68px;">
+            <MudTabPanel OnClick="@(()=>{ReceiveCardSelectedMobile(true);})" Text="Inbox">
+                <MudPaper Square="true" Class="pa-3" Elevation="0">
+                    <MudGrid>
+                        <MudItem sm="12" xs="12">
+                            <MudTextField Class="mr-1" T="string" TextChanged="Search" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Search" AdornmentColor="Color.Primary" />
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+            </MudTabPanel>
+            <MudTabPanel OnClick="@(()=>{SentCardSelectedMobile(true);})" Text="Sent">
+                <MudPaper Square="true" Class="pa-3" Elevation="0">
+                    <MudGrid>
+                        <MudItem sm="12" xs="12">
+                            <MudTextField Class="mr-1" T="string" TextChanged="Search" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Search" AdornmentColor="Color.Primary" />
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+            </MudTabPanel>
+        </MudTabs>
+    }
+
+    @if (isReceiveCardSelected && !emailView)
+    {
+        <ListMobile OnCardClick="SelectedCardEmail" isEmailList="true" Style="margin-left: 16px; margin-right: 16px" T="EmailModel" Title="Emails" EndPoint="@($"email/receive/{_account.Id}?")">
+            <CardImage>
+                <img alt="logo" src="@context.Sender_Image" style="padding: 3%;width: 48px;display: block;margin-left: auto;margin-right: auto;">
+            </CardImage>
+            <CardTitle>
+                @context.Sender_Name
+            </CardTitle>
+            <CardSubtitle>
+                <span> - @context.Content</span>
+            </CardSubtitle>
+            <CardDate>
+                <MudText Typo="Typo.caption">@context.Date.ToString("MM/dd/yyyy")</MudText>
+            </CardDate>
+            <CardOptions>
+                <MudTooltip Text="Send Reply">
+                    <MudIconButton @onclick="@(async () => await SendEmailDialog(context))" Icon="@Icons.Material.Outlined.Email" Style="cursor: pointer; display: inline-block" />
+                </MudTooltip>
+                <MudTooltip Text="Delete Email">
+                    <MudIconButton @onclick="@(async () => await DeleteEmail(context))" Icon="@Icons.Material.Outlined.Delete" Style="cursor: pointer; display: inline-block" />
+                </MudTooltip>
+            </CardOptions>
+        </ListMobile>
+    }
+    else if (isSentCardSelected && !emailView)
+    {
+        <ListMobile OnCardClick="SelectedSentCardEmail" isEmailList="true" Style="margin-left: 16px; margin-right: 16px" T="EmailModel" Title="Emails" EndPoint="@($"email/sent/{_account.Id}?")">
+            <CardImage>
+                <img alt="logo" src="@context.Sender_Image" style="padding: 3%;width: 48px;display: block;margin-left: auto;margin-right: auto;">
+            </CardImage>
+            <CardTitle>
+                @context.University_Name
+            </CardTitle>
+            <CardSubtitle>
+                <span> - @context.Content</span>
+            </CardSubtitle>
+            <CardDate>
+                <MudText Typo="Typo.caption">@context.Date.ToString("MM/dd/yyyy")</MudText>
+            </CardDate>
+        </ListMobile>
+    }
+    else
+    {
+        <EmailMobile Email="_selectedElement"></EmailMobile>
+    }
+
+
+</MudHidden>
+
+
+@code
+{
+    MudListItem selectedItem;
+
+    private bool isSentCardSelected;
+    private bool isReceiveCardSelected = true;
+    private bool emailView = false;
+    private int _selectedIndex;
+
+    private int SelectedIndex
+    {
+        get => _selectedIndex;
+        set
+        {
+            _selectedIndex = value;
+            StateHasChanged();
+        }
+    }
+
+    private object _selectedValue = 1;
+
+    object selectedValue
+    {
+        get => _selectedValue;
+        set { _selectedValue = value; }
+    }
+
+    private const string Path = "/api/v1/email";
+
+    private EmailModel? _selectedElement;
+
+    private List<EmailModel> _elements;
+
+    private List<EmailModel> Elements
+    {
+        get => _elements is null ?
+            Enumerable.Empty<EmailModel>().ToList() :
+            _elements.Where(e => string.IsNullOrWhiteSpace(_search) ||
+                                 (e.Subject + " " + e.Content).Contains(_search, StringComparison.InvariantCultureIgnoreCase)).ToList();
+
+        set => _elements = value;
+    }
+
+    private bool _loading;
+    private string _search;
+    private AccountDto _account = new();
+
+    private void ActivePanelIndexChanged(int index)
+    {
+        SelectedIndex = index + 1;
+        _selectedElement = null;
+        StateHasChanged();
+
+        _ = Task.Run(async () => await GetElements());
+    }
+
+    private void SelectItem(EmailModel element)
+    {
+        _selectedElement = element;
+        StateHasChanged();
+    }
+
+    private void Search(string value)
+    {
+        _search = value;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _account = await LocalStorage.GetItemAsync<AccountDto>("account");
+        _selectedIndex = 1;
+
+        try
+        {
+            _selectedElement = await LocalStorage.GetItemAsync<EmailModel>("email");
+            await LocalStorage.RemoveItemAsync("email");
+        }
+        catch { }
+
+        await GetElements();
+    }
+    private async Task DeleteEmail(EmailModel email)
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true };
+        var dialog = _dialogService.Show<DeleteConfirmation>("Delete Email", options);
+        var result = await dialog.Result;
+        if (!result.Cancelled)
+        {
+            var emailResponse = await HttpClient.GetFromJsonAsync<Response<EmailModel>>($"/api/v1/email/{email.Id}");
+            if (emailResponse?.Status == ResponseStatus.Ok)
+            {
+                var response = await HttpClient.DeleteAsync($"/api/v1/email?id={email.Id}");
+                _snackBar.Add("Email deleted", Severity.Success);
+                await GetElements();
+                StateHasChanged();
+            }
+            else
+            {
+                _snackBar.Add("This email doesn't exist", Severity.Error);
+            }
+
+        }
+    }
+    private async Task GetElements()
+    {
+        if (!_loading)
+        {
+            _loading = true;
+            StateHasChanged();
+        }
+
+        string isSent = (int)_selectedIndex == 2 ? "sent" : "receive";
+        var a = $"{Path}/{isSent}/{_account.Id}";
+        var response = await HttpClient.GetFromJsonAsync<Response<List<EmailModel>>>($"{Path}/{isSent}/{_account.Id}");
+        Elements = response?.Payload;
+
+
+        if (Elements?.Any() ?? false)
+        {
+            if (_selectedElement is null)
+            {
+                _selectedElement = Elements.First();
+            }
+        }
+
+
+        if (_loading)
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+    private void ReceiveCardSelectedMobile(bool isSelected)
+    {
+        if (isSelected)
+        {
+            emailView = false;
+            isSentCardSelected = false;
+            isReceiveCardSelected = true;
+        }
+    }
+
+    private void SentCardSelectedMobile(bool isSelected)
+    {
+        if (isSelected)
+        {
+            emailView = false;
+            isReceiveCardSelected = false;
+            isSentCardSelected = true;
+        }
+    }
+    private async Task SelectedCardEmail(EmailModel emailReceived)
+    {
+        emailView = true;
+        await LocalStorage.SetItemAsync("email", emailReceived);
+        await LocalStorage.SetItemAsync("isSent", false);
+
+        Navigation.NavigateTo($"emails/{emailReceived.Id}");
+        _selectedElement = emailReceived;
+    }
+    private async Task SelectedSentCardEmail(EmailModel emailReceived)
+    {
+        emailView = true;
+        await LocalStorage.SetItemAsync("email", emailReceived);
+        await LocalStorage.SetItemAsync("isSent", true);
+
+        Navigation.NavigateTo($"emails/{emailReceived.Id}");
+        _selectedElement = emailReceived;
+    }
+    private async Task SendEmailDialog(EmailModel emailReceived)
+    {
+        await LocalStorage.SetItemAsync("email", emailReceived);
+
+        _dialogService.Show<SendEmail>("Send Email",
+            new DialogParameters { ["UniversityId"] = emailReceived.University_Id },
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
+    }
+}

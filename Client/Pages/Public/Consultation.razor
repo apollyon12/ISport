@@ -1,0 +1,248 @@
+﻿@page "/consultation"
+@using iSportsRecruiting.Client.Pages.Public.Components
+@using iSportsRecruiting.Shared.DTO
+@using iSportsRecruiting.Shared.Email
+@using iSportsRecruiting.Shared.Models
+@using System.Text
+@using iSportsRecruiting.Client.Shared
+@using System.Net.Http.Json
+
+@layout PublicLayout
+
+@inject ISnackbar _snackBar
+@inject HttpClient _httpClient
+@inject NavigationManager _navManager;
+@inject NavigationManager _navigationManager
+@inject Blazored.SessionStorage.ISessionStorageService _sessionStorage
+
+<style>
+    html, body {
+        background-color: white;
+    }
+</style>
+
+<AppBar Elevation="3" />
+
+<div style="padding:110px;">
+    <MudGrid>
+        <MudItem sm="12">
+            <MudText Typo="Typo.h4" Align="Align.Center"><b>FREE CONSULTATION</b></MudText>
+        </MudItem>
+        <MudItem sm="12" Style="height:20px" />
+
+        <MudItem sm="3">
+            <MudTextField @bind-Value="GPA" T="string" Label="GPA" Required="true"></MudTextField>
+        </MudItem>
+        <MudItem sm="3">
+            <MudAutocomplete Required="true" @bind-Value="Sport" T="SportDTO" Label="Sport" SearchFunc="@SearchSport"
+                             Clearable="true" ResetValueOnEmptyText="true" MaxItems="int.MaxValue" ToStringFunc="sport => sport.Name" />
+        </MudItem>
+        <MudItem sm="3">
+            <MudTextField @bind-Value="FullName" T="string" Label="FullName" Required="true"></MudTextField>
+        </MudItem>
+        <MudItem sm="3">
+            <MudTextField @bind-Value="Birthday" T="string" Label="Birthday" Required="true"></MudTextField>
+        </MudItem>
+
+        <MudItem sm="3">
+            <MudTextField @bind-Value="Email" T="string" Label="Email" Required="true"></MudTextField>
+        </MudItem>
+        <MudItem sm="3">
+            <MudTextField @bind-Value="Phone" T="string" Label="Phone" Required="true"></MudTextField>
+        </MudItem>
+        <MudItem sm="6">
+            <MudTextField @bind-Value="Address" T="string" Label="Address" Required="true"></MudTextField>
+        </MudItem>
+        <MudItem sm="12" Style="height:20px">
+        </MudItem>
+
+        <MudItem sm="12">
+            <MudText Typo="Typo.h6" Class="mb-3"><b>ACADEMIC</b></MudText>
+            <MudDivider />
+        </MudItem>
+
+        <MudItem sm="4">
+            <MudTextField @bind-Value="GraduationYear" T="string" Label="Graduation Year" Required="true"></MudTextField>
+        </MudItem>
+        <MudItem sm="4">
+            <MudTextField @bind-Value="HighSchool" T="string" Label="High School" Required="true"></MudTextField>
+        </MudItem>
+        <MudItem sm="4">
+            <MudTextField @bind-Value="Location" T="string" Label="Location" Required="true"></MudTextField>
+        </MudItem>
+        <MudItem sm="12" Style="height:20px">
+        </MudItem>
+
+        <MudItem sm="12">
+            <MudText Typo="Typo.h6" Class="mb-3"><b>ATHLETIC</b></MudText>
+            <MudDivider />
+        </MudItem>
+
+        <MudItem sm="3">
+            <MudAutocomplete Required="true" Disabled="!_positions.Any()" @bind-Value="_position" T="PositionModel" Label="Position" SearchFunc="@SearchPosition"
+                             Clearable="true" ResetValueOnEmptyText="true" MaxItems="int.MaxValue" ToStringFunc="position => position.Positions" />
+            @if (IsLoading)
+            {
+                <MudProgressLinear Indeterminate="true" Color="Color.Success" />
+            }
+        </MudItem>
+        <MudItem sm="3">
+            <MudTextField @bind-Value="JvTeam" T="string" Label="Jv Team"></MudTextField>
+        </MudItem>
+        <MudItem sm="3">
+            <MudTextField @bind-Value="Varsity" T="string" Label="Varsity"></MudTextField>
+        </MudItem>
+        <MudItem sm="3">
+            <MudTextField @bind-Value="CollegeCoachContact" T="string" Label="Collegue Coach's Contact"></MudTextField>
+        </MudItem>
+        <MudItem sm="12" Style="height:20px">
+        </MudItem>
+
+        <MudItem sm="12">
+            <MudText Typo="Typo.h6" Class="mb-3"><b>PARENT INFO</b></MudText>
+            <MudDivider />
+        </MudItem>
+
+        <MudItem sm="3">
+            <MudSelect @bind-Value="Parent" T="string">
+                <MudSelectItem T="string" Value="@("Mother")" />
+                <MudSelectItem T="string" Value="@("Father")" />
+            </MudSelect>
+        </MudItem>
+        <MudItem sm="3">
+            <MudTextField @bind-Value="ParentName" T="string" Label="Name"></MudTextField>
+        </MudItem>
+        <MudItem sm="3">
+            <MudTextField @bind-Value="ParentEmail" T="string" Label="Email"></MudTextField>
+        </MudItem>
+        <MudItem sm="3">
+            <MudTextField @bind-Value="ParentPhone" T="string" Label="Phone"></MudTextField>
+        </MudItem>
+
+        <MudItem sm="12">
+            <MudButton Disabled="@(GPA is null || FullName is null || Birthday is null || Email is null || Phone is null
+                                   || Address is null || GraduationYear is null || HighSchool is null || Location is null || _position is null)"
+                       Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" OnClick="SendEmail">SUBMIT</MudButton>
+        </MudItem>
+    </MudGrid>
+</div>
+
+<style>
+    html, body, #app, #home-container, .mud-main-content {
+        height: 100%;
+    }
+</style>
+
+@code {
+
+    private string GPA, FullName, Birthday, Email, Phone, Address, GraduationYear, HighSchool,
+        Location, JvTeam, Varsity, CollegeCoachContact, Parent, ParentName, ParentEmail, ParentPhone;
+
+    private SportDTO _sport;
+    private SportDTO Sport
+    {
+        get => _sport;
+        set
+        {
+            _sport = value;
+
+            if (value is null)
+            {
+                _positions = Array.Empty<PositionModel>();
+                _position = null;
+                return;
+            }
+
+            Task.Run(async () =>
+            {
+                IsLoading = true;
+                StateHasChanged();
+
+                var positionsResponse = await _httpClient.GetFromJsonAsync<Response<PositionModel[]>>($"api/v1/sport/{_sport.Id}/position");
+                _positions = positionsResponse?.Payload ?? Array.Empty<PositionModel>();
+
+                IsLoading = false;
+                StateHasChanged();
+            });
+        }
+    }
+    private PositionModel _position;
+    private PositionModel[] _positions = Array.Empty<PositionModel>();
+
+    private SportDTO[] _sports = Array.Empty<SportDTO>();
+
+
+    private bool IsLoading { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var sportsResponse = await _httpClient.GetFromJsonAsync<Response<SportDTO[]>>("api/v1/sport");
+
+        if (sportsResponse is not null)
+            _sports = sportsResponse.Payload;
+    }
+
+    private async Task SendEmail()
+    {
+        StringBuilder stringBuilder = new();
+
+        stringBuilder.Append($"<h1><b>ISR FREE CONSULTATION</b></h1> <br />");
+        stringBuilder.Append("<table style=\"font-family:arial,sans-serif;border-collapse: collapse;width: 100%;\">");
+        stringBuilder.Append($"<tr><td style=\"border:1px solid black; border-collapse: collapse;text-align:left;padding:8px;\">Full Name</td> <td style=\"border:1px solid black; border-collapse: collapse;text-align:left;padding:8px;\">{FullName}</td></tr>");
+        stringBuilder.Append($"<tr><td style=\"border:1px solid black; border-collapse: collapse;text-align:left;padding:8px;\">Birthday</td> <td style=\"border:1px solid black; border-collapse: collapse;text-align:left;padding:8px;\">{Birthday}</td></tr>");
+        stringBuilder.Append($"<tr><td style=\"border:1px solid black; border-collapse: collapse;text-align:left;padding:8px;\">Email</td> <td style=\"border:1px solid black; border-collapse: collapse;text-align:left;padding:8px;\">{Email}</td></tr>");
+        stringBuilder.Append($"<tr><td style=\"border:1px solid black; border-collapse: collapse;text-align:left;padding:8px;\">Phone Number</td> <td style=\"border:1px solid black; border-collapse: collapse;text-align:left;padding:8px;\">{Phone}</td></tr>");
+        stringBuilder.Append($"<tr><td style=\"border:1px solid black; border-collapse: collapse;text-align:left;padding:8px;\">Graduation Year</td> <td style=\"border:1px solid black; border-collapse: collapse;text-align:left;padding:8px;\">{GraduationYear}</td></tr>");
+        stringBuilder.Append($"<tr><td style=\"border:1px solid black; border-collapse: collapse;text-align:left;padding:8px;\">High School</td> <td style=\"border:1px solid black; border-collapse: collapse;text-align:left;padding:8px;\">{HighSchool}</td></tr>");
+        stringBuilder.Append($"<tr><td style=\"border:1px solid black; border-collapse: collapse;text-align:left;padding:8px;\">Location</td> <td style=\"border:1px solid black; border-collapse: collapse;text-align:left;padding:8px;\">{Location}</td></tr>");
+        stringBuilder.Append($"<tr><td style=\"border:1px solid black; border-collapse: collapse;text-align:left;padding:8px;\">GPA</td> <td style=\"border:1px solid black; border-collapse: collapse;text-align:left;padding:8px;\">{GPA}</td></tr>");
+        stringBuilder.Append($"<tr><td style=\"border:1px solid black; border-collapse: collapse;text-align:left;padding:8px;\">Sport</td> <td style=\"border:1px solid black; border-collapse: collapse;text-align:left;padding:8px;\">{Sport.Name}</td></tr>");
+        stringBuilder.Append($"<tr><td style=\"border:1px solid black; border-collapse: collapse;text-align:left;padding:8px;\">Position</td> <td style=\"border:1px solid black; border-collapse: collapse;text-align:left;padding:8px;\">{_position.Positions}</td></tr>");
+        stringBuilder.Append($"<tr><td style=\"border:1px solid black; border-collapse: collapse;text-align:left;padding:8px;\">Jvteam</td> <td style=\"border:1px solid black; border-collapse: collapse;text-align:left;padding:8px;\">{JvTeam}</td></tr>");
+        stringBuilder.Append($"<tr><td style=\"border:1px solid black; border-collapse: collapse;text-align:left;padding:8px;\">Varsity</td> <td style=\"border:1px solid black; border-collapse: collapse;text-align:left;padding:8px;\">{Varsity}</td></tr>");
+        stringBuilder.Append($"<tr><td style=\"border:1px solid black; border-collapse: collapse;text-align:left;padding:8px;\">College Coach's Contact</td> <td style=\"border:1px solid black; border-collapse: collapse;text-align:left;padding:8px;\">{CollegeCoachContact}</td></tr>");
+        stringBuilder.Append($"<tr><td style=\"border:1px solid black; border-collapse: collapse;text-align:left;padding:8px;\">Parent</td> <td style=\"border:1px solid black; border-collapse: collapse;text-align:left;padding:8px;\">{Parent}</td></tr>");
+        stringBuilder.Append($"<tr><td style=\"border:1px solid black; border-collapse: collapse;text-align:left;padding:8px;\">Name</td> <td style=\"border:1px solid black; border-collapse: collapse;text-align:left;padding:8px;\">{ParentName}</td></tr>");
+        stringBuilder.Append($"<tr><td style=\"border:1px solid black; border-collapse: collapse;text-align:left;padding:8px;\">Email</td> <td style=\"border:1px solid black; border-collapse: collapse;text-align:left;padding:8px;\">{ParentEmail}</td></tr>");
+        stringBuilder.Append($"<tr><td style=\"border:1px solid black; border-collapse: collapse;text-align:left;padding:8px;\">Phone</td> <td style=\"border:1px solid black; border-collapse: collapse;text-align:left;padding:8px;\">{ParentPhone}</td></tr>");
+        stringBuilder.Append("</table>");
+
+        var response = await _httpClient.PostAsJsonAsync($"/api/v1/athlete/freeconsultation/{FullName}",
+        new Request<string>(stringBuilder.ToString()));
+
+        if (response.IsSuccessStatusCode)
+        {
+            _snackBar.Add("Mail sent successfully!", Severity.Success);
+            _navigationManager.NavigateTo("/");
+        }
+        else
+        {
+            _snackBar.Add("We couldn't submit your form, please contact the system administrator: jeremy@isportsrecruiting.com",
+                Severity.Error, opt => opt.VisibleStateDuration = int.MaxValue);
+        }
+    }
+
+    private async Task<IEnumerable<SportDTO>> SearchSport(string value)
+    {
+        await Task.Delay(0);
+
+        if (_sport is not null && _sport.Name == value)
+            return _sports;
+
+        return string.IsNullOrEmpty(value)
+            ? _sports
+            : _sports.Where(x => x.Name.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+    }
+
+    private async Task<IEnumerable<PositionModel>> SearchPosition(string value)
+    {
+        await Task.Delay(0);
+
+        if (Sport is not null && Sport.Name == value)
+            return _positions;
+
+        return string.IsNullOrEmpty(value)
+            ? _positions
+            : _positions.Where(x => x.Positions.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+    }
+}

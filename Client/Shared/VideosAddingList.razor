@@ -1,0 +1,396 @@
+﻿@using iSportsRecruiting.Shared.DTO
+@using iSportsRecruiting.Shared.Models
+@using Blazored.LocalStorage
+@using iSportsRecruiting.Client.Shared.Dialogs
+@using System.Net.Http.Json
+
+@inject ISnackbar _snackBar
+@inject HttpClient _httpClient;
+@inject IDialogService _dialogService
+@inject IJSRuntime _runtime;
+@inject ILocalStorageService _localStorage;
+
+@if (!PhoneMode)
+{
+    <MudGrid>
+        <MudItem md="3" xs="12">
+            <MudSelect T="string" Label="Video Host" @bind-Value="VideoHoster" Strict="true" Variant="Variant.Outlined" AdornmentIcon="@Icons.Filled.PlayArrow" AdornmentColor="Color.Primary" Required="true" Error="MissingVideoHoster">
+                <MudSelectItem T="string" Value="@("YouTube")"/>
+                <MudSelectItem T="string" Value="@("Hudl")"/>
+            </MudSelect>
+        </MudItem>
+        <MudItem md="9" xs="12">
+            <MudTextField @bind-Value="Title" Label="Title" Variant="Variant.Outlined" Error="MissingTitle"/>
+        </MudItem>
+        <MudItem md="11" xs="12">
+            <MudTextField @bind-Value="Value" Label="URL" Variant="Variant.Outlined" Error="MissingValue"/>
+        </MudItem>
+        <MudItem lg="1" md="1">
+            <MudIconButton Icon="@Icons.Material.Filled.Add" aria-label="Add" OnClick="Add" Style="margin-top:8px"/>
+        </MudItem>
+        <MudItem lg="12" md="12" xs="12">
+            <MudTable Items="@Items" Hover="true" Breakpoint="Breakpoint.Sm" LoadingProgressColor="@Color.Secondary">
+                <ColGroup>
+                    <col style="width: 220px;"/>
+                    <col/>
+                    <col/>
+                </ColGroup>
+                <HeaderContent>
+                    <MudTh>URL</MudTh>
+                    <MudTh>Action</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>
+                        @if (context.Hoster == "YouTube")
+                        {
+                            <iframe width="220" height="115" src="@GetEmbed(context.Hoster, context.URL)" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                        }
+                        else
+                        {
+                            <iframe width='220' height='115' src='@GetEmbed(context.Hoster, context.URL)' frameborder='0' allowfullscreen></iframe>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="URL">
+                        <MudText Style="font-size: 16px; font-weight: bolder;">
+                            @context.Title
+                        </MudText>
+                        <a href="@context.URL" target="_blank">@context.URL</a>
+                    </MudTd>
+                    @if (context.Id is not null)
+                    {
+                        <MudTd DataLabel="Action">
+                            <MudIconButton Icon="@Icons.Material.Filled.Link" aria-label="Look" Link="@context.URL"/>
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="Delete" OnClick="@(() => Delete(context.Id))" Color="Color.Error"/>
+                        </MudTd>
+                    }
+                    else
+                    {
+                        <MudTd DataLabel="Action">
+                            <MudIconButton Icon="@Icons.Material.Filled.Link" aria-label="Look" Link="@context.URL"/>
+                            <MudProgressCircular Size="Size.Small" Color="Color.Primary"/>
+                        </MudTd>
+                    }
+                </RowTemplate>
+            </MudTable>
+        </MudItem>
+    </MudGrid>
+}
+else
+{
+    <MudGrid>
+        <MudItem sm="12" xs="12">
+            <MudSelect T="string" Label="Video Host" @bind-Value="VideoHoster" Strict="true" Variant="Variant.Outlined" AdornmentIcon="@Icons.Filled.PlayArrow" AdornmentColor="Color.Primary" Required="true" Error="MissingVideoHoster">
+                <MudSelectItem T="string" Value="@("YouTube")"/>
+                <MudSelectItem T="string" Value="@("Hudl")"/>
+            </MudSelect>
+        </MudItem>
+        <MudItem sm="12" xs="12">
+            <MudTextField @bind-Value="Title" Label="Title" Variant="Variant.Outlined" Error="MissingTitle"/>
+        </MudItem>
+        <MudItem sm="12" xs="12">
+            <MudTextField @bind-Value="Value" Label="URL" Variant="Variant.Outlined" Error="MissingValue"/>
+        </MudItem>
+        <MudItem sm="12" xs="12">
+            <MudIconButton Icon="@Icons.Material.Filled.Add" aria-label="Add" OnClick="Add" Style="margin-top:8px"/>
+        </MudItem>
+        <MudItem sm="12" xs="12">
+            <ListMobile OnCardClick="@(async i => await _runtime.InvokeAsync<object>("open", i.URL, "_blank"))" Elements="@Items" T="@((string Title, string Hoster, string URL, Guid Guid, int? Id))" Elevation="0" Title="@Title">
+                <CardImage>
+                    @if (context.Hoster == "YouTube")
+                    {
+                        <img alt="@context.Guid" src="images/youtube.png" style="padding: 3%;width: 48px;display: block;margin-left: auto;margin-right: auto;"/>
+                    }
+                    else
+                    {
+                        <img alt="@context.Guid" src="images/huddl.png" style="padding: 3%;width: 48px;display: block;margin-left: auto;margin-right: auto;"/>
+                    }
+                </CardImage>
+
+                <CardTitle>
+                    @context.Title
+                </CardTitle>
+
+                <CardSubtitle>
+                    @context.URL
+                </CardSubtitle>
+
+                <CardOptions>
+                    @if (context.Id is not null)
+                    {
+                        <MudIconButton Icon="@Icons.Material.Outlined.Link" aria-label="Look" Link="@context.URL"/>
+                        <MudIconButton Icon="@Icons.Material.Outlined.Delete" aria-label="Delete" OnClick="@(() => Delete(context.Id))" Color="Color.Error"/>
+                    }
+                    else
+                    {
+                        <MudIconButton Icon="@Icons.Material.Outlined.Link" aria-label="Look" Link="@context.URL"/>
+                        <MudProgressCircular Size="Size.Small" Color="Color.Primary"/>
+                    }
+                </CardOptions>
+            </ListMobile>
+
+            @* <MudTable Items="@Items" Hover="true" Breakpoint="Breakpoint.Sm" LoadingProgressColor="@Color.Secondary"> *@
+            @*     <ColGroup> *@
+            @*         <col style="width: 220px;"/> *@
+            @*         <col/> *@
+            @*         <col/> *@
+            @*     </ColGroup> *@
+            @*     <HeaderContent> *@
+            @*         <MudTh>Video</MudTh> *@
+            @*         <MudTh>URL</MudTh> *@
+            @*         <MudTh>Action</MudTh> *@
+            @*     </HeaderContent> *@
+            @*     <RowTemplate> *@
+            @*         <MudTd DataLabel="Video"> *@
+            @*             @if (context.Hoster == "YouTube") *@
+            @*             { *@
+            @*                 <iframe width="220" height="115" src="@GetEmbed(context.Hoster, context.URL)" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe> *@
+            @*             } *@
+            @*             else *@
+            @*             { *@
+            @*                 <iframe width='220' height='115' src='@GetEmbed(context.Hoster, context.URL)' frameborder='0' allowfullscreen></iframe> *@
+            @*             } *@
+            @*         </MudTd> *@
+            @*         <MudTd DataLabel="URL"> *@
+            @*             <MudText Style="font-size: 16px; font-weight: bolder;"> *@
+            @*                 @context.Title *@
+            @*             </MudText> *@
+            @*             <a href="@context.URL" target="_blank">@context.URL</a> *@
+            @*         </MudTd> *@
+            @*         @if (context.Id is not null) *@
+            @*         { *@
+            @*             <MudTd DataLabel="Action"> *@
+            @*                 <MudIconButton Icon="@Icons.Material.Filled.Link" aria-label="Look" Link="@context.URL"/> *@
+            @*                 <MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="Delete" OnClick="@(() => Delete(context.Id))" Color="Color.Error"/> *@
+            @*             </MudTd> *@
+            @*         } *@
+            @*         else *@
+            @*         { *@
+            @*             <MudTd DataLabel="Action"> *@
+            @*                 <MudIconButton Icon="@Icons.Material.Filled.Link" aria-label="Look" Link="@context.URL"/> *@
+            @*                 <MudProgressCircular Size="Size.Small" Color="Color.Primary"/> *@
+            @*             </MudTd> *@
+            @*         } *@
+            @*     </RowTemplate> *@
+            @* </MudTable> *@
+        </MudItem>
+    </MudGrid>
+}
+
+
+
+@code {
+
+    [Parameter]
+    public bool PhoneMode { get; set; }
+
+    private string Title { get; set; }
+    //TODO Resolver cookies de Youtube
+    private string _videoHoster;
+
+    public string VideoHoster
+    {
+        get => _videoHoster;
+        set
+        {
+            MissingVideoHoster = false;
+            _videoHoster = value;
+        }
+    }
+
+    private string _value;
+
+    public string Value
+    {
+        get => _value;
+        set
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+                MissingValue = false;
+
+            _value = value;
+        }
+    }
+
+    public bool MissingTitle { get; set; }
+    public bool MissingVideoHoster { get; set; }
+    public bool MissingValue { get; set; }
+
+    [Parameter]
+    public List<(string Title, string Hoster, string URL, Guid Guid, int? Id)> Items { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<List<(string Title, string Hoster, string URL, Guid Guid, int? Id)>> ItemsChanged { get; set; }
+
+    [Parameter]
+    public AthleteDTO Athlete { get; set; }
+
+    private void Example(dynamic example)
+    {
+        var hey = example.Title;
+    }
+
+    public async Task Add()
+    {
+        if (!ValidateUrl(VideoHoster, Value))
+        {
+            _snackBar.Add("The url is wrong, please check and try again", Severity.Warning,
+                options => options.VisibleStateDuration = 8000);
+            return;
+        }
+
+        bool shouldReturn = false;
+
+        if (VideoHoster is null)
+        {
+            MissingVideoHoster = true;
+            shouldReturn = true;
+        }
+
+        if (Value is null)
+        {
+            MissingValue = true;
+            shouldReturn = true;
+        }
+
+        if (Title is null)
+        {
+            MissingTitle = true;
+            shouldReturn = true;
+        }
+
+        if (shouldReturn) return;
+
+        var guid = Guid.NewGuid();
+
+        var titleBk = Title;
+        var valueBk = Value;
+        var videoHosterBk = VideoHoster;
+
+        VideoHoster = null;
+        Title = null;
+        Value = null;
+
+        Items.Add((titleBk, videoHosterBk, valueBk, guid, null));
+        StateHasChanged();
+
+        await ItemsChanged.InvokeAsync(Items);
+
+        _ = AddVideoAsync(guid, titleBk, valueBk);
+    }
+
+    private bool ValidateUrl(string host, string url)
+    {
+        if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(url))
+            return false;
+
+        if (host == "YouTube")
+        {
+            return url.StartsWith("http://www.youtube.com/watch?v=") || url.StartsWith("https://www.youtube.com/watch?v=")
+                   || url.StartsWith("http://www.youtu.be/") || url.StartsWith("https://www.youtu.be/")
+                   || url.StartsWith("http://youtube.com/watch?v=") || url.StartsWith("https://youtube.com/watch?v=")
+                   || url.StartsWith("http://youtu.be/") || url.StartsWith("https://youtu.be/");
+        }
+
+        return url.StartsWith("http://www.hudl.com/video/") || url.StartsWith("https://www.hudl.com/video/");
+    }
+
+    public async Task AddVideoAsync(Guid guid, string title, string video)
+    {
+        var httpMessage = await _httpClient.PostAsJsonAsync($"api/v1/athlete/video/{Athlete.UserId}",
+            new AthleteVideosModel {Title = title, Video1 = video});
+
+        if (httpMessage.IsSuccessStatusCode)
+        {
+            var response = await httpMessage.Content.ReadFromJsonAsync<Response<int>>();
+
+            if (!(response is not null && response.Status == ResponseStatus.Ok))
+            {
+                _snackBar.Add("There was a problem trying to add this video...", Severity.Error,
+                    o => o.VisibleStateDuration = 8000);
+                Items = Items.Where(i => i.Guid != guid).ToList();
+                return;
+            }
+
+            Items = Items.Select(i =>
+            {
+                if (i.Guid == guid)
+                    i.Id = response.Payload;
+                return i;
+            }).ToList();
+            StateHasChanged();
+
+            _ = Task.Run(async () =>
+            {
+                var account = await _localStorage.GetItemAsync<AccountDto>("account");
+                Athlete.Videos = Items.Select(c => new AthleteVideosDTO {Id = c.Id ?? 0, Title = c.Title, Video = c.URL});
+                account.Athlete = Athlete;
+                await _localStorage.SetItemAsync("account", account);
+            });
+        }
+    }
+
+    public async Task Delete(int? id)
+    {
+        var reference = _dialogService.Show<DeleteConfirmation>();
+        var result = await reference.Result;
+
+        if (!result.Cancelled)
+        {
+            var httpMessage = await _httpClient.DeleteAsync($"api/v1/athlete/video/{id}");
+
+            if (httpMessage.IsSuccessStatusCode)
+            {
+                var response = await httpMessage.Content.ReadFromJsonAsync<Response>();
+
+                if (!(response is not null && response.Status == ResponseStatus.Ok))
+                {
+                    _snackBar.Add("There was an error trying to delete this record", Severity.Error,
+                        options => options.VisibleStateDuration = 10000);
+                    return;
+                }
+
+                Items = Items.Where(i => i.Id != id).ToList();
+                StateHasChanged();
+
+                Athlete.Videos = Items.Select(c => new AthleteVideosDTO {Id = c.Id ?? 0, Title = c.Title, Video = c.URL}).ToList();
+
+                _snackBar.Add("Deleted successfully", Severity.Success,
+                    options => options.VisibleStateDuration = 10000);
+
+                _ = Task.Run(async () =>
+                {
+                    var account = await _localStorage.GetItemAsync<AccountDto>("account");
+                    account.Athlete = Athlete;
+                    await _localStorage.SetItemAsync("account", account);
+                    StateHasChanged();
+                });
+            }
+
+            await ItemsChanged.InvokeAsync(Items);
+        }
+    }
+
+    string GetEmbed(string host, string url)
+    {
+        if (host == "YouTube")
+        {
+            if (url.Contains("embed"))
+                return url;
+
+            if (url.Contains("youtu.be"))
+            {
+                var id = url.Split("/").Last();
+                return $"https://www.youtube.com/embed/{id}";
+            }
+            else
+            {
+                var id = url.Split("v=")[1].Split("&")[0];
+                return $"https://www.youtube.com/embed/{id}";
+            }
+        }
+        
+        var hudlId = url.Replace("https://www.hudl.com/", string.Empty);
+        return $"//www.hudl.com/embed/{hudlId}";
+    }
+
+}

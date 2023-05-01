@@ -1,0 +1,115 @@
+﻿@using iSportsRecruiting.Shared.Models
+@using System.Net.Http.Json
+@using Blazored.LocalStorage
+@using iSportsRecruiting.Shared.DTO
+@using iSportsRecruiting.Client.Shared.Dialogs
+
+
+@inject ILocalStorageService LocalStorage;
+@inject NavigationManager Navigation;
+@inject IDialogService _dialogService
+@inject HttpClient HttpClient;
+@inject ISnackbar _snackBar
+
+
+<div style="height: 100%;
+                        background-color: white;
+                        vertical-align: top;
+                        margin-top: 6px;
+                        font-size: medium;
+                        padding: 20px">
+    @if (Email is not null)
+    {
+        <MudGrid>
+            <MudItem xs="2">
+                <div style="display: inline-block; margin-top: 20px;">
+                    <MudAvatar Image="@Email.Sender_Image" Style="width: 50px; height: 50px" />
+                </div>
+            </MudItem>
+            <MudItem xs="8">
+                <div Style="vertical-align: top;margin-left: 10px; margin-top: 20px;">
+
+                    <b style="font-weight: 500;vertical-align: top;">@Email.University_Name</b>
+
+                    <MudText Style="display: block" Typo="Typo.caption">@Email.University_Name (@Email.Receiver_Name)</MudText>
+                    <MudGrid>
+                        <MudItem xs="7">
+                            <MudText Style="display: block" Typo="Typo.caption">@Email.Date.ToString("MM/dd/yyyy")</MudText>
+                        </MudItem>
+                        <MudItem xs="5">
+                            @if (!isSent)
+                            {
+                                <MudGrid Justify="Justify.FlexEnd">
+                                    <MudItem xs="6">
+                                        <div style="align-content:flex-end">
+                                            <MudIconButton Style="width: 211% !important" Icon="@Icons.Filled.Reply" @onclick="@(() => SendEmailDialog(Email.University_Id, true))" Size="Size.Small" Color="Color.Primary"></MudIconButton>
+                                        </div>
+                                    </MudItem>
+                                    <MudItem xs="6">
+                                        <div style="align-content:flex-end">
+                                            <MudIconButton Style="width: 120% !important" Icon="@Icons.Filled.Delete" @onclick="@(async () => await DeleteEmail(Email))" Size="Size.Small" Color="Color.Primary"></MudIconButton>
+                                        </div>
+                                    </MudItem>
+                                </MudGrid>
+                            }
+                        </MudItem>
+                    </MudGrid>
+                </div>
+
+
+            </MudItem>
+            <MudItem xs="2">
+                <div style="display: inline-flex; vertical-align: top; margin-top: 5px;">
+                    <MudIconButton OnClick="@(() => Navigation.NavigateTo("emails"))" Icon="@Icons.Material.Filled.Close" Color="Color.Error"></MudIconButton>
+                </div>
+            </MudItem>
+        </MudGrid>
+
+        <div style="display: block;margin-top: 21px;padding: 36px">
+            @Email.Content
+        </div>
+    }
+</div>
+@code {
+
+    [Parameter]
+    public EmailModel Email { get; set; } = null!;
+
+    private bool isSent = false;
+
+
+    private AccountDto _account = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _account = await LocalStorage.GetItemAsync<AccountDto>("account");
+        isSent = await LocalStorage.GetItemAsync<bool>("isSent");
+    }
+    private void SendEmailDialog(int universityId, bool isFavorite)
+    {
+        _dialogService.Show<SendEmail>("Send Email",
+            new DialogParameters { ["UniversityId"] = universityId },
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
+    }
+    private async Task DeleteEmail(EmailModel email)
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true };
+        var dialog = _dialogService.Show<DeleteConfirmation>("Delete Email", options);
+        var result = await dialog.Result;
+        if (!result.Cancelled)
+        {
+            var emailResponse = await HttpClient.GetFromJsonAsync<Response<EmailModel>>($"/api/v1/email/{email.Id}");
+            if (emailResponse?.Status == ResponseStatus.Ok)
+            {
+                var response = await HttpClient.DeleteAsync($"/api/v1/email?id={email.Id}");
+                _snackBar.Add("Email deleted", Severity.Success);
+                Navigation.NavigateTo("/emails");
+            }
+            else
+            {
+                _snackBar.Add("This email doesn't exist", Severity.Error);
+            }
+
+        }
+    }
+}

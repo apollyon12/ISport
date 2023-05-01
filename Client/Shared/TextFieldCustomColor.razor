@@ -1,0 +1,12 @@
+﻿@typeparam T
+
+<MudTextField Label="@Label" T="T" @bind-Value="Value" />
+
+
+@code
+{
+    [Parameter]
+    public string Label { get; set; }
+    [Parameter]
+    public T Value { get; set; }
+}

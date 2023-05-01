@@ -1,0 +1,248 @@
+﻿@page "/services/blast-email"
+@page "/services/blast-email/tut/{Tut:bool}"
+
+@using System.Net.Http.Json
+@using iSportsRecruiting.Shared.DTO
+@using iSportsRecruiting.Client.Pages.Athlete.Services.Shared
+@using iSportsRecruiting.Client.Shared.Dialogs
+
+@inject ISnackbar _snackbar;
+@inject HttpClient _httpClient;
+@inject IDialogService _dialogService;
+@inject NavigationManager Navigation
+@inject Blazored.LocalStorage.ILocalStorageService _localStorage;
+
+@if (servicesCount > 0)
+{
+    <div style="margin: 3%">
+        <MudAlert Severity="Severity.Success" Class="mb-2">You currently have @servicesCount blast email</MudAlert>
+    </div>
+}
+
+<MudCard>
+    @if (sendingBlastEmails)
+    {
+        <MudProgressLinear Style="width: 100%" Indeterminate="true" Color="Color.Secondary" />
+    }
+
+    <MudGrid Style="padding: 3%;">
+        <ServicesHead />
+
+        <MudItem sm="4" />
+
+        <MudItem sm="4" Style="width: 100%">
+            <MudCard Elevation="0" Style="margin-top: 10%;">
+                <MudText Align="Align.Center" Style="color: white;background-color: #0c0c0c;width: 100%;padding: 3%;font-size: 1.6em;">Blast Email</MudText>
+            </MudCard>
+            @if (servicesCount > 0)
+            {
+                <MudText Align="Align.Center" Style="color: black;font-size: 1.6em;margin: 14px;">
+                    <strong>You Got 1 Blast</strong>
+                </MudText>
+                <MudButton Disabled="sendingBlastEmails" StartIcon="@Icons.Filled.Email" Style="background-color: #04b516;width: 100%;color: black;font-size: 1.6em;padding: 2%;" OnClick="SendBlastEmail">
+                    SEND BLAST
+                </MudButton>
+            }
+            else
+            {
+                <MudText Align="Align.Center" Style="color: black;font-size: 1.6em;margin: 14px;">
+                    <strong>$99</strong> / Per Blast
+                </MudText>
+                <MudButton Disabled="@(servicesCount > 0)" StartIcon="@Icons.Filled.CreditCard" Style="background-color: #04b516;width: 100%;color: black;font-size: 1.6em;padding: 2%;" OnClick="PayService">
+                    PURCHASE NOW
+                </MudButton>
+            }
+
+        </MudItem>
+
+        @if (Tut && !_tutFinalized)
+        {
+            <MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+                <WelcomePopover Open="Tut" ClickNext="NextFromTutorial" IsMobile="true">
+                    <Title>
+                        Additional Services
+                    </Title>
+                    <Description>
+                        <b>Blast Emails;</b> This will increase your posibility of getting noticed. The blast email <br />
+                        was created you help you approach and connect with more college coaches at once<br />
+                        to start stablishing the connections with College Coaches.
+                    </Description>
+                </WelcomePopover>
+
+            </MudHidden>
+            <MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+                <WelcomePopover Open="Tut" ClickNext="NextFromTutorial" Style="margin-right: 4vh;margin-top: 39vh;">
+                    <Title>
+                        Additional Services
+                    </Title>
+                    <Description>
+                        <b>Blast Emails;</b> This will increase your posibility of getting noticed. The blast email <br />
+                        was created you help you approach and connect with more college coaches at once<br />
+                        to start stablishing the connections with College Coaches.
+                    </Description>
+                </WelcomePopover>
+
+            </MudHidden>
+        }
+
+        <MudItem sm="4" />
+
+        @if (servicesCount > 0)
+        {
+            <MudItem Class="mt-12" sm="12">
+                <UniversitiesTable Athlete="athlete" ShowAthleteSettings="true" />
+            </MudItem>
+        }
+
+        <MudItem sm="12" Style="margin-top: 5%;">
+            <MudExpansionPanels>
+                <MudExpansionPanel Style="background-color: #0c0c0c;color: white;">
+                    <TitleContent>
+                        <div class="d-flex">
+                            <MudText Style="font-size: 1.4em; width: 100%" Align="Align.Center">WHAT'S IS THE BLAST EMAILS, AND HOW IT CAN HELP YOU?</MudText>
+                        </div>
+                    </TitleContent>
+                    <ChildContent>
+                        <MudText>
+                            The blast email was created you help you approach and connect with more College Coaches at once. Select by your GPA, divisions, and/or Majors. This will increase your possibility of getting noticed. It is recommended to send a blast email the first 4-5 months to start establishing the connections with College Coaches.
+                        </MudText>
+                    </ChildContent>
+                </MudExpansionPanel>
+            </MudExpansionPanels>
+        </MudItem>
+    </MudGrid>
+</MudCard>
+
+
+@code {
+    AthleteDTO athlete;
+    int servicesCount;
+
+    private bool _tutFinalized;
+    protected override async Task OnInitializedAsync()
+    {
+        var account = await _localStorage.GetItemAsync<AccountDto>("account");
+        athlete = account.Athlete;
+
+        if (account.Type == UserType.Athlete)
+        {
+            _tutFinalized = !account.Athlete.ShowTut;
+            StateHasChanged();
+        }
+
+        await GetServiceCount();
+    }
+
+    private async Task PayService()
+    {
+        var result = await _httpClient.GetFromJsonAsync<Response<bool>>($"api/v1/service/pay/{athlete.Id}/BE");
+
+        if (result?.Payload ?? false)
+        {
+            var parameters = new DialogParameters
+            {
+                { "Title", "Payment Success" },
+                { "Content", "Now you can target your schools below" },
+            };
+            _dialogService.Show<ISRNotification>("ISRNotification", parameters);
+
+            await GetServiceCount();
+        }
+        else if (result is not null)
+        {
+            _snackbar.Add(result.Message, Severity.Error);
+        }
+        else
+        {
+            _snackbar.Add("We couldn't complete the payment, please check your billing data", Severity.Error);
+        }
+    }
+
+    private async Task GetServiceCount()
+    {
+        var result = await _httpClient.GetFromJsonAsync<Response<int>>($"api/v1/service/check/{athlete.Id}/2");
+        servicesCount = result?.Payload ?? 0;
+    }
+
+    bool sendingBlastEmails;
+
+    private async Task SendBlastEmail()
+    {
+        var disableBackdropClick = new DialogOptions { DisableBackdropClick = true };
+        var confirmation = _dialogService.Show<BlastEmailsConfirmation>("BlastEmailsConfirmation", options: disableBackdropClick);
+        var result = await confirmation.Result;
+        if (!result.Cancelled)
+        {
+            var loadingParameters = new DialogParameters { { "Title", "We are sending the blast email!" } };
+            var reference = _dialogService.Show<SendingBlastEmails>("SendingBlastEmails", loadingParameters, disableBackdropClick);
+
+            sendingBlastEmails = true;
+            StateHasChanged();
+
+            if (athlete.PercentCompletionProfile < 90)
+            {
+                _snackbar.Add("Your profile must be at least at 90% to be able to send a blast", Severity.Normal, options =>
+                {
+                    options.Action = "EDIT PROFILE";
+                    options.VisibleStateDuration = int.MaxValue;
+                    options.ActionColor = Color.Primary;
+                    options.CloseAfterNavigation = true;
+                    options.Onclick = _ =>
+                    {
+                        Navigation.NavigateTo("athlete/profile");
+                        return Task.CompletedTask;
+                    };
+                });
+            }
+            else
+            {
+                Response<int>? response;
+                var selectedOption = (int)result.Data;
+                if (selectedOption == 2)
+                {
+                    response = await _httpClient.GetFromJsonAsync<Response<int>>($"api/v1/email/blastemail/{athlete.Id}?onlyFavorites=true");
+                }
+                else
+                {
+                    response = await _httpClient.GetFromJsonAsync<Response<int>>($"api/v1/email/blastemail/{athlete.Id}");
+
+                }
+
+                if (response is not null && response.Status == ResponseStatus.Ok)
+                {
+                    _snackbar.Add($"Blast was send to {response.Payload} coaches", Severity.Success, options =>
+                    {
+                        options.VisibleStateDuration = int.MaxValue;
+                        options.CloseAfterNavigation = true;
+                    });
+
+                    servicesCount = 0;
+
+                    reference.Close();
+                    var parameters = new DialogParameters { { "Coaches", response.Payload } };
+                    _dialogService.Show<BlastEmailsSent>("BlastEmailsSent", parameters);
+                }
+                else if (response is not null)
+                {
+                    _snackbar.Add(response.Message, Severity.Error);
+                }
+            }
+
+            reference.Close();
+            sendingBlastEmails = false;
+            StateHasChanged();
+        }
+    }
+
+    [Parameter]
+    public bool Tut { get; set; }
+
+    private void NextFromTutorial()
+    {
+        Tut = false;
+        StateHasChanged();
+
+        Navigation.NavigateTo("services/video-editing/tut/true");
+    }
+
+}

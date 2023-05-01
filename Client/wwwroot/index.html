@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>iSportsRecruiting</title>
+    <base href="/" />
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet" />
+    <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
+    <link href="css/effects.css" rel="stylesheet" />
+    <link href="manifest.json" rel="manifest" />
+</head>
+
+<body>
+    <div id="app">
+        <div style="background-color: black; color: white; height: 100%; width: 100%">
+            <div style="width: 300px;top: 50%;left: 50%;position: absolute;transform: translate(-50%, -50%); text-align: center">
+                <img id="spinImage" alt="isr" src="images/ISR_WHITE.png" />
+            </div>
+        </div>
+    </div>
+
+    <div id="blazor-error-ui">
+        An unhandled error has occurred.
+        <a href="" class="reload">Reload</a>
+        <a class="dismiss">🗙</a>
+    </div>
+
+    <script src="_framework/blazor.webassembly.js" autostart="false"></script>
+    <script>
+
+        const publicPaths = [
+            'welcome',
+            'about-us',
+            'public',
+            'support',
+            'login',
+            'account/forgot-password',
+            'register',
+            'athletes',
+            'universities',
+        ];
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const version = 'v-1.2508';//
+            const previousVersion = 'v-2.2208';
+
+            const key = 'isCacheLoaded' + version;
+            const previousKey = 'isCacheLoaded' + previousVersion;
+
+            const storage = window.localStorage;
+            const isCacheLoaded = storage.getItem(key);
+
+            if (isCacheLoaded == null) {
+                storage.removeItem(previousKey)
+                storage.setItem(key, 'true');
+
+                setTimeout(() => {
+
+                    if (isPublicPath()) {
+                        location.reload();
+                    }
+                }, 5000);
+            }
+
+            Blazor.start();
+        });
+
+        function isPublicPath() {
+            let path = window.location.pathname;
+            let first = path.split('/')[1];
+
+            if (first == '' || first === 'athletes' || first === 'universities')
+                return true;
+
+            return publicPaths.some(p => p === first);
+        }
+    </script>
+    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+    <script>navigator.serviceWorker.register('service-worker.js');</script>
+    <script src="pushNotifications.js"></script>
+    <script>
+        let deferredPrompt;
+        let canShowInstall;
+        let paymentsClient;
+
+        var isReadyForGooglePay;
+        var isButtonLoaded = false;
+
+        const baseRequest = {
+            apiVersion: 2,
+            apiVersionMinor: 0
+        };
+
+        const tokenizationSpecification = {
+            type: 'PAYMENT_GATEWAY',
+            parameters: {
+                'gateway': 'authorizenet',
+                'gatewayMerchantId': '5F93sG4pN6GD3q69'
+            }
+        };
+
+        const allowedCardNetworks = ["AMEX", "DISCOVER", "INTERAC", "JCB", "MASTERCARD", "MIR", "VISA"];
+        const allowedCardAuthMethods = ["PAN_ONLY", "CRYPTOGRAM_3DS"];
+
+        const baseCardPaymentMethod = {
+            type: ["CARD", "PAYPAL"],
+            parameters: {
+                allowedAuthMethods: allowedCardAuthMethods,
+                allowedCardNetworks: allowedCardNetworks
+            }
+        };
+
+        const cardPaymentMethod = Object.assign(
+            { tokenizationSpecification: tokenizationSpecification },
+            baseCardPaymentMethod
+        );
+
+        function onGooglePayLoaded() {
+            if (!isReadyForGooglePay) {
+                paymentsClient =
+                    new google.payments.api.PaymentsClient({ environment: 'PRODUCTION' });
+
+                const isReadyToPayRequest = Object.assign({}, baseRequest);
+                isReadyToPayRequest.allowedPaymentMethods = [baseCardPaymentMethod];
+
+                paymentsClient.isReadyToPay(isReadyToPayRequest)
+                    .then(function (response) {
+                        isReadyForGooglePay = response.result;
+                    })
+                    .catch(function (err) {
+                        // show error in developer console for debugging
+                        console.error(err);
+                    });
+            }
+        }
+
+        function payWithGooglePay() {
+            console.log('clickeo button');
+            const paymentDataRequest = Object.assign({}, baseRequest);
+            paymentDataRequest.allowedPaymentMethods = [cardPaymentMethod];
+            paymentDataRequest.transactionInfo = {
+                totalPriceStatus: 'FINAL',
+                totalPrice: '5',
+                currencyCode: 'USD',
+                countryCode: 'US'
+            };
+            paymentDataRequest.merchantInfo = {
+                merchantName: 'Prueba',
+                merchantId: 'BCR2DN4TSDVJV6KS'
+            };
+
+            paymentsClient.loadPaymentData(paymentDataRequest).then(function (paymentData) {
+                // if using gateway tokenization, pass this token without modification
+                console.log(paymentData);
+                paymentToken = paymentData.paymentMethodData.tokenizationData.token;
+            }).catch(function (err) {
+                // show error in developer console for debugging
+                console.error(err);
+            });
+        }
+
+        window.addButton = () => {
+            if (isReadyForGooglePay && !isButtonLoaded) {
+                console.log('Pasamos por AddButton');
+                const button =
+                    paymentsClient.createButton({
+                        //onClick: payWithGooglePay(),
+                        allowedPaymentMethods: ["CARD", "PAYPAL"]
+                    });
+
+                button.onclick = () => {
+                    payWithGooglePay();
+                };
+                button.classList.add("mud-button-root", "mud-button", "mud-button-filled", "mud-button-filled-secondary", "mud-button-filled-size-large", "mud-ripple", "button-size");
+                document.getElementById('payButtonsContainer').appendChild(button);
+                isButtonLoaded = true;
+            }
+        }
+
+
+        window.resetButtonLoaded = () => {
+            isButtonLoaded = false;
+        }
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            canShowInstall = true;
+        });
+
+        window.installApp = async () => {
+            canShowInstall = false;
+            deferredPrompt.prompt();
+
+            // Espera a que el usuario responda al mensaje
+            const { outcome } = await deferredPrompt.userChoice;
+
+            // De manera opcional, envía analíticos del resultado que eligió el usuario
+            console.log(`User response to the install prompt: ${outcome}`);
+
+            // Como ya usamos el mensaje, no lo podemos usar de nuevo, este es descartado
+            deferredPrompt = null;
+        }
+
+        window.getCanShowInstall = () => {
+            return canShowInstall;
+        }
+
+        window.setTitle = (title) => {
+            document.title = title;
+        };
+
+        window.getValueById = (id) => {
+            var textBox = document.getElementById(id);
+            return textBox.value;
+        };
+
+        window.goBack = () => {
+            window.history.back();
+        }
+
+        window.scrollToBottom = (id) => {
+            var scrollableObject = document.getElementById(id);
+            scrollableObject.scrollTop = scrollableObject.scrollHeight;
+        }
+
+        window.scrollToTop = () => {
+            window.scrollTo(0, 0);
+        }
+
+        window.openUrlNewWindow = (url) => {
+            window.open(url, "_blank", "width=autho, height=auto");
+        }
+
+        window.changeImageSrc = (className, url) => {
+
+            const htmlCollection = document.getElementsByClassName(className);
+            const images = [].slice.call(htmlCollection)
+
+            images.forEach(image => image.src = url + '?' + new Date().getTime().toString());
+        }
+    </script>
+    <script async src="https://pay.google.com/gp/p/js/pay.js" onload="onGooglePayLoaded()">
+    </script>
+</body>
+
+</html>

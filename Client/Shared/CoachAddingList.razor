@@ -1,0 +1,341 @@
+﻿@using iSportsRecruiting.Shared.DTO
+@using iSportsRecruiting.Shared.Models
+@using iSportsRecruiting.Client.Shared.Dialogs
+@using System.Net.Http.Json
+
+@inject ISnackbar _snackBar
+@inject HttpClient _httpClient
+@inject IDialogService _dialogService
+@inject Blazored.LocalStorage.ILocalStorageService _localStorage;
+
+@if (!PhoneMode)
+{
+    <MudGrid>
+        <MudItem md="4">
+            <MudTextField @bind-Value="Name" Label="Name" Variant="Variant.Outlined" Error="MissingName"/>
+        </MudItem>
+        <MudItem md="4">
+            <MudTextField @bind-Value="Email" Label="Email" Variant="Variant.Outlined" Error="MissingEmail"/>
+        </MudItem>
+        <MudItem md="4">
+            <MudTextField @bind-Value="Phone" Label="Phone" Variant="Variant.Outlined" Error="MissingPhone"/>
+        </MudItem>
+
+        <MudItem md="4">
+            <MudSelect T="string" Label="Team" @bind-Value="Type" Strict="true" Variant="Variant.Outlined" AdornmentIcon="@Icons.Filled.MergeType" AdornmentColor="Color.Primary" Required="true" Error="MissingType">
+                <MudSelectItem T="string" Value="@("HighSchool")"/>
+                <MudSelectItem T="string" Value="@("Club")"/>
+            </MudSelect>
+        </MudItem>
+        <MudItem md="7">
+            <MudTextField @bind-Value="HighSchool" Label="Team Name" Variant="Variant.Outlined" Error="MissingHighSchool"/>
+        </MudItem>
+
+        <MudItem md="1" Style="text-align: center">
+            <MudIconButton Icon="@Icons.Material.Filled.Add" aria-label="Add" OnClick="Add" Style="margin-top:8px"/>
+        </MudItem>
+        <MudItem lg="12" md="12">
+            <MudTable Items="@Items" Hover="true" Breakpoint="Breakpoint.Sm" LoadingProgressColor="@Color.Secondary">
+                <HeaderContent>
+                    <MudTh>Name</MudTh>
+                    <MudTh>Email</MudTh>
+                    <MudTh>Phone</MudTh>
+                    <MudTh>Team</MudTh>
+                    <MudTh>Action</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Name">@context.Name</MudTd>
+                    <MudTd DataLabel="Name">@context.Email</MudTd>
+                    <MudTd DataLabel="Name">@context.Phone</MudTd>
+                    <MudTd DataLabel="Name">@context.Type @($"{context.HighSchool} ({context.Type})")</MudTd>
+                    @if (context.Id is not null)
+                    {
+                        <MudTd DataLabel="Action">
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="Delete" OnClick="@(() => Delete(context.Id))" Color="Color.Error"/>
+                        </MudTd>
+                    }
+                    else
+                    {
+                        <MudTd DataLabel="Action">
+                            <MudProgressCircular Size="Size.Small" Color="Color.Primary"/>
+                        </MudTd>
+                    }
+                </RowTemplate>
+            </MudTable>
+        </MudItem>
+    </MudGrid>
+}
+else
+{
+    <MudGrid>
+        <MudItem sm="12" xs="12">
+            <MudTextField @bind-Value="Name" Label="Name" Variant="Variant.Outlined" Error="MissingName"/>
+        </MudItem>
+        <MudItem sm="12" xs="12">
+            <MudTextField @bind-Value="Email" Label="Email" Variant="Variant.Outlined" Error="MissingEmail"/>
+        </MudItem>
+        <MudItem sm="12" xs="12">
+            <MudTextField @bind-Value="Phone" Label="Phone" Variant="Variant.Outlined" Error="MissingPhone"/>
+        </MudItem>
+
+        <MudItem sm="12" xs="12">
+            <MudSelect T="string" Label="Team" @bind-Value="Type" Strict="true" Variant="Variant.Outlined" AdornmentIcon="@Icons.Filled.MergeType" AdornmentColor="Color.Primary" Required="true" Error="MissingType">
+                <MudSelectItem T="string" Value="@("HighSchool")"/>
+                <MudSelectItem T="string" Value="@("Club")"/>
+            </MudSelect>
+        </MudItem>
+        <MudItem sm="12" xs="12">
+            <MudTextField @bind-Value="HighSchool" Label="@($"{Type}'s Name")" Variant="Variant.Outlined" Error="MissingHighSchool"/>
+        </MudItem>
+
+        <MudItem sm="12" xs="12" Style="text-align: center">
+            <MudIconButton Icon="@Icons.Material.Filled.Add" aria-label="Add" OnClick="Add" Style="margin-top:8px"/>
+        </MudItem>
+        <MudItem sm="12" xs="12">
+            <MudTable Items="@Items" Hover="true" Breakpoint="Breakpoint.Sm" LoadingProgressColor="@Color.Secondary">
+                <HeaderContent>
+                    <MudTh>Name</MudTh>
+                    <MudTh>Email</MudTh>
+                    <MudTh>Phone</MudTh>
+                    <MudTh>Team</MudTh>
+                    <MudTh>Name</MudTh>
+                    <MudTh>Action</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Name">@context.Name</MudTd>
+                    <MudTd DataLabel="Email">@context.Email</MudTd>
+                    <MudTd DataLabel="Phone">@context.Phone</MudTd>
+                    <MudTd DataLabel="Type">@context.Type</MudTd>
+                    <MudTd DataLabel="HighSchool">@context.HighSchool</MudTd>
+                    @if (context.Id is not null)
+                    {
+                        <MudTd DataLabel="Action">
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="Delete" OnClick="@(() => Delete(context.Id))" Color="Color.Error"/>
+                        </MudTd>
+                    }
+                    else
+                    {
+                        <MudTd DataLabel="Action">
+                            <MudProgressCircular Size="Size.Small" Color="Color.Primary"/>
+                        </MudTd>
+                    }
+                </RowTemplate>
+            </MudTable>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+
+    [Parameter]
+    public bool PhoneMode { get; set; }
+
+    private string _name;
+
+    public string Name
+    {
+        get => _name;
+        set
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+                MissingName = false;
+
+            _name = value;
+        }
+    }
+
+    private string _email;
+
+    public string Email
+    {
+        get => _email;
+        set
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+                MissingEmail = false;
+
+            _email = value;
+        }
+    }
+
+    private string _phone;
+
+    public string Phone
+    {
+        get => _phone;
+        set
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+                MissingPhone = false;
+
+            _phone = value;
+        }
+    }
+
+    private string _highSchool;
+
+    public string HighSchool
+    {
+        get => _highSchool;
+        set
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+                MissingHighSchool = false;
+
+            _highSchool = value;
+        }
+    }
+
+    private string _type;
+
+    public string Type
+    {
+        get => _type;
+        set
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+                MissingType = false;
+
+            _type = value;
+        }
+    }
+
+    public bool MissingName { get; set; }
+    public bool MissingEmail { get; set; }
+    public bool MissingPhone { get; set; }
+    public bool MissingHighSchool { get; set; }
+    public bool MissingType { get; set; }
+
+    [Parameter]
+    public AthleteDTO Athlete { get; set; }
+
+    [Parameter]
+    public List<(string Name, string Email, string Phone, string HighSchool, string Type, Guid Guid, int? Id)> Items { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<List<(string Name, string Email, string Phone, string HighSchool, string Type, Guid Guid, int? Id)>> ItemsChanged { get; set; }
+
+    public async Task Add()
+    {
+        bool shouldReturn = false;
+
+        if (Name is null)
+        {
+            MissingName = true;
+            shouldReturn = true;
+        }
+
+        if (Email is null)
+        {
+            MissingEmail = true;
+            shouldReturn = true;
+        }
+
+        if (Phone is null)
+        {
+            MissingPhone = true;
+            shouldReturn = true;
+        }
+
+        if (HighSchool is null)
+        {
+            MissingHighSchool = true;
+            shouldReturn = true;
+        }
+
+        if (shouldReturn) return;
+
+        var guid = Guid.NewGuid();
+        Items.Add((Name, Email, Phone, HighSchool, Type, guid, null));
+
+        string nameBk = Name;
+        string typeBk = Type;
+        string emailBk = Email;
+        string phoneBk = Phone;
+        string highSchoolBk = HighSchool;
+
+        Name = null;
+        Email = null;
+        Phone = null;
+        HighSchool = null;
+
+        await AddCoachAsync(guid, nameBk, emailBk, phoneBk, highSchoolBk, typeBk);
+        await ItemsChanged.InvokeAsync(Items);
+    }
+
+    public async Task AddCoachAsync(Guid guid, string name, string email, string phone, string highSchool, string type)
+    {
+        var httpMessage = await _httpClient.PostAsJsonAsync($"api/v1/athlete/coach/{Athlete.UserId}",
+            new AthleteCoachInfoModel {Name = name, Club_Name = highSchool, Email = email, Phone = phone, Type = type});
+
+        if (httpMessage.IsSuccessStatusCode)
+        {
+            var response = await httpMessage.Content.ReadFromJsonAsync<Response<int>>();
+
+            if (!(response is not null && response.Status == ResponseStatus.Ok))
+            {
+                _snackBar.Add("There was a problem trying to add this coach...", Severity.Error,
+                    o => o.VisibleStateDuration = 8000);
+                Items = Items.Where(i => i.Guid != guid).ToList();
+                return;
+            }
+
+            Items = Items.Select(i =>
+            {
+                if (i.Guid == guid)
+                    i.Id = response.Payload;
+                return i;
+            }).ToList();
+            StateHasChanged();
+
+            _ = Task.Run(async () =>
+            {
+                var account = await _localStorage.GetItemAsync<AccountDto>("account");
+                Athlete.Coaches = Items.Select(c => new AhtleteCoachInfoDTO {Id = c.Id ?? 0, Name = c.Name, ClubName = c.HighSchool, Email = c.Email, Phone = c.Phone, Type = c.Type});
+                account.Athlete = Athlete;
+                await _localStorage.SetItemAsync("account", account);
+            });
+        }
+    }
+
+    public async Task Delete(int? id)
+    {
+        var reference = _dialogService.Show<DeleteConfirmation>();
+        var result = await reference.Result;
+
+        if (!result.Cancelled)
+        {
+            var httpMessage = await _httpClient.DeleteAsync($"api/v1/athlete/coach/{id}");
+
+            if (httpMessage.IsSuccessStatusCode)
+            {
+                var response = await httpMessage.Content.ReadFromJsonAsync<Response>();
+
+                if (!(response is not null && response.Status == ResponseStatus.Ok))
+                {
+                    _snackBar.Add("There was an error trying to delete this record", Severity.Error,
+                        options => options.VisibleStateDuration = 10000);
+                    return;
+                }
+
+                Items = Items.Where(i => i.Id != id).ToList();
+                StateHasChanged();
+
+                Athlete.Coaches = Items.Select(c => new AhtleteCoachInfoDTO {Id = c.Id ?? 0, Name = c.Name, ClubName = c.HighSchool, Email = c.Email, Phone = c.Phone, Type = c.Type}).ToList();
+
+                _snackBar.Add("Deleted successfully", Severity.Success,
+                    options => options.VisibleStateDuration = 10000);
+
+                _ = Task.Run(async () =>
+                {
+                    var account = await _localStorage.GetItemAsync<AccountDto>("account");
+                    account.Athlete = Athlete;
+                    await _localStorage.SetItemAsync("account", account);
+                });
+            }
+
+            await ItemsChanged.InvokeAsync(Items);
+        }
+    }
+
+}

@@ -1,0 +1,37 @@
+﻿@page "/athlete/universities"
+@page "/athlete/universities/tut/{Tut:bool}"
+
+@using Blazored.LocalStorage
+@using iSportsRecruiting.Client.Shared.Dialogs
+@using iSportsRecruiting.Shared.DTO;
+
+@inject IDialogService Dialog;
+@inject ILocalStorageService LocalStorage;
+
+<style>
+    .mud-dialog-title {
+        padding: 0 !important;
+    }
+</style>
+
+@if (Athlete is not null)
+{
+    <UniversitiesTable Tut="Tut" Athlete="Athlete" ShowAthleteSettings="false"/>
+}
+
+@code {
+
+    [Parameter]
+    public bool Tut { get; set; }
+
+    AthleteDTO Athlete { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Athlete = (await LocalStorage.GetItemAsync<AccountDto>("account")).Athlete;
+    }
+
+    private async void OnButtonClicked()
+    {
+    }
+}

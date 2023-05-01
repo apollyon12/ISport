@@ -1,0 +1,972 @@
+﻿@layout PublicProfileLayout
+@page "/universities/{Id:int}/{UniversityName}"
+
+@using iSportsRecruiting.Shared.DTO;
+@using iSportsRecruiting.Shared.Email
+@using iSportsRecruiting.Shared.Models
+@using iSportsRecruiting.Client.Shared
+@using System.Net.Http.Json
+
+@inject ISnackbar _snackBar
+@inject HttpClient _httpClient
+@inject NavigationManager _navigationManager
+@inject Blazored.LocalStorage.ILocalStorageService _localStorage;
+
+<style>
+    .mud-tab {
+        width: 100%;
+        min-width: 56px;
+        display: inline-flex;
+        padding: 6px 12px;
+        min-height: 48px;
+        flex-shrink: 0;
+        font-weight: 500;
+        line-height: 1.75;
+        user-select: none;
+        white-space: normal;
+        letter-spacing: .02857em;
+        text-transform: uppercase;
+        text-align: center;
+        align-items: center;
+        justify-content: center;
+        transition: background-color 150ms cubic-bezier(.4,0,.2,1) 0ms;
+    }
+
+    .mud-container-maxwidth-lg {
+        max-width: 100% !important;
+    }
+</style>
+<MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+    <MudPaper Square="true" Elevation="3" style="padding-bottom: 20px; background-color: white; position: fixed; z-index: 9; width: 100%">
+        <MudGrid Style="padding-top: 90px;">
+            <MudItem sm="2" xs="12">
+                @if (university is null)
+                {
+                    <MudSkeleton SkeletonType="SkeletonType.Circle" Width="180px" Height="180px" Style="display: block; margin-left: auto; margin-right: auto;" />
+                }
+                else
+                {
+                    <MudAvatar Image="@urlImageUniversity" Style="width: 180px; height: 180px; display: block; margin-left: auto; margin-right: auto;" />
+                }
+            </MudItem>
+            <MudItem sm="7" xs="12">
+                <MudGrid Spacing="0">
+                    <MudItem sm="12" xs="12">
+                        @if (university is null)
+                        {
+                            <MudSkeleton />
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.h4" Style="color: #1a1a1a;">@university.University </MudText>
+                        }
+                    </MudItem>
+
+                    <MudItem sm="12" xs="12" Class="mb-4 mt-2" Style="background-color: #b3b3b3; height: 1px" />
+
+                    @if (Athlete is not null)
+                    {
+                        <MudItem sm="12" xs="12">
+                            @if (university is null)
+                            {
+                                <MudSkeleton />
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.h6" Style="color: #1a1a1a;">
+                                    @if (_icons.ContainsKey(Athlete.SportName))
+                                    {
+                                        <MudIcon Icon="@_icons[Athlete.SportName]" Title="@Athlete.SportName" />
+                                        @($" {Athlete.SportName} Athletics")
+                                    }
+                                    else
+                                    {
+                                        <MudIcon Icon="@Icons.Filled.Sports" Title="@Athlete.SportName" />
+                                        @($" {Athlete.SportName} Athletics")
+                                    }
+                                </MudText>
+                            }
+                        </MudItem>
+                    }
+
+                    <MudItem sm="12" xs="12">
+                        @if (university is null)
+                        {
+                            <MudSkeleton />
+                        }
+                        else
+                        {
+                            <MudLink Href="@($"https://www.google.com/search?q={university.Address}")" Target="_blank" Typo="Typo.h6" Underline="Underline.None" Style="color: #1a1a1a;">
+                                <MudIcon Icon="@Icons.Filled.LocationOn" Title="Address" />
+                                @university.Address
+                            </MudLink>
+                        }
+                    </MudItem>
+                    <MudItem sm="12" xs="12">
+                        @if (university is null)
+                        {
+                            <MudSkeleton />
+                        }
+                        else
+                        {
+                            <a href="@university.Website" target="_blank" style="font-size: @_fontSizeA; color: @_colorA" @onmouseover="@(() => { _fontSizeA = "24px"; _colorA = "#3FFF00"; })" @onmouseout="@(() => { _fontSizeA = "19px"; _colorA = "#1a1a1a"; })"><MudIcon Icon="@Icons.Filled.Link" Title="URL" />Website</a>
+                        }
+                    </MudItem>
+
+                    <MudItem sm="12" xs="12">
+                        @if (university is null)
+                        {
+                            <MudSkeleton />
+                        }
+                        else
+                        {
+                            <a href="@university.AthleticWebSite" target="_blank" style="font-size: @_fontSizeB; color: @_colorB" @onmouseover="@(() => { _fontSizeB = "24px"; _colorB = "#3FFF00"; })" @onmouseout="@(() => { _fontSizeB = "19px"; _colorB = "#1a1a1a"; })"><MudIcon Icon="@Icons.Filled.Link" Title="URL" />Athletic Website</a>
+                        }
+                    </MudItem>
+                </MudGrid>
+            </MudItem>
+            @if (Athlete is null)
+            {
+                <MudItem sm="3" xs="12">
+                    <MudPaper Class="pa-3 ma-2" Style="text-align: center; float: right;" Elevation="3" Square="true">
+                        <MudText Typo="Typo.h5" Style="font-weight: 500">START NOW!</MudText>
+                        <MudDivider Class="mb-5" />
+                        <MudButton Class="mb-3" Variant="Variant.Filled" Color="@Color.Success" Style="color: #1a1a1a">Athletes Start Here</MudButton>
+                        <MudButton Class="mb-4" Variant="Variant.Filled" Color="@Color.Primary">Parents Start Here</MudButton>
+                    </MudPaper>
+                </MudItem>
+            }
+        </MudGrid>
+    </MudPaper>
+
+</MudHidden>
+<MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+    <MudPaper Square="true" Elevation="0" style="padding-bottom: 10px; background-color: white; width: 100%; position: fixed; z-index: 9;">
+        <MudGrid Style="padding-top: 90px;">
+            <MudItem sm="2" xs="3">
+                @if (university is null)
+                {
+                    <MudSkeleton SkeletonType="SkeletonType.Circle" Width="74px" Height="74px" Style="display: block; margin-left: auto; margin-right: auto;" />
+                }
+                else
+                {
+                    <MudAvatar Image="@urlImageUniversity" Style="width: 74px; height: 74px; display: block; margin-left: auto; margin-right: auto;" />
+                }
+            </MudItem>
+            <MudItem sm="10" xs="9">
+                <MudGrid Spacing="0">
+                    <MudItem sm="12" xs="12">
+                        @if (university is null)
+                        {
+                            <MudSkeleton />
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.h6" Style="color: #1a1a1a;">@university.University</MudText>
+                        }
+                    </MudItem>
+
+                    <MudItem sm="12" xs="12" Class="mb-4 mt-2" Style="background-color: #b3b3b3; height: 1px" />
+
+                    <MudItem sm="12" xs="12" Style="white-space: nowrap;text-overflow: ellipsis;overflow: hidden;">
+                        @if (university is null)
+                        {
+                            <MudSkeleton />
+                        }
+                        else
+                        {
+                            <MudLink Href="@($"https://www.google.com/search?q={university.Address}")" Target="_blank" Typo="Typo.body1" Underline="Underline.None" Style="color: #1a1a1a;">
+                                @university.Address
+                            </MudLink>
+                        }
+                    </MudItem>
+
+                    <MudItem sm="12" xs="12">
+                        @if (university is null)
+                        {
+                            <MudSkeleton />
+                        }
+                        else
+                        {
+                            <MudLink Color="Color.Secondary" Underline="Underline.Always" Typo="Typo.body1" Href="@university.Website" Target="_blank">
+                                Website -
+                            </MudLink>
+                            <MudLink Color="Color.Secondary" Underline="Underline.Always" Typo="Typo.body1" Href="@university.AthleticWebSite" Target="_blank">
+                                Athletic Website
+                            </MudLink>
+                        }
+                    </MudItem>
+                </MudGrid>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+</MudHidden>
+
+
+<MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+    <div style="width: 100%; height: 4px; margin-bottom: 45px; " />
+    <MudGrid Style="width: 100%">
+        <MudItem xs="9">
+            <MudTabs KeepPanelsAlive="true" Color="Color.Tertiary" SliderColor="Color.Success" Elevation="0" Position="@Position.Left"
+                     ApplyEffectsToContainer="true" PanelClass="pa-6 white-bg" Style="margin: 2px; padding: 40px; padding-top: 298px;">
+                <MudTabPanel Text="Academics" Style="color: #262626">
+                    <MudGrid Style="margin-left: 30px">
+
+                        <MudItem sm="12" xs="12">
+                            <MudGrid>
+                                <MudItem sm="3" xs="3">
+                                    @if (university is null)
+                                    {
+                                        <MudSkeleton />
+                                        <MudSkeleton />
+                                    }
+                                    else
+                                    {
+                                        <MudText Typo="Typo.subtitle2" Style="font-weight: 600">
+                                            <b>DIVISION</b>
+                                        </MudText>
+                                        <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left">@university.Division</MudText>
+                                    }
+                                </MudItem>
+
+                                <MudItem sm="2" xs="2">
+                                    @if (university is null)
+                                    {
+                                        <MudSkeleton />
+                                        <MudSkeleton />
+                                    }
+                                    else
+                                    {
+                                        <MudText Typo="Typo.subtitle2" Style="font-weight: 600">
+                                            <b>GPA</b>
+                                        </MudText>
+                                        <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left">@university.GPA</MudText>
+                                    }
+                                </MudItem>
+
+                                <MudItem sm="2" xs="2">
+                                    @if (university is null)
+                                    {
+                                        <MudSkeleton />
+                                        <MudSkeleton />
+                                    }
+                                    else
+                                    {
+                                        <MudText Typo="Typo.subtitle2" Style="font-weight: 600">
+                                            <b>SAT</b>
+                                        </MudText>
+                                        <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left">@university.SAT</MudText>
+                                    }
+                                </MudItem>
+
+                                <MudItem sm="2" xs="2">
+                                    @if (university is null)
+                                    {
+                                        <MudSkeleton />
+                                        <MudSkeleton />
+                                    }
+                                    else
+                                    {
+                                        <MudText Typo="Typo.subtitle2" Style="font-weight: 600">
+                                            <b>ACT</b>
+                                        </MudText>
+                                        <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left">@university.ACT</MudText>
+                                    }
+                                </MudItem>
+                            </MudGrid>
+                        </MudItem>
+
+                        <MudItem sm="12" xs="12">
+                            <MudDivider Class="mb-2" />
+                        </MudItem>
+
+                        <MudItem sm="3" xs="12">
+                            @if (university is null)
+                            {
+                                <MudSkeleton />
+                                <MudSkeleton />
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.subtitle2" Style="font-weight: 600">
+                                    <b>POPULATION</b>
+                                </MudText>
+                                <span>
+                                    <MudIcon Icon="@Icons.Filled.People" Color="@Color.Primary" Style="float:left; margin-right: 8px; font-size: 45px;" />
+                                    <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left">
+                                        @university.Enrollement
+                                    </MudText>
+                                </span>
+                            }
+                        </MudItem>
+
+                        <MudItem sm="3" xs="12">
+                            @if (university is null)
+                            {
+                                <MudSkeleton />
+                                <MudSkeleton />
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.subtitle2" Style="font-weight: 600">
+                                    <b>COLLEGE TYPE</b>
+                                </MudText>
+                                <span>
+                                    <MudIcon Icon="@Icons.Filled.CorporateFare" Color="@Color.Primary" Style="float:left; margin-right: 8px; font-size: 45px;" />
+                                    <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left">
+                                        @university.Type
+                                    </MudText>
+                                </span>
+                            }
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+                <MudTabPanel Text="FINANCIALS" Style="color: #262626">
+                    <MudGrid Style="margin-left:30px">
+                        <MudItem sm="12" xs="12">
+                            <MudGrid>
+                                <MudItem sm="5" xs="12">
+                                    @if (university is null)
+                                    {
+                                        <MudSkeleton />
+                                        <MudSkeleton />
+                                    }
+                                    else
+                                    {
+                                        <MudText Typo="Typo.subtitle2" Style="font-weight: 600">
+                                            TUITION IN STATE
+                                        </MudText>
+                                        <span>
+                                            <MudIcon Icon="@Icons.Filled.AttachMoney" Color="@Color.Primary" Style="float: left; font-size: 45px;" />
+                                            <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left">
+                                                @university.Tuisionin
+                                            </MudText>
+                                        </span>
+                                    }
+                                </MudItem>
+
+                                <MudItem sm="5" xs="12">
+                                    @if (university is null)
+                                    {
+                                        <MudSkeleton />
+                                        <MudSkeleton />
+                                    }
+                                    else
+                                    {
+                                        <MudText Typo="Typo.subtitle2" Style="font-weight: 600">
+                                            <b>TUITION OUT OF STATE</b>
+                                        </MudText>
+                                        <span>
+                                            <MudIcon Icon="@Icons.Filled.AttachMoney" Color="@Color.Primary" Style="float: left; font-size: 45px;" />
+                                            <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left">
+                                                @university.Tuitionout
+                                            </MudText>
+                                        </span>
+                                    }
+                                </MudItem>
+                            </MudGrid>
+                        </MudItem>
+
+                        <MudItem sm="12" xs="12">
+                            <MudGrid>
+                                <MudItem sm="5" xs="12">
+                                    @if (university is null)
+                                    {
+                                        <MudSkeleton />
+                                        <MudSkeleton />
+                                    }
+                                    else
+                                    {
+                                        <MudText Typo="Typo.subtitle2" Style="font-weight: 600">
+                                            <b>COST OF ATTENDANCE IN STATE</b>
+                                        </MudText>
+                                        <span>
+                                            <MudIcon Icon="@Icons.Filled.AttachMoney" Color="@Color.Primary" Style="float: left; font-size: 45px;" />
+                                            <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left">
+                                                @university.CostOfAttendance
+                                            </MudText>
+                                        </span>
+                                    }
+                                </MudItem>
+
+                                <MudItem sm="5" xs="12">
+                                    @if (university is null)
+                                    {
+                                        <MudSkeleton />
+                                        <MudSkeleton />
+                                    }
+                                    else
+                                    {
+                                        <MudText Typo="Typo.subtitle2" Style="font-weight: 600">
+                                            <b>COST OF ATTENDANCE OUT OF STATE</b>
+                                        </MudText>
+                                        <span>
+                                            <MudIcon Icon="@Icons.Filled.AttachMoney" Color="@Color.Primary" Style="float: left; font-size: 45px;" />
+                                            <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left">
+                                                @university.CostOfAttendanceOut
+                                            </MudText>
+                                        </span>
+                                    }
+                                </MudItem>
+                            </MudGrid>
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+                @if (coach is not null && Athlete is not null)
+                {
+                    <MudTabPanel Text="COACHES" Style="color: #262626">
+                        <MudGrid Style="margin-left: 30px">
+                            <MudItem sm="12" xs="12">
+                                <MudGrid>
+                                    @if (Athlete is not null)
+                                    {
+                                        <MudItem sm="12" xs="12">
+                                            <MudText Typo="Typo.subtitle2" Style="font-weight: 600">
+                                                COACH
+                                            </MudText>
+                                            <MudText Typo="Typo.h5" Style="font-weight: bold; font-size: 35px">
+                                                @coach.Coach
+                                            </MudText>
+                                        </MudItem>
+
+                                        @if (!string.IsNullOrWhiteSpace(coach.AssisantCoach))
+                                        {
+                                            <MudItem sm="12" xs="12">
+                                                <MudText Typo="Typo.subtitle2" Style="font-weight: 600">
+                                                    ASSISTANT
+                                                </MudText>
+                                                <MudText Typo="Typo.h5" Style="font-weight: bold; font-size: 35px">
+                                                    @coach.AssisantCoach
+                                                </MudText>
+                                            </MudItem>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        @foreach (var itemCoach in coaches)
+                                        {
+                                            <MudItem sm="12" xs="12">
+                                                <MudText Typo="Typo.subtitle2" Style="font-weight: 600">
+                                                    COACH
+                                                </MudText>
+                                                <MudText Typo="Typo.h5" Style="font-weight: bold; font-size: 35px">
+                                                    @itemCoach.Coach
+                                                </MudText>
+                                            </MudItem>
+
+                                            @if (!string.IsNullOrWhiteSpace(itemCoach.AssisantCoach))
+                                            {
+                                                <MudItem sm="12" xs="12">
+                                                    <MudText Typo="Typo.subtitle2" Style="font-weight: 600">
+                                                        ASSISTANT
+                                                    </MudText>
+                                                    <MudText Typo="Typo.h5" Style="font-weight: bold; font-size: 35px">
+                                                        @itemCoach.AssisantCoach
+                                                    </MudText>
+                                                </MudItem>
+                                            }
+                                        }
+                                    }
+                                </MudGrid>
+                            </MudItem>
+
+                        </MudGrid>
+                    </MudTabPanel>
+
+                    <MudTabPanel Text="CONTACT" Style="color: #262626">
+                        <MudGrid Style="margin-left: 30px">
+                            <MudItem sm="12" xs="12">
+                                <MudTextField Label="Write your message here..." Class="mb-3" Lines="8" @bind-Value="EmailBody" Variant="Variant.Outlined" />
+                                <MudButton Style="float: right" Variant="Variant.Filled" Color="Color.Primary"
+                                       StartIcon="@Icons.Filled.Email" IconColor="Color.Success" OnClick="SendEmail">
+                                    SEND EMAIL
+                                </MudButton>
+                            </MudItem>
+                        </MudGrid>
+                    </MudTabPanel>
+                }
+            </MudTabs>
+        </MudItem>
+
+        <MudItem xs="3" Style="padding-right: 38px !important;">
+            <MudTabs Elevation="9" SliderColor="Color.Success" Position="@Position.Top" PanelClass="white-bg" Style="padding-top: 298px;">
+                <MudTabPanel Text="MAJORS" Style="color: #262626">
+                    @if (_majors is not null)
+                    {
+                        <MudCard Elevation="9">
+                            <MudList Style="overflow-y: scroll;height: 100%;">
+                                @foreach (var major in _majors)
+                                {
+                                    <MudListItem Text="@major.Name" />
+                                    <MudDivider />
+                                }
+                            </MudList>
+                        </MudCard>
+
+
+                    }
+                </MudTabPanel>
+
+                <MudTabPanel Text="SPORTS" Style="color: #262626">
+                    @if (sports is not null)
+                    {
+                        <MudCard Elevation="9">
+
+                        </MudCard>
+                        <MudList Style="overflow-y: scroll;height: 100%;">
+                            @foreach (var sport in sports)
+                            {
+                                <MudListItem Text="@sport.Sports" />
+                                <MudDivider />
+                            }
+                        </MudList>
+                    }
+                </MudTabPanel>
+            </MudTabs>
+        </MudItem>
+    </MudGrid>
+</MudHidden>
+
+<MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+    <MudTabs AlwaysShowScrollButtons="false" KeepPanelsAlive="true" Color="Color.Tertiary" SliderColor="Color.Success" Elevation="3" Position="@Position.Top" ScrollIconColor="@Color.Primary" PanelClass="pa-6 white-bg" Centered="true" Style="text-align: center; bottom: 0; left: 0;font-family: monospace; width: 100%; color: white; padding-top: 65%;">
+        <MudTabPanel Icon="@Icons.Outlined.School" Style="color: #262626">
+            <MudGrid>
+                <MudItem sm="12" xs="12">
+                    <MudGrid>
+                        <MudItem sm="3" xs="12">
+                            @if (university is null)
+                            {
+                                <MudSkeleton />
+                                <MudSkeleton />
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.subtitle2" Style="font-weight: 600; width: 100%">
+                                    <b>DIVISION</b>
+                                </MudText>
+                                <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left; width: 100%">@university.Division</MudText>
+                            }
+                        </MudItem>
+
+                        <MudItem sm="2" xs="4">
+                            @if (university is null)
+                            {
+                                <MudSkeleton />
+                                <MudSkeleton />
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.subtitle2" Style="font-weight: 600; width: 100%">
+                                    <b>GPA</b>
+                                </MudText>
+                                <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left; width: 100%">@university.GPA</MudText>
+                            }
+                        </MudItem>
+
+                        <MudItem sm="2" xs="4">
+                            @if (university is null)
+                            {
+                                <MudSkeleton />
+                                <MudSkeleton />
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.subtitle2" Style="font-weight: 600; width: 100%">
+                                    <b>SAT</b>
+                                </MudText>
+                                <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left; width: 100%">@university.SAT</MudText>
+                            }
+                        </MudItem>
+
+                        <MudItem sm="2" xs="4">
+                            @if (university is null)
+                            {
+                                <MudSkeleton />
+                                <MudSkeleton />
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.subtitle2" Style="font-weight: 600; width: 100%">
+                                    <b>ACT</b>
+                                </MudText>
+                                <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left; width: 100%">@university.ACT</MudText>
+                            }
+                        </MudItem>
+                    </MudGrid>
+                </MudItem>
+
+                <MudItem sm="12" xs="12">
+                    <MudDivider Class="mb-2" />
+                </MudItem>
+
+                <MudItem sm="3" xs="12">
+                    @if (university is null)
+                    {
+                        <MudSkeleton />
+                        <MudSkeleton />
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.subtitle2" Style="font-weight: 600; width: 100%">
+                            <b>POPULATION</b>
+                        </MudText>
+                        <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left; width: 100%">
+                            @university.Enrollement
+                        </MudText>
+                    }
+                </MudItem>
+
+                <MudItem sm="12" xs="12">
+                    <MudDivider Class="mb-2" />
+                </MudItem>
+
+                <MudItem sm="3" xs="12">
+                    @if (university is null)
+                    {
+                        <MudSkeleton />
+                        <MudSkeleton />
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.subtitle2" Style="font-weight: 600; width: 100%">
+                            <b>COLLEGE TYPE</b>
+                        </MudText>
+                        <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left; width: 100%">
+                            @university.Type
+                        </MudText>
+                    }
+                </MudItem>
+            </MudGrid>
+        </MudTabPanel>
+        <MudTabPanel Icon="@Icons.Outlined.AttachMoney" Style="color: #262626">
+            <MudGrid>
+                <MudItem sm="12" xs="12">
+                    <MudGrid>
+                        <MudItem sm="5" xs="12">
+                            @if (university is null)
+                            {
+                                <MudSkeleton />
+                                <MudSkeleton />
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.subtitle2" Style="font-weight: 600">
+                                    TUITION IN STATE
+                                </MudText>
+                                <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left;width: 100%">
+                                    $ @university.Tuisionin
+                                </MudText>
+                            }
+                        </MudItem>
+
+                        <MudItem sm="5" xs="12">
+                            @if (university is null)
+                            {
+                                <MudSkeleton />
+                                <MudSkeleton />
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.subtitle2" Style="font-weight: 600">
+                                    <b>TUITION OUT OF STATE</b>
+                                </MudText>
+                                <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left;width: 100%">
+                                    $ @university.Tuitionout
+                                </MudText>
+                            }
+                        </MudItem>
+                    </MudGrid>
+                </MudItem>
+
+                <MudItem sm="12" xs="12">
+                    <MudGrid>
+                        <MudItem sm="5" xs="12">
+                            @if (university is null)
+                            {
+                                <MudSkeleton />
+                                <MudSkeleton />
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.subtitle2" Style="font-weight: 600">
+                                    <b>COST OF ATTENDANCE IN STATE</b>
+                                </MudText>
+                                <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left;width: 100%">
+                                    $ @university.CostOfAttendance
+                                </MudText>
+                            }
+                        </MudItem>
+
+                        <MudItem sm="5" xs="12">
+                            @if (university is null)
+                            {
+                                <MudSkeleton />
+                                <MudSkeleton />
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.subtitle2" Style="font-weight: 600">
+                                    <b>COST OF ATTENDANCE OUT OF STATE</b>
+                                </MudText>
+                                <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left;width: 100%">
+                                    $ @university.CostOfAttendanceOut
+                                </MudText>
+                            }
+                        </MudItem>
+                    </MudGrid>
+                </MudItem>
+            </MudGrid>
+        </MudTabPanel>
+
+        @if (sports is not null)
+        {
+            <MudTabPanel Icon="@Icons.Outlined.SportsSoccer" Style="color: #262626; text-align: start !important;">
+                <ListMobile Style="margin-left: 16px; margin-right: 16px;" T="SportContactDTO" Title="Sports" EndPoint="@($"university/contact/{Id}?")">
+                    <CardTitle>
+                        @context.Sports
+                    </CardTitle>
+                </ListMobile>
+
+            </MudTabPanel>
+        }
+
+        @if (_majors is not null)
+        {
+            <MudTabPanel Icon="@Icons.Outlined.Class" Style="color: #262626; text-align: start !important;">
+                <ListMobile Style="margin-left: 16px; margin-right: 16px;" T="MajorModel" Title="Majors" EndPoint="@($"university/majors/{Id}?")">
+                    <CardTitle>
+                        @context.Name
+                    </CardTitle>
+                </ListMobile>
+            </MudTabPanel>
+        }
+
+        @if (coach is not null && Athlete is not null)
+        {
+            <MudTabPanel Icon="@Icons.Outlined.People" Style="color: #262626">
+                <MudGrid>
+                    <MudItem sm="12" xs="12">
+                        <MudGrid>
+                            @if (Athlete is not null)
+                            {
+                                <MudItem sm="12" xs="12">
+                                    <MudText Typo="Typo.subtitle2" Style="font-weight: 600">
+                                        COACH
+                                    </MudText>
+                                    <MudText Typo="Typo.h5" Style="font-weight: bold; font-size: 35px">
+                                        @coach.Coach
+                                    </MudText>
+                                </MudItem>
+
+                                @if (!string.IsNullOrWhiteSpace(coach.AssisantCoach))
+                                {
+                                    <MudItem sm="12" xs="12">
+                                        <MudText Typo="Typo.subtitle2" Style="font-weight: 600">
+                                            ASSISTANT
+                                        </MudText>
+                                        <MudText Typo="Typo.h5" Style="font-weight: bold; font-size: 35px">
+                                            @coach.AssisantCoach
+                                        </MudText>
+                                    </MudItem>
+                                }
+                            }
+                            else
+                            {
+                                @foreach (var itemCoach in coaches)
+                                {
+                                    <MudItem sm="12" xs="12">
+                                        <MudText Typo="Typo.subtitle2" Style="font-weight: 600">
+                                            COACH
+                                        </MudText>
+                                        <MudText Typo="Typo.h5" Style="font-weight: bold; font-size: 35px">
+                                            @itemCoach.Coach
+                                        </MudText>
+                                    </MudItem>
+
+                                    @if (!string.IsNullOrWhiteSpace(itemCoach.AssisantCoach))
+                                    {
+                                        <MudItem sm="12" xs="12">
+                                            <MudText Typo="Typo.subtitle2" Style="font-weight: 600">
+                                                ASSISTANT
+                                            </MudText>
+                                            <MudText Typo="Typo.h5" Style="font-weight: bold; font-size: 35px">
+                                                @itemCoach.AssisantCoach
+                                            </MudText>
+                                        </MudItem>
+                                    }
+                                }
+                            }
+                        </MudGrid>
+                    </MudItem>
+
+                </MudGrid>
+            </MudTabPanel>
+
+            <MudTabPanel Icon="@Icons.Outlined.Email" Style="color: #262626">
+                <MudGrid>
+                    <MudItem sm="12" xs="12">
+                        <MudGrid>
+                            <MudItem sm="12" xs="12">
+                                @if (coach is not null)
+                                {
+                                    <MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+                                        <MudRadioGroup @bind-SelectedOption="@_selectedOption">
+                                            <MudRadio Option="@("C")" Color="Color.Primary">
+                                                @coach.Coach <b>(Head Coach)</b>
+                                            </MudRadio>
+                                            @if (!string.IsNullOrWhiteSpace(coach.AssisantCoach))
+                                            {
+                                                <MudRadio Option="@("A")" Color="Color.Primary">
+                                                    @coach.AssisantCoach <b>(Assistant Coach)</b>
+                                                </MudRadio>
+                                            }
+                                        </MudRadioGroup>
+                                    </MudHidden>
+
+                                    <MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+                                        <MudRadioGroup @bind-SelectedOption="@_selectedOption">
+                                            <MudRadio Style="display: block" Option="@("C")" Color="Color.Primary">
+                                                @coach.Coach <b>(Head Coach)</b>
+                                            </MudRadio>
+                                            @if (!string.IsNullOrWhiteSpace(coach.AssisantCoach))
+                                            {
+                                                <MudRadio Style="display: block" Option="@("A")" Color="Color.Primary">
+                                                    @coach.AssisantCoach <b>(Assistant Coach)</b>
+                                                </MudRadio>
+                                            }
+                                        </MudRadioGroup>
+                                    </MudHidden>
+                                }
+                            </MudItem>
+
+                            <MudItem sm="12" xs="12">
+                                <MudTextField Disabled="coach is null" MaxLength="7500" Counter="7500" AutoFocus="true" Label="Write your message here..." Class="mb-3" Lines="8" @bind-Value="EmailBody"
+                                          AdornmentColor="@Color.Primary" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Send" OnAdornmentClick="SendEmail"
+                                          Immediate="true" />
+                            </MudItem>
+                        </MudGrid>
+                    </MudItem>
+                </MudGrid>
+            </MudTabPanel>
+        }
+    </MudTabs>
+</MudHidden>
+
+
+@code {
+
+    [Parameter]
+    public int Id { get; set; }
+
+    [Parameter]
+    public string UniversityName { get; set; }
+
+    private string EmailBody { get; set; }
+
+    public string _fontSizeA = "19px";
+    public string _colorA = "#1a1a1a";
+    public string _fontSizeB = "19px";
+    public string _colorB = "#1a1a1a";
+
+    public string _selectedOption = "C";
+
+    private Dictionary<string, string> _icons = new Dictionary<string, string>
+        {
+            ["Baseball"] = Icons.Material.Filled.SportsBaseball,
+            ["Basketball Men's"] = Icons.Material.Filled.SportsBasketball,
+            ["Basketball Women's"] = Icons.Material.Filled.SportsBasketball,
+            ["Football"] = Icons.Material.Filled.SportsFootball,
+            ["Golf Men's"] = Icons.Material.Filled.SportsGolf,
+            ["Golf Women's"] = Icons.Material.Filled.SportsGolf,
+            ["Tennis Men's "] = Icons.Material.Filled.SportsTennis,
+            ["Tennis Women's"] = Icons.Material.Filled.SportsTennis,
+            ["Rugby Men's"] = Icons.Material.Filled.SportsRugby,
+            ["Rugby Women's"] = Icons.Material.Filled.SportsRugby,
+            ["Volleyball Men's"] = Icons.Material.Filled.SportsVolleyball,
+            ["Volleyball Women's"] = Icons.Material.Filled.SportsVolleyball,
+            ["Soccer Men's"] = Icons.Material.Filled.SportsSoccer,
+            ["Soccer Women's"] = Icons.Material.Filled.SportsSoccer,
+            ["Tennis Men's"] = Icons.Material.Filled.SportsTennis,
+            ["Tennis Women's"] = Icons.Material.Filled.SportsTennis,
+        };
+
+    bool _autoCycle = true;
+    Typo _positionTypo = Typo.h5;
+
+    AthleteDTO Athlete { get; set; }
+
+    private SportContactDTO coach;
+    private SportContactDTO[] coaches;
+    private UniversityDTO university;
+    private string urlImageUniversity;
+    private IEnumerable<SportContactDTO> sports;
+    private IEnumerable<MajorModel> _majors;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var account = await _localStorage.GetItemAsync<AccountDto>("account");
+            if (account is not null && account.Type == UserType.Athlete)
+            {
+                Athlete = account.Athlete;
+            }
+
+            var responseUniversity = await _httpClient.GetFromJsonAsync<Response<IEnumerable<UniversityDTO>>>($"api/v1/university?id={Id}");
+
+            university = responseUniversity.Payload.FirstOrDefault();
+
+            if (university.University.Replace(" ", "-").Replace(",", "").ToLower() != UniversityName)
+            {
+                _navigationManager.NavigateTo("notfound");
+            }
+
+            urlImageUniversity = $"https://isportsrecruiting.com/api/v1/file/logos/180/180/{university.Image}.jpg";
+
+            var responseSport = await _httpClient.GetFromJsonAsync<Response<IEnumerable<SportContactDTO>>>($"api/v1/university/contact/{Id}");
+            sports = responseSport?.Payload ?? Array.Empty<SportContactDTO>();
+
+            if (Athlete is not null)
+            {
+                coach = sports.FirstOrDefault(s => s.Sports == Athlete.SportName.Replace("'", "").ToUpper());
+            }
+
+            var responseMajors = await _httpClient.GetFromJsonAsync<Response<IEnumerable<MajorModel>>>($"api/v1/university/majors/{Id}");
+            _majors = responseMajors?.Payload;
+        }
+        catch (Exception e)
+        {
+        }
+    }
+
+    private async Task SendEmail()
+    {
+        string subject = $"{Athlete.FirstName} {Athlete.LastName}, {Athlete.State}, GPA {Athlete.GPA}, {Athlete.Position}";
+        var response = await _httpClient.PostAsJsonAsync($"api/v1/email/sendemail/studentathlete@isportsrecruiting.com/{Athlete.FirstName} {Athlete.LastName}/{subject}/{EmailBody}", new EmailContact { Email = coach.Email, Name = coach.Coach });
+
+        if (response.IsSuccessStatusCode)
+        {
+            await _httpClient.PostAsJsonAsync("api/v1/email", new EmailModel
+                {
+                    Receiver_Image = $"https://isportsrecruiting.com/api/v1/file/logos/180/180/{university.Image}.jpg",
+                    Receiver_Name = $"{coach.Coach}",
+                    Sender_Image = Athlete.ImageProfile,
+                    Sender_Name = $"{Athlete.FirstName} {Athlete.LastName}",
+                    University_Id = Id,
+                    University_Name = university.University,
+                    Content = EmailBody,
+                    Receiver_Id = coach.Id,
+                    Sender_Id = Athlete.Id,
+                    Subject = subject
+                });
+            _snackBar.Add("Email sent!", Severity.Success);
+        }
+        else
+        {
+            _snackBar.Add("There was a problem trying to send the email...", Severity.Error);
+        }
+    }
+
+}

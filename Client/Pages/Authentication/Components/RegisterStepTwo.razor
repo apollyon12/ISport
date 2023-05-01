@@ -1,0 +1,115 @@
+﻿@using iSportsRecruiting.Shared.DTO
+@using iSportsRecruiting.Shared.Models
+@using Microsoft.AspNetCore.Components
+@using System.Net.Http.Json
+
+@inject HttpClient _httpClient;
+
+<MudItem xs="12">
+    <MudAutocomplete Required="true" Variant="Variant.Outlined" @bind-Value="Sport" T="SportDTO" Label="Sport" SearchFunc="@SearchSport"
+                     Clearable="true" ResetValueOnEmptyText="true" MaxItems="int.MaxValue" ToStringFunc="sport => sport.Name" />
+</MudItem>
+<MudItem xs="12">
+    <MudAutocomplete Required="true" Disabled="!_positions.Any()" Variant="Variant.Outlined" @bind-Value="_position" T="PositionModel" Label="Main Position" SearchFunc="@SearchPosition"
+                     Clearable="true" ResetValueOnEmptyText="true" MaxItems="int.MaxValue" ToStringFunc="position => position.Positions" />
+    @if (IsLoading)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Success" />
+    }
+</MudItem>
+<MudItem xs="12">
+    <MudAutocomplete Disabled="!_positions.Any()" Variant="Variant.Outlined" @bind-Value="_secondPosition" T="PositionModel" Label="Secondary Position (OPTIONAL)" SearchFunc="@SearchSecondPosition"
+                     Clearable="true" ResetValueOnEmptyText="true" MaxItems="int.MaxValue" ToStringFunc="position => position.Positions" />
+</MudItem>
+
+@code {
+    private bool IsLoading { get; set; }
+
+    [Parameter]
+    public AthleteRegisterDto Model { get; set; }
+    [Parameter]
+    public EventCallback<AthleteRegisterDto> ModelChanged { get; set; }
+
+    [Parameter]
+    public SportDTO[] Sports { get; set; } = Array.Empty<SportDTO>();
+
+    private SportDTO _sport;
+    private SportDTO Sport
+    {
+        get => _sport;
+        set
+        {
+            _sport = value;
+
+            if (value is null)
+            {
+                _positions = Array.Empty<PositionModel>();
+                _position = null;
+                return;
+            }
+
+            Task.Run(async () =>
+            {
+                IsLoading = true;
+                StateHasChanged();
+
+                var positionsResponse = await _httpClient.GetFromJsonAsync<Response<PositionModel[]>>($"api/v1/sport/{_sport.Id}/position");
+                _positions = positionsResponse?.Payload ?? Array.Empty<PositionModel>();
+
+                IsLoading = false;
+                StateHasChanged();
+            });
+        }
+    }
+
+    private PositionModel[] _positions = Array.Empty<PositionModel>();
+    private PositionModel _position;
+    private PositionModel _secondPosition;
+
+    private async Task<IEnumerable<SportDTO>> SearchSport(string value)
+    {
+        await Task.Delay(0);
+
+        if (Sport is not null && Sport.Name == value)
+            return Sports;
+
+        return string.IsNullOrEmpty(value)
+            ? Sports
+            : Sports.Where(x => x.Name.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+    }
+
+    private async Task<IEnumerable<PositionModel>> SearchPosition(string value)
+    {
+        await Task.Delay(0);
+
+        if (Sport is not null && Sport.Name == value)
+            return _positions;
+
+        return string.IsNullOrEmpty(value)
+            ? _positions
+            : _positions.Where(x => x.Positions.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+    }
+
+    private async Task<IEnumerable<PositionModel>> SearchSecondPosition(string value)
+    {
+        var result = await SearchPosition(value);
+        return result.Where(p => p.Id != _position.Id);
+    }
+
+    public bool CheckIfCompleted()
+    {
+
+        var isCompleted = Sport is not null
+                          && _position is not null;
+
+        if (isCompleted)
+        {
+            Model.Info.SportId = Sport.Id;
+            Model.Info.PositionId = _position.Id;
+            Model.Info.Position2Id = _secondPosition?.Id ?? 0;
+            ModelChanged.InvokeAsync(Model);
+        }
+
+        return isCompleted;
+    }
+}

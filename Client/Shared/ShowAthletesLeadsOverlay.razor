@@ -1,0 +1,225 @@
+﻿@using iSportsRecruiting.Shared.DTO;
+@using System.Net.Http.Json
+@inject Blazored.LocalStorage.ILocalStorageService _localStorage;
+@inject HttpClient _httpClient;
+
+<MudOverlay Visible="IsVisible" DarkBackground="true" Style="@($"z-index: 99;")">
+    <div style="max-height: 80vh; max-width: 90vh">
+        <MudGrid>
+            <MudItem xs="12">
+                <MudCard>
+                    <MudCardContent>
+                        <MudGrid>
+                            <MudItem xs="9">
+                                <div class="mb-6">
+                                    <MudRadioGroup @bind-SelectedOption="FilterOption">
+                                        <MudRadio Option="@("Leads")">Leads</MudRadio>
+                                        <MudRadio Option="@("Athletes")">Athletes</MudRadio>
+                                        <MudRadio Option="@("Both")">Both</MudRadio>
+                                    </MudRadioGroup>
+                                </div>
+                            </MudItem>
+                            <MudItem xs="3">
+                                <MudButton Class="pl-4" OnClick="SelectedItems" Color="Color.Primary" Variant="Variant.Filled">UPDATE</MudButton>
+                                <MudIconButton OnClick="CloseOverlay" Icon="@Icons.Material.Filled.Close" Color="Color.Error" Size="Size.Medium" Variant="Variant.Filled"></MudIconButton>
+                            </MudItem>
+
+                        </MudGrid>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        </MudGrid>
+        <MudGrid>
+            <MudItem Class="p-0" xs="12">
+                <MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+                    <MudTable Height="450px" @bind-SelectedItems="_selectedItems" Class="mb-4" Items="Elements" Dense="true" Hover="true" Square="true" SortLabel="Sort By" Loading="_loading" LoadingProgressColor="@Color.Secondary" MultiSelection="true">
+                        <ColGroup>
+                            <col style="width: 60px;" />
+                            <col />
+                            <col />
+                            <col />
+                            <col />
+                        </ColGroup>
+                        <HeaderContent>
+                            <MudTh></MudTh>
+                            <MudTh>
+                                <MudTableSortLabel SortBy="new Func<ContactDTO, object>(x => x.FullName)">Name</MudTableSortLabel>
+                            </MudTh>
+                            <MudTh>
+                                <MudTableSortLabel SortBy="new Func<ContactDTO, object>(x => x.Email)">Email</MudTableSortLabel>
+                            </MudTh>
+                            <MudTh>
+                                <MudTableSortLabel SortBy="new Func<ContactDTO, object>(x => x.Phone)">Phone</MudTableSortLabel>
+                            </MudTh>
+                            <MudTh>
+                                <MudTableSortLabel SortBy="new Func<ContactDTO, object>(x => x.Sport)">Sport</MudTableSortLabel>
+                            </MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            @if (context.IsLead)
+                            {
+                                <MudTd>
+                                    <MudAvatar Color="Color.Secondary" Style="width: 50px; height: 50px">@GetInitial(context)</MudAvatar>
+                                </MudTd>
+                            }
+                            else
+                            {
+                                <MudTd>
+                                    @if (!string.IsNullOrWhiteSpace(context.Image))
+                                    {
+                                        <MudAvatar Image="@($"https://isportsrecruiting.com/api/v1/file/uploads/50/50/{context.Image}")" Style="width: 50px; height: 50px" />
+                                    }
+                                    else
+                                    {
+                                        <MudAvatar Color="Color.Secondary" Style="width: 50px; height: 50px">@GetInitial(context)</MudAvatar>
+                                    }
+                                </MudTd>
+                            }
+
+                            <MudTd DataLabel="Name">@context.FullName</MudTd>
+                            <MudTd DataLabel="Email">@context.Email</MudTd>
+                            <MudTd DataLabel="Sport">@context.Phone</MudTd>
+
+                            @if (context.IsLead)
+                            {
+                                <MudTd DataLabel="Sport">@GetSportName(int.Parse(context.Sport))</MudTd>
+                            }
+                            else
+                            {
+                                <MudTd DataLabel="Sport">@context.Sport</MudTd>
+                            }
+                        </RowTemplate>
+                        <PagerContent>
+                            <MudTablePager PageSizeOptions="new int[] {10, 25, 50, 100}" />
+                        </PagerContent>
+                    </MudTable>
+                </MudHidden>
+
+            </MudItem>
+
+        </MudGrid>
+    </div>
+
+</MudOverlay>
+
+@code {
+    [Parameter]
+    public bool IsVisible { get; set; } = false;
+    [Parameter]
+    public EventCallback<bool> OnCloseOverlay { get; set; }
+    [Parameter]
+    public EventCallback<List<ContactDTO>> OnSelectedItems { get; set; }
+
+    private HashSet<ContactDTO> _selectedItems = new HashSet<ContactDTO>();
+
+    public string FilterOption { get; set; } = "Both";
+
+    private string? _athleteEndpoint => _account is not null && _account?.Type != UserType.Admin || _account?.Type == UserType.Admin && ShowOnlyReferrals
+        ? $"Athlete/referral/{_account?.Id}?"
+        : "Athlete?";
+
+    private bool _showOnlyReferrals;
+
+    private bool ShowOnlyReferrals
+    {
+        get => _showOnlyReferrals;
+        set
+        {
+            _showOnlyReferrals = value;
+            Task.Run(async () => await GetInitialDataAsync());
+        }
+    }
+
+    private ContactDTO[] _elements = Array.Empty<ContactDTO>();
+
+    private ContactDTO[] Elements
+    {
+        get
+        {
+            return _elements.Where(a => (string.IsNullOrWhiteSpace(_search)
+                                         || (a.FullName).Contains(_search,
+                                             StringComparison.InvariantCultureIgnoreCase))
+                                             && (a.IsLead == (FilterOption == "Athletes" ? false : true)
+                                             || FilterOption == "Both")).ToArray();
+        }
+        set => _elements = value;
+    }
+
+    private SportDTO[] _sports = Array.Empty<SportDTO>();
+
+    private string _search = string.Empty;
+    private bool _loading;
+    private string _description;
+    private AccountDto _account;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetInitialDataAsync();
+    }
+
+    private async Task GetInitialDataAsync()
+    {
+        try
+        {
+            await LoadSports();
+            _loading = true;
+            StateHasChanged();
+
+            _account = await _localStorage.GetItemAsync<AccountDto>("account");
+
+            var responseAthletes = await _httpClient.GetFromJsonAsync<Response<AthleteDTO[]>>("api/v1/athlete");
+
+            var responseLeads = await _httpClient.GetFromJsonAsync<Response<List<LeadDTO>>>($"api/v1/lead/{_account.Id}");
+
+            Elements = responseAthletes.Payload.Select(a => new ContactDTO {Id = a.Id, FullName = $"{a.FirstName} {a.LastName}", Email = a.Email, Phone = a.CellPhone, Sport = a.SportName, Image = a.ImageProfile }).ToArray();
+            Elements = Elements.Concat(responseLeads.Payload.Select(l => new ContactDTO { Id = l.Id, FullName = $"{l.FullName}", Email = l.Email, Phone = l.Phone, Sport = l.Sport.ToString(), IsLead = true })).OrderBy(e => e.FullName).ToArray();
+
+            _loading = false;
+            StateHasChanged();
+        }
+        catch (Exception e)
+        {
+        }
+    }
+    private string GetSportName(int id)
+    {
+        return _sports?.FirstOrDefault(s => s.Id == id)?.Name ?? "NOT FOUND";
+    }
+    private async Task LoadSports()
+    {
+
+        if (!_sports.Any())
+        {
+            var sportsResponse = await _httpClient.GetFromJsonAsync<Response<SportDTO[]>>("api/v1/sport");
+            _sports = sportsResponse.Payload;
+        }
+    }
+    private string GetInitial(ContactDTO contact)
+    {
+        if (!string.IsNullOrWhiteSpace(contact.FullName))
+        {
+            var letter = contact.FullName[0].ToString().ToUpper();
+            if (!string.IsNullOrWhiteSpace(letter))
+                return letter;
+        }
+        else if (!string.IsNullOrWhiteSpace(contact.FullName))
+        {
+            var letter = contact.FullName[0].ToString().ToUpper();
+            if (!string.IsNullOrWhiteSpace(letter))
+                return letter;
+        }
+
+        return "?";
+    }
+    private void CloseOverlay()
+    {
+        IsVisible = false;
+        OnCloseOverlay.InvokeAsync(false);
+    }
+    private void SelectedItems()
+    {
+        IsVisible = false;
+        OnSelectedItems.InvokeAsync(_selectedItems.ToList());
+        OnCloseOverlay.InvokeAsync(false);
+    }
+}

@@ -1,0 +1,494 @@
+﻿@page "/"
+
+@using System.Linq
+@using System.Net.Http.Json
+@using iSportsRecruiting.Shared.DTO
+@using iSportsRecruiting.Client.Pages.Public.Components;
+@using iSportsRecruiting.Client.Pages.Mobile;
+@using iSportsRecruiting.Client.Shared
+@using Microsoft.AspNetCore.Authorization
+
+@inject IJSRuntime _jsRuntime;
+@inject HttpClient _httpClient;
+@inject NavigationManager _navigationManager;
+@inject Blazored.SessionStorage.ISessionStorageService _sessionStorage
+
+@layout PublicLayout
+
+<MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+    @if (_isPresentationMobile)
+    {
+        @if (_isFirstmobilePresentation)
+        {
+            <WelcomeContainer Action="CloseFirstPresentation" Icon="images/PresentationPerfil.jpeg" 
+                Banner="images/fs_soccer.jpeg" Title="Build Your Profile" Subtitle="Coaches Are Looking" ActionTitle="SIMPLIFY YOUR COLLEGE RECRUITING" />
+            
+        }
+        @if (_isSecondmobilePresentation)
+        {
+            <WelcomeContainer Action="CloseSecondPresentation" Icon="images/fs_baseball_4.jpeg" 
+                Banner="images/fs_baseball.jpeg" Title="Upload Academic Data" Subtitle="Upload Athletic Data" ActionTitle="PROMOTE YOUR HIGH SCHOOL CAREER" />
+        }
+        @if (_isThirdmobilePresentation)
+        {
+           <WelcomeContainer Action="CloseThirdPresentation" Icon="images/fs_football.jpeg" 
+                Banner="images/fs_basketball.jpeg" Title="Get Your Name Out" Subtitle="Get Committed" ActionTitle="START YOUR PROCESS NOW" />
+        }
+    }
+    else
+    {
+        <div style="background-color: black; height:100%">
+            <div class="center">
+                <div style="position: relative">
+                    <img src="images/ISR_WHITE.png" alt="ISR" style="width: 158px;">
+                </div>
+                <div style="position: relative">
+                    <img src="images/ISR_WHITE_COMPLETE.png" alt="ISR" style="width:45vh">
+                </div>
+
+                <div style="margin-top: 80px">
+                    @if (_canShowInstall)
+                    {
+                        @*                    <MudButton OnClick="InstallAp" Style="border-radius: 40px;height: 50px;bottom: 20px;color: #000000; font-weight: bolder;position: relative; left: 50%; -ms-transform: translate(-50%, -230%); transform: translate(-50%, -230%);" Color="Color.Success" Variant="Variant.Filled">INSTALL NOW</MudButton>
+                *@  }
+
+                    <MudButton Style="color:white; display: block; font-size: 16px" Variant="Variant.Text" Link="/login">
+                        LOG IN
+                    </MudButton>
+                    <MudButton Size="Size.Large" Style="border-radius: 20px;width: 50%;margin: auto;display: block;  font-size: 16px" Color="Color.Primary" Variant="Variant.Filled" Link="/register">SIGN UP NOW</MudButton>
+                </div>
+            </div>
+        </div>
+
+    }
+
+    <style>
+
+        html, body {
+            height: 100% !important;
+        }
+
+        #app {
+            height: 100% !important;
+        }
+
+        .center {
+            margin: 0;
+            position: absolute;
+            top: 50%;
+            -ms-transform: translateY(-50%);
+            transform: translateY(-50%);
+            text-align: center;
+            width: 100%
+        }
+
+        .mud-grid {
+            width: 100% !important;
+        }
+    </style>
+</MudHidden>
+
+<MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+    <style>
+        /* Menu */
+        .mud-grid {
+            width: 100% !important;
+        }
+
+        ul {
+            display: flex;
+            margin-left: 40px;
+            margin-top: 15px;
+        }
+
+            ul li {
+                list-style: none;
+            }
+
+                ul li a {
+                    position: relative;
+                    display: block;
+                    text-transform: uppercase;
+                    margin: 20px 0;
+                    padding: 10px 20px;
+                    text-decoration: none;
+                    color: white;
+                    font-family: sans-serif;
+                    font-size: 18px;
+                    font-weight: 600;
+                    transition: 0.5s;
+                    z-index: 1;
+                }
+
+                    ul li a:before {
+                        content: "";
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        border-top: 2px solid #ffffff;
+                        border-bottom: 2px solid #ffffff;
+                        transform: scaleY(2);
+                        opacity: 0;
+                        transition: 0.3s;
+                    }
+
+                    ul li a:after {
+                        content: "";
+                        position: absolute;
+                        top: 2px;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        background-color: #ffffff;
+                        transform: scale(0);
+                        opacity: 0;
+                        transition: 0.3s;
+                        z-index: -1;
+                    }
+
+                    ul li a:hover {
+                        color: #000;
+                    }
+
+                        ul li a:hover:before {
+                            transform: scaleY(1);
+                            opacity: 1;
+                        }
+
+                        ul li a:hover:after {
+                            transform: scaleY(1);
+                            opacity: 1;
+                        }
+
+        .span-animation-size {
+            font-size: 20px;
+            color: white;
+        }
+
+        .span-animation-size-large {
+            font-size: 35px;
+            font-weight: bolder;
+        }
+
+        .span-animation-size-large-white {
+            font-size: 45px;
+            font-weight: bolder;
+            color: white;
+        }
+
+        .span-animation-size-large-gray {
+            font-size: 45px;
+            font-weight: bolder;
+            color: #2ebb0e;
+        }
+
+        .mud-button-label {
+            color: white;
+        }
+
+        .green-hover:hover {
+            color: #2ebb0e !important;
+        }
+    </style>
+
+    <AppBar />
+
+    <div id="home-container" style="color: #ffffff;background-color: #050504">
+        <MudGrid Style="height: 500px;background-color: #050504;margin-bottom: 0px; width: 100% !important;">
+            <MudItem md="8" Style="height: 456px; padding-left: 10vh;">
+                <div class="animated-title" Style="width: 90%;height: 70%;margin-top: 186px;">
+                    <div class="text-top">
+                        <div>
+                            <span class="span-animation-size-large-white">We empower athletes</span>
+                            <span class="span-animation-size-large-gray">to be their best</span>
+                        </div>
+                    </div>
+                    <div class="text-bottom">
+                        <div>
+                            <span class="span-animation-size">Only 7% of the Student-Athletes play a the Collegiate Level. Our platform was built to multiply <b>YOUR</b> possibilities, so you can <b>STAND OUT IN THE COMPETITION</b> and turn possibilities into reality.</span>
+                        </div>
+                    </div>
+                </div>
+            </MudItem>
+
+            <MudItem Style="position: relative" md="4">
+                <img alt="img" src="https://isportsrecruiting.com/api/v1/file/images/410/350/athlete-banner.png" style="bottom: 0;position: absolute; display: block;margin-left: auto; margin-right: auto;" />
+            </MudItem>
+        </MudGrid>
+    </div>
+
+    <div class="mud-primary" style="padding: 30px;">
+        <MudGrid>
+            <MudItem md="8">
+                <MudText Align="Align.Center" Typo="Typo.h5" Color="Color.Secondary" Style="margin-top: 14px;">
+                    <b>Time to Change Your Recruiting Process. Get Noticed Sign Up Now!</b>
+                </MudText>
+            </MudItem>
+            <MudItem md="4" Style="padding-left: 10vh;">
+                <MudButton Style="width: 214px;height: 60px;font-size: 19px;" Variant="Variant.Filled" Color="Color.Secondary" Link="/register">
+                    <b>SIGN UP</b>
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </div>
+    <div style="padding-left: 6%; padding-right: 6%; padding-top: 4%; padding-bottom: 4%; background-color: #f5f5f5;">
+        <MudGrid>
+            <MudItem md="12">
+                <MudText Style="font-weight: bold;color: #161616;" Class="mb-4" Typo="Typo.h5" Align="Align.Center">Join ISR Team Today!</MudText>
+            </MudItem>
+            @if (_elements is not null)
+            {
+                @foreach (var athlete in _elements.OrderBy(e => e.Id).Where(a => !string.IsNullOrWhiteSpace(a.ImageProfile) && !string.IsNullOrWhiteSpace(a.PersonalStatement)).TakeLast(4))
+                {
+                    <MudItem md="6" Style="padding: 40px;">
+                        <img alt="@athlete.FirstName" style="margin-bottom: 2px;width: 80px; height: 80px; border-radius: 50%; float: left;margin-right: 32px;box-shadow: 0 4px 8px 0 rgb(0 0 0 / 20%), 0 6px 20px 0 rgb(0 0 0 / 19%);" src=@($"https://isportsrecruiting.com/api/v1/file/uploads/80/80/{@athlete.ImageProfile}")>
+                        @if (!string.IsNullOrWhiteSpace(athlete.PersonalStatement) && athlete.PersonalStatement.Length > 300)
+                        {
+                            <MudText Style="font-size: 18px">@athlete.PersonalStatement.Replace("\t", string.Empty).Substring(0, 300)...</MudText>
+                        }
+                        <MudText Typo="Typo.h6">
+                            <b>- @athlete.FirstName @athlete.LastName[0]. (@athlete.GraduationYear - GPA @athlete.GPA)</b>
+                        </MudText>
+                    </MudItem>
+                }
+            }
+        </MudGrid>
+    </div>
+    <div style="padding-left: 6%; padding-right: 6%; padding-top: 4%; padding-bottom: 4%;background-color: #000000;color: white;">
+        <MudGrid>
+            <MudItem md="12">
+                <MudText Style="font-weight: bold;" Class="mb-4" Typo="Typo.h5" Align="Align.Center">What do they have to say</MudText>
+            </MudItem>
+            <MudItem md="4" Style="padding: 45px;">
+                <img alt="coach" src="images/dickgould.jpeg" style="margin-bottom: 20px;width: 120px; height: 120px; border-radius: 50%; box-shadow: 0 4px 8px 0 rgb(0 0 0 / 20%), 0 6px 20px 0 rgb(0 0 0 / 19%);display: block;margin-left: auto;margin-right: auto;" />
+
+                <div style="text-align: center;margin-bottom: 20px;">
+                    <MudIcon Class="mud-primary-text" Icon="@Icons.Filled.Star" Style="display: inline-block" />
+                    <MudIcon Class="mud-primary-text" Icon="@Icons.Filled.Star" Style="display: inline-block" />
+                    <MudIcon Class="mud-primary-text" Icon="@Icons.Filled.Star" Style="display: inline-block" />
+                    <MudIcon Class="mud-primary-text" Icon="@Icons.Filled.Star" Style="display: inline-block" />
+                    <MudIcon Class="mud-primary-text" Icon="@Icons.Filled.Star" Style="display: inline-block" />
+                </div>
+
+                <MudText Align="Align.Center">
+                    <b>Coach Dick Gould</b> (Legendary Stanford Tennis Coach)
+                </MudText>
+                <br />
+                <MudText Align="Align.Center">
+                    Thank you so much for this great information. It makes the process more clear how we need to prepare during high school years, the coaches information is so valuable and we love to hear their views
+                </MudText>
+            </MudItem>
+
+            <MudItem md="4" Style="padding: 45px;">
+                <img alt="coach" src="images/joecompagni.jpeg" style="margin-bottom: 20px;width: 120px; height: 120px; border-radius: 50%; box-shadow: 0 4px 8px 0 rgb(0 0 0 / 20%), 0 6px 20px 0 rgb(0 0 0 / 19%);display: block;margin-left: auto;margin-right: auto;" />
+
+                <div style="text-align: center;margin-bottom: 20px;">
+                    <MudIcon Class="mud-primary-text" Icon="@Icons.Filled.Star" Style="display: inline-block" />
+                    <MudIcon Class="mud-primary-text" Icon="@Icons.Filled.Star" Style="display: inline-block" />
+                    <MudIcon Class="mud-primary-text" Icon="@Icons.Filled.Star" Style="display: inline-block" />
+                    <MudIcon Class="mud-primary-text" Icon="@Icons.Filled.Star" Style="display: inline-block" />
+                    <MudIcon Class="mud-primary-text" Icon="@Icons.Filled.Star" Style="display: inline-block" />
+                </div>
+
+                <MudText Align="Align.Center">
+                    <b>Coach Joe Compagni</b>
+                </MudText>
+                <br />
+                <MudText Align="Align.Center">
+                    Ronnie Romero does a tremendous job of connecting with coaches. His knowledge is very helpful to student-athletes, in a light, fun and engaging format.
+                </MudText>
+            </MudItem>
+
+            <MudItem md="4" Style="padding: 45px;">
+                <div style="background-color:white;margin-bottom: 20px;width: 120px; height: 120px; border-radius: 50%; box-shadow: 0 4px 8px 0 rgb(0 0 0 / 20%), 0 6px 20px 0 rgb(0 0 0 / 19%);display: block;margin-left: auto;margin-right: auto;">
+                    <img alt="coach" src="images/ISR_BLACK.png" style="width: 87px;height: 33px;margin-left: auto;margin-right: auto;top: 50%;-ms-transform: translateY(130%);transform: translateY(130%);display:block" />
+                </div>
+
+
+                <div style="text-align: center;margin-bottom: 20px;">
+                    <MudIcon Class="mud-primary-text" Icon="@Icons.Filled.Star" Style="display: inline-block" />
+                    <MudIcon Class="mud-primary-text" Icon="@Icons.Filled.Star" Style="display: inline-block" />
+                    <MudIcon Class="mud-primary-text" Icon="@Icons.Filled.Star" Style="display: inline-block" />
+                    <MudIcon Class="mud-primary-text" Icon="@Icons.Filled.Star" Style="display: inline-block" />
+                    <MudIcon Class="mud-primary-text" Icon="@Icons.Filled.Star" Style="display: inline-block" />
+                </div>
+
+                <MudText Align="Align.Center">
+                    <b>Tami Johnson</b>
+                </MudText>
+                <br />
+                <MudText Align="Align.Center">
+                    We found Ronnie to be very helpful in educating and advising us as my son explored the possibility of playing Division 3 college football. The website has all the colleges and Ronnie helped us design an email blast for targeted schools. The end result was that my son got a substantial scholarship to a Division 3 school. Thank you, Ronnie.
+                </MudText>
+            </MudItem>
+        </MudGrid>
+    </div>
+
+    <MudGrid Style="padding-left: 15%;padding-right: 15%;padding-top: 70px;">
+        <MudItem md="5" Style="padding-right: 8%;">
+            <MudText Typo="Typo.h4" Class="mb-12 mt-12">
+                <b style="color: #161616;"><span class="mud-primary-text" style="font-size: 42px;">1.</span> Expanding the number of School to Maximize Your Potential</b>
+            </MudText>
+            <MudText>College recruiting can be extremely difficult on occasions, GRADES is the Key if success. Colleges coaches are Hunting every day. <b>(We have more than 28,000 target number of college coaches)</b></MudText>
+        </MudItem>
+        <MudItem md="7">
+            <img style="width:90%;box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);" alt="expand" src="images/list-of-universities.png" />
+        </MudItem>
+
+        <MudItem md="12" style="margin-bottom: 10%" />
+
+        <MudItem md="7">
+            <img style="width:90%;box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);" alt="expand" src="images/new-contact-gif.gif" />
+        </MudItem>
+        <MudItem md="5" Style="padding-left: 4%;">
+            <MudText Typo="Typo.h4" Class="mb-12 mt-12">
+                <b style="color: #161616;"><span class="mud-primary-text" style="font-size: 42px;">2.</span> Connecting with College Coaches will increase your opportunities.</b>
+            </MudText>
+            <MudText><b>Nearly 8 Million Student-Athlete</b> participated every year at the High School Level. Competition is a must, show coaches that you’re interested, let them know what you can bring to his/her team.</MudText>
+        </MudItem>
+
+        <MudItem md="12" style="margin-bottom: 10%" />
+
+        <MudItem md="5" Style="padding-right: 8%;">
+            <MudText Typo="Typo.h4" Class="mb-12 mt-12">
+                <b style="color: #161616;"><span class="mud-primary-text" style="font-size: 42px;">3.</span> Share Your Online Profile </b>
+            </MudText>
+            <MudText>"How can I recruit you, if I don’t know who you are?" Let coaches now by presenting <b>the best of you, GPA (Transcripts), SAT/ACT (Score), Highlights Videos (Huld, YouTube)</b>, and more ... This is Your Time!!!</MudText>
+        </MudItem>
+        <MudItem md="7">
+            <img style="width:90%;box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);" alt="expand" src="images/new-online-profile.gif" />
+        </MudItem>
+
+    </MudGrid>
+
+    <div style="background-color: black;color:white;padding: 6%; margin-top: 4%;">
+        <MudGrid Style="color: white">
+            <MudItem md="3">
+                <img alt="logo" src="images/ISR_WHITE.png" style="width: 60%" />
+            </MudItem>
+
+
+            <MudItem md="3" Style="text-align: center">
+                @foreach (var sportUniCount in _universitiesCount.Take(8))
+                {
+                    <MudLink Class="green-hover" Style="color: white !important;" Underline="Underline.None" Href="#">
+                        @sportUniCount.SportName <b style="font-size: 17px;">@sportUniCount.UniversitiesCount</b>
+                    </MudLink>
+                    <br />
+                }
+            </MudItem>
+
+            <MudItem md="3" Style="text-align: center">
+                @foreach (var sportUniCount in _universitiesCount.Skip(8).Take(8))
+                {
+                    <MudLink Class="green-hover" Style="color: white !important;" Underline="Underline.None" Href="#">
+                        @sportUniCount.SportName <b style="font-size: 17px;">@sportUniCount.UniversitiesCount</b>
+                    </MudLink>
+                    <br />
+                }
+            </MudItem>
+
+            <MudItem md="3" Style="text-align: center">
+                @foreach (var sportUniCount in _universitiesCount.Skip(16).Take(8))
+                {
+                    <MudLink Class="green-hover" Style="color: white !important;" Underline="Underline.None" Href="#">
+                        @sportUniCount.SportName <b style="font-size: 17px;">@sportUniCount.UniversitiesCount</b>
+                    </MudLink>
+                    <br />
+                }
+            </MudItem>
+
+            <MudItem md="12" Class="mb-7 mt-8" Style="background-color: #6a6a6a;padding: 1px !important;" />
+
+            <MudItem md="12" Style="color: white;text-align: center;">
+                <MudGrid>
+                    <MudItem md="4">
+                        <MudText>© 2022 iSportsRecruiting, LLC. v.5.0.0.2</MudText>
+                    </MudItem>
+                    <MudItem md="4">
+                        <MudText>
+                            <b>Visit us on</b>
+                        </MudText>
+                    </MudItem>
+                    <MudItem md="4">
+                        <img alt="download-apple" src="images/download-from-apple.svg" />
+                        <img alt="download-google" src="images/download-from-google.svg" />
+                    </MudItem>
+                </MudGrid>
+
+            </MudItem>
+        </MudGrid>
+    </div>
+</MudHidden>
+
+@code {
+    private bool _canShowInstall;
+    private AthleteDTO[] _elements = Array.Empty<AthleteDTO>();
+    private SportUniversityCountDto[] _universitiesCount = Array.Empty<SportUniversityCountDto>();
+    private bool _isPresentationMobile;
+    private bool _isFirstmobilePresentation = true;
+    private bool _isSecondmobilePresentation = false;
+    private bool _isThirdmobilePresentation = false;
+
+
+    protected override void OnInitialized()
+    {
+        _isPresentationMobile = true;
+
+        try
+        {
+            _ = GetCanShowInstall();
+
+            Task.Run(async () =>
+            {
+                var response = await _httpClient.GetFromJsonAsync<Response<AthleteDTO[]>>("api/v1/athlete");
+                _elements = response?.Payload;
+                StateHasChanged();
+            });
+
+            Task.Run(async () =>
+            {
+                var response = await _httpClient.GetFromJsonAsync<Response<SportUniversityCountDto[]>>("api/v1/university/universities-count");
+                _universitiesCount = response?.Payload;
+                StateHasChanged();
+            });
+        }
+        catch
+        {
+        }
+    }
+
+    private async Task GetCanShowInstall()
+    {
+        _canShowInstall = await _jsRuntime.InvokeAsync<bool>("getCanShowInstall");
+        StateHasChanged();
+    }
+
+    private async Task InstallAp()
+    {
+        await _jsRuntime.InvokeVoidAsync("installApp");
+        await GetCanShowInstall();
+    }
+    private void CloseFirstPresentation()
+    {
+        _isSecondmobilePresentation = true;
+        _isFirstmobilePresentation = false;
+        _isThirdmobilePresentation = false;
+    }
+    private void CloseSecondPresentation()
+    {
+        _isSecondmobilePresentation = false;
+        _isFirstmobilePresentation = false;
+        _isThirdmobilePresentation = true;
+    }
+    private void CloseThirdPresentation()
+    {
+        _isSecondmobilePresentation = false;
+        _isFirstmobilePresentation = false;
+        _isThirdmobilePresentation = false;
+        _isPresentationMobile = false;
+    }
+
+}

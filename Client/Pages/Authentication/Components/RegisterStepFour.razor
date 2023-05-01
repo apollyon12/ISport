@@ -1,0 +1,37 @@
+﻿@using iSportsRecruiting.Shared.DTO
+@using iSportsRecruiting.Shared.Models
+
+@using Microsoft.AspNetCore.Components
+
+<MudItem sm="12">
+    <MudTextField @bind-Value="@Billing.Card_Number" T="string" Label="Card Number" Variant="Variant.Outlined"></MudTextField>
+</MudItem>
+<MudItem sm="12">
+    <MudTextField @bind-Value="@Billing.Exp_Date" T="string" Label="Exp Date" Variant="Variant.Outlined"></MudTextField>
+</MudItem>
+<MudItem sm="12">
+    <MudTextField @bind-Value="@Billing.Card_Code" T="string" Label="Card Code" Variant="Variant.Outlined"></MudTextField>
+</MudItem>
+<MudItem sm="12">
+    <MudTextField @bind-Value="@Billing.Zip" T="string" Label="Zip" Variant="Variant.Outlined"></MudTextField>
+</MudItem>
+
+@code {
+    [Parameter]
+    public EntityBilling Billing { get; set; }
+    [Parameter]
+    public EventCallback<EntityBilling> BillingChanged { get; set; }
+
+    [Parameter]
+    public AthleteRegisterDto Model { get; set; }
+    [Parameter]
+    public EventCallback<AthleteRegisterDto> ModelChanged { get; set; }
+
+    private string _promotionCode;
+
+    public void UpdateBindings()
+    {
+        ModelChanged.InvokeAsync(Model);
+        BillingChanged.InvokeAsync(Billing);
+    }
+}

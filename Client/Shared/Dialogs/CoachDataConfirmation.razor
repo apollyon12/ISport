@@ -1,0 +1,33 @@
+﻿@using iSportsRecruiting.Shared.Models
+@namespace iSportsRecruiting.Client.Shared.Dialogs
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Person" Class="mr-3 mb-n1" />
+            Is this you?
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid>
+            <MudItem sm="12" Class="p-6">
+                <MudText Typo="Typo.h6" Align="Align.Center">@CoachName</MudText>
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">NO</MudButton>
+        <MudButton Color="Color.Success" Variant="Variant.Filled" OnClick="Confirm">YES</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private MudButton _copyButton;
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public string CoachName { get; set; }
+
+    void Confirm() => MudDialog.Close(DialogResult.Ok(true));
+    void Cancel() => MudDialog.Cancel();
+}

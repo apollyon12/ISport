@@ -1,0 +1,41 @@
+﻿@inject NavigationManager _navigationManager;
+
+<MudBreakpointProvider />
+
+<MudAppBar Fixed="false" Elevation="@Elevation" Style="background-color: #050504;height: 90px;">
+    <img alt="logo" src="/images/ISR_WHITE.png" style="cursor: pointer; margin-top: 59px; width: 95px; margin-left: 40px;" @onclick="@(() => _navigationManager.NavigateTo("/"))" />
+
+    <MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+        <ul style="margin-left: 42px; margin-top: 60px;">
+            <li>
+                <a href="/">Home</a>
+            </li>
+             <li>
+                <a href="/public/sports">Sports & GPA</a>
+            </li>
+            <li>
+                <a href="/about-us">About Us</a>
+            </li>
+            <li>
+                <a href="/support">Support</a>
+            </li>
+        </ul>
+        <MudSpacer />
+
+        <ul style="margin-right: 42px; margin-top: 60px;">
+            <li>
+                <a href="/login">LOGIN</a>
+            </li>
+            <li>
+                <a href="/register">REGISTER</a>
+            </li>
+        </ul>
+    </MudHidden>
+</MudAppBar>
+
+@code {
+
+    [Parameter]
+    public int Elevation { get; set; }
+
+}

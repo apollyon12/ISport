@@ -1,0 +1,33 @@
+﻿@inherits LayoutComponentBase
+
+<MudDialogProvider Position="DialogPosition.Center"/>
+<MudThemeProvider Theme="MyCustomTheme"/>
+<MudSnackbarProvider/>
+<style>
+    body {
+            background-color: #ffffff;
+        }
+</style>
+@Body
+
+@code{
+
+    MudTheme MyCustomTheme = new()
+    {
+        Palette = new Palette()
+        {
+            Primary = "#000000",
+            Secondary = "#2ebb0e",
+            AppbarBackground = "#000000",
+        },
+        PaletteDark = new Palette()
+        {
+            Primary = Colors.Blue.Lighten1
+        },
+        LayoutProperties = new LayoutProperties()
+        {
+            DrawerWidthLeft = "260px",
+            DrawerWidthRight = "300px"
+        }
+    };
+}

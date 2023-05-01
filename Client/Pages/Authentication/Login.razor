@@ -1,0 +1,81 @@
+@page "/login"
+@using iSportsRecruiting.Client.Shared
+
+@layout LoginLayout
+
+@inject ISnackbar _snackBar
+@inject HttpClient _httpClient;
+@inject NavigationManager _navigationManager
+@inject Blazored.LocalStorage.ILocalStorageService _localStorage;
+<style>
+    .mud-container-maxwidth-sm {
+        max-width: 561px !important;
+    }
+</style>
+<MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center" Style="height: 100vh;" @onkeypress="SubmitByEnterAsync">
+    <MudPaper Elevation="9" Style="width: 500px;">
+        <MudGrid Class="pa-8">
+            <MudItem xs="12">
+                <div class="d-flex justify-center">
+                    <img alt="logo" src="images/ISR_BLACK.png" width="200" @onclick="@(() => _navigationManager.NavigateTo("/"))" style="cursor:pointer" />
+                </div>
+            </MudItem>
+
+            <MudItem xs="12">
+                <div class="d-flex justify-center">
+                    <MudText>Login with your Credentials.</MudText>
+                </div>
+            </MudItem>
+            <MudItem xs="12">
+                <div class="d-flex justify-center">
+                    <MudText>Don't have an account? <MudLink Href="/register">Register here</MudLink></MudText>
+                </div>
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField T="string" Label="E-mail" Variant="Variant.Outlined"
+                              @bind-Value="Email" For="@(() => Email)" Required="true" RequiredError="Email is required!"></MudTextField>
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField T="string" Label="Password" Variant="Variant.Outlined" @bind-Value="Password" Required="true"
+                              RequiredError="Password is required!" InputType="@_passwordInput" Adornment="Adornment.End"
+                              AdornmentIcon="@_passwordInputIcon" OnAdornmentClick="TogglePasswordVisibility" />
+            </MudItem>
+            <MudItem xs="12" Class="d-flex justify-space-between align-center">
+                <MudCheckBox @bind-Checked="RememberMe" T="bool" Label="Remember me?" Color="Color.Primary" Class="ml-n1"></MudCheckBox> <MudLink Href="/account/forgot-password">Forgot password?</MudLink>
+            </MudItem>
+            <MudItem xs="12" Class="d-flex justify-center">
+                <MudButton ButtonType="ButtonType.Submit" Disabled="@IsLoading" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" Style="width: 100%;" OnClick="SubmitAsync">Sign In</MudButton>
+            </MudItem>
+        </MudGrid>
+        @if (IsLoading)
+        {
+            <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+        }
+    </MudPaper>
+</MudContainer>
+
+@code {
+    bool IsLoading { get; set; }
+    string Password { get; set; }
+    bool RememberMe { get; set; }
+
+    bool _passwordVisibility;
+    InputType _passwordInput = InputType.Password;
+    string _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
+
+    void TogglePasswordVisibility()
+    {
+        @if (_passwordVisibility)
+        {
+            _passwordVisibility = false;
+            _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
+            _passwordInput = InputType.Password;
+        }
+        else
+        {
+            _passwordVisibility = true;
+            _passwordInputIcon = Icons.Material.Filled.Visibility;
+            _passwordInput = InputType.Text;
+        }
+    }
+}

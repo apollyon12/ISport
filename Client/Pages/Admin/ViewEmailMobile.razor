@@ -1,0 +1,20 @@
+﻿@page "/emails/{Id:int}"
+
+@using Blazored.LocalStorage
+@using iSportsRecruiting.Shared.Models
+
+@inject ILocalStorageService LocalStorage;
+
+<EmailMobile  Email="email"></EmailMobile>
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private EmailModel email = new();
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        email = await LocalStorage.GetItemAsync<EmailModel>("email");
+    }
+}

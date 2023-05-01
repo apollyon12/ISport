@@ -1,0 +1,49 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+	<PropertyGroup>
+		<TargetFramework>net6.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<AssemblyVersion>2.0.1.2508</AssemblyVersion>
+		<FileVersion>2.0.1.2508</FileVersion>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Blazored.LocalStorage" Version="4.1.5" />
+		<PackageReference Include="Blazored.SessionStorage" Version="2.2.0" />
+		<PackageReference Include="BlazorInputFile" Version="0.2.0" />
+		<PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="6.0.1" />
+		<PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Authentication" Version="6.0.1" />
+		<PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="6.0.1" PrivateAssets="all" />
+		<PackageReference Include="MudBlazor" Version="6.0.10-dev.5" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Shared\iSportsRecruiting.Shared.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Folder Include="wwwroot\css" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <_ContentIncludedByDefault Remove="Pages\Catalog\AddEditBrandModal.razor" />
+	  <_ContentIncludedByDefault Remove="Pages\Catalog\AddEditProductModal.razor" />
+	  <_ContentIncludedByDefault Remove="Pages\Catalog\Brands.razor" />
+	  <_ContentIncludedByDefault Remove="Pages\Catalog\Products.razor" />
+	  <_ContentIncludedByDefault Remove="Pages\Communication\Chat.razor" />
+	  <_ContentIncludedByDefault Remove="Pages\Misc\AddEditDocumentModal.razor" />
+	  <_ContentIncludedByDefault Remove="Pages\Misc\DocumentStore.razor" />
+	  <_ContentIncludedByDefault Remove="Pages\Content\Dashboard.razor" />
+	  <_ContentIncludedByDefault Remove="Pages\Content\Home.razor" />
+	  <_ContentIncludedByDefault Remove="Pages\Utilities\AuditTrails.razor" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Include="wwwroot\images\download-from-apple.svg" />
+	  <None Include="wwwroot\images\download-from-google.svg" />
+	  <None Include="wwwroot\images\welcome_background.svg" />
+	  <None Include="wwwroot\images\welcome_background_sm.svg" />
+	</ItemGroup>
+
+</Project>

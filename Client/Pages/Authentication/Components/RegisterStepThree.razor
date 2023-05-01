@@ -1,0 +1,212 @@
+﻿@using iSportsRecruiting.Shared.DTO
+@using iSportsRecruiting.Shared.Models
+@using System.Net.Http.Json
+@using iSportsRecruiting.Client.Shared.Dialogs
+
+@inject ISnackbar _snackBar
+@inject IJSRuntime _runtime
+@inject HttpClient _httpClient
+@inject IDialogService _dialogService
+
+@if (_isByCreditCard)
+{
+    <MudItem xs="12">
+        <MudText Typo="Typo.h6" Align="Align.Left">
+            <b>PLANS</b>
+        </MudText>
+        @if (IsTempOffer)
+        {
+            <MudRadioGroup @bind-SelectedOption="PaymentMode">
+                <MudRadio Option="@("Weekly")" Color="Color.Primary">$1.00 Fifteen Days Promotion</MudRadio>
+            </MudRadioGroup>
+        }
+        else if (!string.IsNullOrEmpty(PromotionCode))
+        {
+            <MudRadioGroup @bind-SelectedOption="PaymentMode">
+                <MudRadio Option="@("Monthly")" Color="Color.Primary">First 30 Days Free, then $24.99 (Monthly)</MudRadio>
+            </MudRadioGroup>
+        }
+        else
+        {
+            <MudRadioGroup @bind-SelectedOption="PaymentMode">
+                <MudRadio Option="@("Monthly")" Color="Color.Primary">$24.99 (Monthly)</MudRadio>
+            </MudRadioGroup>
+        }
+    </MudItem>
+
+    <MudItem xs="12">
+        <MudTextField Mask="@(new PatternMask("0000 0000 0000 0000"))" @bind-Value="@Billing.Card_Number" T="string" Label="Card Number" Variant="Variant.Outlined" />
+    </MudItem>
+    <MudItem xs="12">
+        <MudTextField Mask="@(new PatternMask("00/00"))" @bind-Value="@Billing.Exp_Date" T="string" Label="Exp Date" Variant="Variant.Outlined" />
+    </MudItem>
+    <MudItem xs="12">
+        <MudTextField Mask="@(new PatternMask("0000"))" @bind-Value="@Billing.Card_Code" T="string" Label="Card Verification Code (CVC)" Variant="Variant.Outlined" />
+    </MudItem>
+    <MudItem xs="12">
+        <MudTextField @bind-Value="@Billing.Zip" T="string" Label="Zip" Variant="Variant.Outlined" MaxLength="12"></MudTextField>
+    </MudItem>
+
+    <MudItem xs="12">
+        <MudText Align="Align.Right" Typo="Typo.h5">TOTAL <b>$@(Total.ToString("#.00"))</b></MudText>
+    </MudItem>
+}
+else
+{
+    <div style="margin: 11px; width: 100%">
+        <MudGrid Style="width: 45vh !important;">
+            <MudItem xs="12" sm="12">
+                <MudText Typo="Typo.h6" Align="Align.Center">
+                    <b>Pay with...</b>
+                </MudText>
+            </MudItem>
+            <MudItem xs="12" sm="12" Class="d-flex justify-center">
+                <MudButton ButtonType="ButtonType.Button" Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" Style="width: 100%" OnClick="ShowForm">CARD</MudButton>
+            </MudItem>
+            @*<MudItem id="payButtonsContainer" xs="6" sm="6" Class="d-flex justify-center">
+
+        </MudItem>*@
+        </MudGrid>
+    </div>
+}
+
+@code {
+
+    [Parameter]
+    public EntityBilling Billing { get; set; }
+
+    [Parameter]
+    public EventCallback<EntityBilling> BillingChanged { get; set; }
+
+    [Parameter]
+    public string PromotionCode { get; set; }
+
+    [Parameter]
+    public bool IsTempOffer { get; set; }
+
+    [Parameter]
+    public AthleteRegisterDto Model { get; set; }
+
+    [Parameter]
+    public EventCallback<AthleteRegisterDto> ModelChanged { get; set; }
+
+    [Parameter]
+    public bool ShowButtons { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> ShowButtonsChanged { get; set; }
+
+    public event Action? RerenderRequest;
+
+    private bool _isByCreditCard;
+
+    private string _paymentMode = "Monthly";
+
+    string PaymentMode
+    {
+        get => _paymentMode;
+        set
+        {
+            _paymentMode = value;
+            Billing.Plan = PaymentMode == "Weekly" ? "WS" : "MS";
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Total = decimal.Zero;
+
+        if (PromotionCode is not null)
+        {
+            _promotionCode = PromotionCode;
+            await GetPromotionAsync();
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        //await _runtime.InvokeVoidAsync("addButton");
+    }
+
+    public bool IsLoading { get; set; }
+
+    private PromotionModel _promotion;
+
+    private decimal _discountAmount;
+
+    private decimal _total;
+    public decimal Total
+    {
+        get
+        {
+            return _total;
+        }
+        set
+        {
+            if (IsTempOffer)
+                _total = new decimal(1.00);
+            else
+                _total = PaymentMode == "Weekly"
+                    ? new decimal(7.99)
+                    : new decimal(24.99);
+        }
+    }
+
+    private bool _allAmerican = false;
+
+    private string _promotionCode;
+
+    private void ShowForm()
+    {
+        _isByCreditCard = true;
+        StateHasChanged();
+
+        ShowButtonsChanged.InvokeAsync(true);
+        RerenderRequest?.Invoke();
+    }
+
+    public bool IsFirstSubscription() => RerenderRequest is null;
+
+
+    public void CheckIfCompleted()
+    {
+        ModelChanged.InvokeAsync(Model);
+        BillingChanged.InvokeAsync(Billing);
+    }
+
+    public async Task GetPromotionAsync()
+    {
+
+        if (_promotionCode == "ALLAMERICAN")
+        {
+            _allAmerican = true;
+            Billing.Plan = "AA";
+
+            StateHasChanged();
+            return;
+        }
+
+        IsLoading = true;
+        StateHasChanged();
+
+        var promotionResponse = await _httpClient.GetFromJsonAsync<Response<PromotionModel>>($"api/v1/promotion/code/{_promotionCode}");
+        if (promotionResponse?.Payload is not null)
+        {
+            var promo = promotionResponse.Payload;
+            if (promotionResponse.Payload.Expiration > DateTime.Now)
+            {
+                _promotion = promotionResponse.Payload;
+
+                Billing.Plan = _promotion.Plan_Id;
+            }
+            else
+            {
+                _snackBar.Add("This promotion code is not for this plan or it's expired", Severity.Error);
+            }
+        }
+
+        IsLoading = false;
+        StateHasChanged();
+    }
+
+}

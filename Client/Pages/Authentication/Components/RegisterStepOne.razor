@@ -1,0 +1,146 @@
+﻿@using iSportsRecruiting.Shared.DTO
+@using System.Text.RegularExpressions
+@using iSportsRecruiting.Shared.Security
+@using System.Net.Mail
+@using System.Text
+@using System.Net.Http.Json
+
+@inject ISnackbar _snackBar
+@inject HttpClient _httpClient;
+
+<MudItem xs="12">
+    <MudTextField Variant="Variant.Outlined" @bind-Value="Model.Info.FirstName" Required="true" Label="First Name" />
+</MudItem>
+<MudItem xs="12">
+    <MudTextField Variant="Variant.Outlined" @bind-Value="Model.Info.LastName" Required="true" Label="Last Name" />
+</MudItem>
+<MudItem xs="12">
+    <MudTextField Variant="Variant.Outlined" T="string" Label="E-mail"
+                  @bind-Value="Model.Info.Email" Required="true" RequiredError="mail is required!" Validation="@(new Func<string, IEnumerable<string>>(ValidateEmail))"></MudTextField>
+    @if (_emailIsLoading)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Success" />
+    }
+</MudItem>
+<MudItem xs="12">
+    <MudTextField @ref="_passwordField" Variant="Variant.Outlined" InputType="@_passwordInput" Adornment="Adornment.End" AdornmentIcon="@_passwordInputIcon" OnAdornmentClick="TogglePasswordVisibility"
+                  Validation="@(new Func<string, IEnumerable<string>>(PasswordStrength))" @bind-Value="_password" Required="true" Label="Password" />
+</MudItem>
+<MudItem xs="12">
+    <MudTextField Variant="Variant.Outlined" Validation="@(new Func<string, string>(PasswordMatch))" InputType="InputType.Password" Required="true" @bind-Value="_confirmPassword" Label="Confirm Password" />
+</MudItem>
+
+@code {
+    [Parameter]
+    public AthleteRegisterDto Model { get; set; }
+    [Parameter]
+    public EventCallback<AthleteRegisterDto> ModelChanged { get; set; }
+
+    public async Task<bool> CheckIfCompleted()
+    {
+        await ModelChanged.InvokeAsync(Model);
+
+        var isOk = !string.IsNullOrWhiteSpace(Model.Info.FirstName)
+            && !string.IsNullOrWhiteSpace(Model.Info.LastName) && !string.IsNullOrWhiteSpace(Model.Info.Email)
+            && !string.IsNullOrWhiteSpace(Model.Cipher);
+
+        if (isOk)
+        {
+            _emailIsLoading = true;
+            StateHasChanged();
+
+            var response = await _httpClient.GetFromJsonAsync<Response<bool>>($"/api/v1/account/validate/{Model.Info.Email}");
+
+            _emailIsLoading = false;
+            StateHasChanged();
+
+            if (response?.Payload ?? false)
+            {
+                _snackBar.Add("Email already exists", Severity.Error);
+                return false;
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private string _password;
+    private string _confirmPassword;
+    private MudTextField<string> _passwordField;
+
+    private IEnumerable<string> PasswordStrength(string pw)
+    {
+        if (string.IsNullOrWhiteSpace(pw))
+        {
+            yield return "Password is required!";
+            yield break;
+        }
+
+        if (pw.Length < 8)
+            yield return "Password must be at least of length 8";
+        if (!Regex.IsMatch(pw, @"[A-Z]"))
+            yield return "Password must contain at least one capital letter";
+        if (!Regex.IsMatch(pw, @"[a-z]"))
+            yield return "Password must contain at least one lowercase letter";
+        if (!Regex.IsMatch(pw, @"[0-9]"))
+            yield return "Password must contain at least one digit";
+    }
+
+    private string PasswordMatch(string arg)
+    {
+        if (_password != arg)
+            return "Passwords don't match";
+
+        Model.Cipher = Cripto.EncryptPassword(_password);
+
+        return null;
+    }
+
+    private bool _emailIsLoading;
+
+    private bool _passwordVisibility;
+    private InputType _passwordInput = InputType.Password;
+    private string _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
+
+    private void TogglePasswordVisibility()
+    {
+        if (_passwordVisibility)
+        {
+            _passwordVisibility = false;
+            _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
+            _passwordInput = InputType.Password;
+        }
+        else
+        {
+            _passwordVisibility = true;
+            _passwordInputIcon = Icons.Material.Filled.Visibility;
+            _passwordInput = InputType.Text;
+        }
+    }
+
+    private bool _emailLoading;
+    private IEnumerable<string> ValidateEmail(string email)
+    {
+        if (MailAddressValidation(email))
+        {
+            yield break;
+        }
+
+        yield return "Invalid email";
+    }
+
+    private bool MailAddressValidation(string email)
+    {
+        try
+        {
+            MailAddress m = new(email);
+            return true;
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+    }
+}

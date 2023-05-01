@@ -1,0 +1,408 @@
+﻿@using iSportsRecruiting.Shared.DTO;
+@using iSportsRecruiting.Shared.Email
+@using iSportsRecruiting.Shared.Models
+@using System.Net.Http.Json
+@using iSportsRecruiting.Client.Shared
+
+@inject ISnackbar _snackBar
+@inject HttpClient _httpClient
+@inject Blazored.LocalStorage.ILocalStorageService _localStorage;
+<style>
+    .mud-tabs-toolbar-tertiary {
+        position: fixed !important;
+        z-index: 9 !important;
+        width: 100% !important;
+    }
+
+    .white-mobile {
+        margin-top: 13%;
+    }
+</style>
+
+
+<MudTabs KeepPanelsAlive="true" Color="Color.Tertiary" SliderColor="Color.Success" Elevation="3" Position="@Position.Top" ScrollIconColor="@Color.Primary" PanelClass="pa-6 white-mobile" Centered="true" Style="@(StyleTabs)">
+    <MudTabPanel Icon="@Icons.Material.Outlined.Info" Style="color: #262626">
+        <MudGrid>
+            <MudItem sm="12" xs="12">
+                @if (Athlete is null)
+                {
+                    <MudSkeleton />
+                }
+                else
+                {
+                    <MudText Typo="Typo.h4" Align="Align.Center">STATEMENT</MudText>
+                }
+            </MudItem>
+            <MudItem sm="12" xs="12">
+                @if (Athlete is null)
+                {
+                    <MudSkeleton />
+                }
+                else
+                {
+                    <MudText Typo="Typo.body1" Align="Align.Center">@Athlete.PersonalStatement</MudText>
+                }
+            </MudItem>
+
+            <MudItem sm="12" xs="12">
+                <MudDivider Class="mb-2" />
+            </MudItem>
+            @if (Athlete is null)
+            {
+                <MudSkeleton />
+            }
+            else
+            {
+                <MudItem sm="12" xs="12">
+                    <MudText Typo="Typo.h4" Align="Align.Center">VIDEOS</MudText>
+                </MudItem>
+                @if (Athlete is not null && Athlete.Videos is not null && Athlete.Videos.Any())
+                {
+                    @foreach (var video in Athlete.Videos)
+                    {
+                        <MudItem xs="12" Class="mb-4">
+                            <MudText Typo="Typo.h5" Align="Align.Center">
+                                <b>@video.Title</b>
+                            </MudText>
+                            @if (video.Video.Contains("you"))
+                            {
+                                <div style="position: absolute; height: 14%; width: 87%;" onclick="@(() => ShowVideoOverlay(video))">
+                                </div>
+                                <iframe src="@GetEmbed("YouTube", video.Video)" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                            }
+                            else
+                            {
+                                <iframe @onclick="() => ShowVideoOverlay(video)" src='@GetEmbed("Hudl", video.Video)' frameborder='0' allowfullscreen></iframe>
+                            }
+                        </MudItem>
+
+                        <MudItem xs="12" Class="mb-5">
+                            <MudDivider Class="mb-2" />
+                        </MudItem>
+                    }
+                }
+            }
+
+        </MudGrid>
+    </MudTabPanel>
+    @if (Athlete is not null)
+    {
+        <MudTabPanel Icon="@Icons.Material.Outlined.School" Style="color: #262626">
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudText Typo="Typo.h4" Align="Align.Center">BASIC INFO</MudText>
+                </MudItem>
+
+                <MudItem xs="12">
+                    @if (!string.IsNullOrWhiteSpace(Athlete.GPA))
+                    {
+                        <MudText Typo="Typo.h5" Align="Align.Center">GPA <b>@Athlete.GPA</b></MudText>
+                        @if (Athlete.GpaFileOrigin is not null)
+                        {
+                            <MudButton Class="mt-2" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.FileDownload" Color="Color.Primary" OnClick="ShowGPAOverlay">DOWNLOAD</MudButton>
+                        }
+                    }
+                </MudItem>
+                <MudItem xs="12">
+                    @if (!string.IsNullOrWhiteSpace(Athlete.ACT))
+                    {
+                        <MudText Typo="Typo.h5" Align="Align.Center">ACT <b>@Athlete.ACT</b></MudText>
+                        @if (Athlete.ActFileOrigin is not null)
+                        {
+                            <MudButton Class="mt-2" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.FileDownload" Color="Color.Primary" OnClick="ShowACTOverlay">DOWNLOAD</MudButton>
+                        }
+                    }
+                </MudItem>
+                <MudItem xs="12">
+                    @if (!string.IsNullOrWhiteSpace(Athlete.SAT))
+                    {
+                        <MudText Typo="Typo.h5" Align="Align.Center">SAT <b>@Athlete.SAT</b></MudText>
+                        @if (Athlete.SatFileOrigin is not null)
+                        {
+                            <MudButton Class="mt-2" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.FileDownload" Color="Color.Primary" OnClick="ShowSATOverlay">DOWNLOAD</MudButton>
+                        }
+                    }
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudDivider Class="mb-2" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudText Typo="Typo.h4" Align="Align.Center">HONORS</MudText>
+                </MudItem>
+                @if (Athlete is not null)
+                {
+                    @foreach (var honor in Athlete.Honors)
+                    {
+                        <MudItem sm="12" xs="12">
+                            <MudText Typo="Typo.h6">
+                                <b>@honor.Year</b>
+                            </MudText>
+                            <MudText Typo="Typo.subtitle1">@honor.HonorRoll</MudText>
+                        </MudItem>
+                    }
+
+                }
+
+                <MudItem sm="12" xs="12">
+                    <MudDivider Class="mb-2" />
+                </MudItem>
+
+                <MudItem sm="12" xs="12">
+                    <MudText Typo="Typo.h4" Align="Align.Center">AWARDS</MudText>
+                </MudItem>
+                @if (Athlete is not null)
+                {
+                    @foreach (var award in Athlete.Awards)
+                    {
+                        <MudItem sm="12" xs="12">
+                            <MudText Typo="Typo.h6">
+                                <b>@award.Year</b>
+                            </MudText>
+                            <MudText Typo="Typo.subtitle1">@award.Awards</MudText>
+                        </MudItem>
+                    }
+                }
+
+                <MudItem sm="12" xs="12">
+                    <MudDivider Class="mb-2" />
+                </MudItem>
+            </MudGrid>
+        </MudTabPanel>
+        <MudTabPanel Icon="@Icons.Material.Outlined.SportsScore" Style="color: #262626">
+            <MudGrid>
+                @if (Athlete.NCAA > 0 || Athlete.NAIA > 0)
+                {
+                    <MudItem sm="12" xs="12">
+                        <MudText Typo="Typo.h4" Align="Align.Center">IDENTIFICATIONS</MudText>
+                    </MudItem>
+
+                    @if (Athlete.NCAA > 0)
+                    {
+                        <MudItem sm="6" xs="6">
+                            <MudText Typo="Typo.h6">NCAA</MudText>
+                            <MudText Typo="Typo.h6">
+                                <b>@Athlete.NCAA</b>
+                            </MudText>
+                        </MudItem>
+                    }
+
+                    @if (Athlete.NAIA > 0)
+                    {
+                        <MudItem sm="6" xs="6">
+                            <MudText Typo="Typo.h6">NAIA</MudText>
+                            <MudText Typo="Typo.h6">
+                                <b>@Athlete.NAIA</b>
+                            </MudText>
+                        </MudItem>
+                    }
+
+                    <MudItem sm="12" xs="12">
+                        <MudDivider Class="mb-2" />
+                    </MudItem>
+                }
+
+                <MudItem sm="12" xs="12">
+                    <MudText Typo="Typo.h4" Align="Align.Center">STATS</MudText>
+                </MudItem>
+
+                <MudItem sm="12" xs="12">
+                    <MudTable Style="background-color: #fafafa" Elevation="0" Square="true" Items="Items" Hover="true" Breakpoint="Breakpoint.Sm" ReadOnly="false" LoadingProgressColor="@Color.Secondary">
+                        <HeaderContent>
+                            @foreach (var stat in Stats)
+                            {
+                                <MudTh>@stat.Key</MudTh>
+                            }
+                        </HeaderContent>
+                        <RowTemplate>
+                            @foreach (var stat in Stats)
+                            {
+                                <MudTd DataLabel="@stat.Key">
+                                    @stat.Value
+                                </MudTd>
+                            }
+                        </RowTemplate>
+                    </MudTable>
+                </MudItem>
+
+                <MudItem sm="12" xs="12">
+                    <MudDivider Class="mb-2" />
+                </MudItem>
+
+                <MudItem sm="12" xs="12">
+                    <MudText Typo="Typo.h4" Align="Align.Center">HISTORY</MudText>
+                </MudItem>
+
+                @foreach (var story in Athlete.Stories)
+                {
+                    <MudItem sm="12" xs="12">
+                        <MudText Typo="Typo.h6"><b>@story.Year</b> (@story.Description)</MudText>
+                        <MudText Typo="Typo.subtitle1">@story.HighSchool</MudText>
+                    </MudItem>
+                }
+
+                <MudItem sm="12" xs="12">
+                    <MudDivider Class="mb-2" />
+                </MudItem>
+
+                <MudItem sm="12" xs="12">
+                    <MudText Typo="Typo.h4" Align="Align.Center">COACHES</MudText>
+                </MudItem>
+
+                @foreach (var coach in Athlete.Coaches)
+                {
+                    <MudItem sm="12" xs="12">
+                        <MudText Typo="Typo.h6">
+                            <b>@coach.Name</b> @coach.ClubName
+                        </MudText>
+                        <MudText Typo="Typo.subtitle1">@coach.Email - @coach.Phone</MudText>
+                    </MudItem>
+                }
+            </MudGrid>
+        </MudTabPanel>
+        <MudTabPanel Icon="@Icons.Material.Outlined.LocalPhone" Style="color: #262626">
+            <MudGrid>
+                <MudItem sm="12" xs="12">
+                    <MudText Typo="Typo.h4" Align="Align.Center">PHONE(S)</MudText>
+                </MudItem>
+
+                <MudItem sm="12" xs="12">
+                    <MudText Typo="Typo.subtitle1">Athlete <b>@Athlete.CellPhone</b></MudText>
+                    <MudText Typo="Typo.subtitle1">Guardian (@Athlete.GuardianName) <b>@Athlete.GuardianPhone</b></MudText>
+                </MudItem>
+
+                <MudItem sm="12" xs="12">
+                    <MudDivider Class="mb-2" />
+                </MudItem>
+
+                <MudItem sm="12" xs="12">
+                    <MudText Typo="Typo.h4" Align="Align.Center">Address</MudText>
+                </MudItem>
+                @if (Athlete is not null)
+                {
+                    <MudItem sm="12" xs="12">
+                        <MudText Typo="Typo.subtitle1">@Athlete.Address</MudText>
+                    </MudItem>
+                }
+                <MudItem sm="12" xs="12">
+                    <MudDivider Class="mb-2" />
+                </MudItem>
+
+
+                @if (_account?.Type == UserType.Coach)
+                {
+                    <MudItem sm="12" xs="12">
+                        <MudText Typo="Typo.h4" Align="Align.Center">Send an Email</MudText>
+                    </MudItem>
+
+                    <MudItem sm="12" xs="12">
+                        <MudTextField Label="Write your message here..." Class="mb-3" Lines="8" @bind-Value="EmailBody" Variant="Variant.Outlined" />
+                        <MudButton Style="float: right" Variant="Variant.Filled" Color="Color.Primary"
+                           StartIcon="@Icons.Filled.Email" IconColor="Color.Success" OnClick="SendEmail">
+                            SEND EMAIL
+                        </MudButton>
+                    </MudItem>
+                }
+            </MudGrid>
+        </MudTabPanel>
+    }
+</MudTabs>
+
+@code {
+    [Parameter]
+    public AthleteDTO Athlete { get; set; }
+    [Parameter]
+    public string StyleTabs { get; set; }
+    [Parameter]
+    public Dictionary<string, string> Stats { get; set; }
+    [Parameter]
+    public EventCallback<AthleteVideosDTO> Video { get; set; }
+    [Parameter]
+    public EventCallback<bool> ShowGpa { get; set; }
+    [Parameter]
+    public EventCallback<bool> ShowACT { get; set; }
+    [Parameter]
+    public EventCallback<bool> ShowSAT { get; set; }
+    [Parameter]
+    public List<string> Items { get; set; }
+    [Parameter]
+    public AccountDto _account { get; set; }
+
+    private string EmailBody { get; set; }
+
+    private void ShowVideoOverlay(AthleteVideosDTO video)
+    {
+        Video.InvokeAsync(video);
+    }
+    public string GetEmbed(string host, string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return string.Empty;
+
+        if (host == "YouTube")
+        {
+            if (url.Contains("embed"))
+                return url;
+
+            if (url.Contains("youtu.be"))
+            {
+                var id = url.Split("/").Last();
+                return $"https://www.youtube.com/embed/{id}";
+            }
+            else
+            {
+                var id = url.Split("v=")[1].Split("&")[0];
+                return $"https://www.youtube.com/embed/{id}";
+            }
+        }
+        else
+        {
+            var id = url.Replace("https://www.hudl.com/", string.Empty);
+            return $"//www.hudl.com/embed/{id}";
+        }
+    }
+    private void ShowGPAOverlay()
+    {
+        ShowGpa.InvokeAsync(true);
+    }
+    private void ShowACTOverlay()
+    {
+        ShowACT.InvokeAsync(true);
+    }
+    private void ShowSATOverlay()
+    {
+        ShowSAT.InvokeAsync(true);
+    }
+    private async Task SendEmail()
+    {
+        var universityResponse = await _httpClient.GetFromJsonAsync<Response<UniversityDTO[]>>($"api/v1/university?id={_account.Coach.UniversityId}");
+        var university = universityResponse.Payload.First();
+        string subject = $"Coach {_account.Coach.FirstName} {_account.Coach.LastName} from {university.University} is interested in you";
+        var response = await _httpClient.PostAsJsonAsync($"api/v1/email/sendemail/collegecoach@isportsrecruiting.com/{_account.Coach.FirstName} {_account.Coach.LastName}/{subject}/{EmailBody}",
+            new EmailContact { Email = Athlete.Email, Name = $"{Athlete.FirstName} {Athlete.LastName}" });
+
+        if (response.IsSuccessStatusCode)
+        {
+            await _httpClient.PostAsJsonAsync("api/v1/email", new EmailModel
+                {
+                    Receiver_Name = $"{Athlete.FirstName} {Athlete.LastName}",
+                    Receiver_Image = Athlete.ImageProfile,
+                    Sender_Name = $"{_account.Coach.FirstName} {_account.Coach.LastName}",
+                    Sender_Image = $"https://isportsrecruiting.com/api/v1/file/logos/180/180/{universityResponse?.Payload.FirstOrDefault().Image}.jpg",
+                    Content = EmailBody,
+                    Receiver_Id = Athlete.Id,
+                    Sender_Id = _account.Coach.UniversityContactId,
+                    Subject = subject,
+                    University_Id = _account.Coach.UniversityId,
+                    University_Name = _account.Coach.University
+                });
+            _snackBar.Add("Email sent!", Severity.Success);
+        }
+        else
+        {
+            _snackBar.Add("There was a problem trying to send the email...", Severity.Error);
+        }
+    }
+
+}

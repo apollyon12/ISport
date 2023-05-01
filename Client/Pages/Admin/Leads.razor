@@ -1,0 +1,519 @@
+﻿@page "/leads"
+
+@using iSportsRecruiting.Shared.DTO;
+@using iSportsRecruiting.Client.Shared.Dialogs
+@using System.Net.Http.Json
+@using System.Text
+@using Microsoft.AspNetCore.Components.Forms
+@using System.Globalization
+
+@inject ISnackbar _snackBar
+@inject IJSRuntime _jsRuntime
+@inject HttpClient _httpClient
+@inject IDialogService _dialogService
+@inject NavigationManager _navigationManager
+@inject Blazored.LocalStorage.ILocalStorageService _localStorage;
+
+<MudExpansionPanels Elevation="9">
+    <MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+        <div class="mb-6" style="text-align: right">
+            <InputFile id="fileInput" OnChange="UploadFiles" hidden accept=".csv" />
+            <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Message" Color="Color.Secondary" OnClick="SendMessages">SMS</MudButton>
+            <MudButton HtmlTag="label" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.DocumentScanner" Color="Color.Secondary" for="fileInput">IMPORT FROM FILE</MudButton>
+        </div>
+
+        <MudExpansionPanel Text="Manage" @bind-IsExpanded="_isExpanded">
+            <MudGrid>
+                <MudItem sm="4" xs="12">
+                    <MudTextField @bind-Value="_element.FullName" T="string" Label="Full Name" />
+                </MudItem>
+                <MudItem sm="4" xs="12">
+                    <MudTextField @ref="emailField" @bind-Value="_element.Email" T="string" Label="Email" />
+                </MudItem>
+                <MudItem sm="4" xs="12">
+                    <MudTextField @bind-Value="_element.Phone" T="string" Label="Phone" />
+                </MudItem>
+                <MudItem sm="2" xs="12">
+                    <MudNumericField T="decimal" @bind-Value="Gpa" Culture="@(CultureInfo.GetCultureInfo("en-US"))" Label="GPA" Min="1.00M" Max="4.00M" Step=".1M" />
+                </MudItem>
+                <MudItem sm="2" xs="12">
+                    <MudSelect T="int" Label="Year" @bind-Value="_element.GraduationYear" Strict="true" AdornmentIcon="@Icons.Filled.DateRange" AdornmentColor="Color.Primary">
+                        @for (int i = DateTime.Now.Year; i <= DateTime.Now.Year + 6; i++)
+                        {
+                            <MudSelectItem T="int" Value="i" />
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem sm="4" xs="12">
+                    <MudAutocomplete @bind-Value="_sport" T="SportDTO" Label="Sport" SearchFunc="@(new Func<string, Task<IEnumerable<SportDTO>>>(SearchSports))" ToStringFunc="@(s => s.Name)" />
+                </MudItem>
+                <MudItem sm="4" xs="12">
+                    <MudTextField @bind-Value="_element.SocialMedia" T="string" Label="Social Media" AdornmentIcon="@Icons.Filled.Link" AdornmentColor="Color.Primary" />
+                </MudItem>
+                <MudItem sm="12" xs="12">
+                    <MudTextField @bind-Value="_element.Notes" Variant="Variant.Outlined" T="string" Label="Notes" Lines="3" />
+                </MudItem>
+                <MudItem sm="12" xs="12">
+                    <MudButtonGroup Color="Color.Primary" Variant="Variant.Filled" Style="float: right">
+                        @if (_editMode)
+                        {
+                            <MudButton OnClick="Reset" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Cancel" Style="background-color: #db1e1e">Cancel</MudButton>
+                            <MudButton OnClick="@(async () => await Edit())" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" Color="Color.Primary">Save</MudButton>
+                        }
+                        else
+                        {
+                            <MudButton Disabled="_loading" OnClick="@(async () => await Save())" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add" Color="Color.Primary">ADD</MudButton>
+                        }
+                    </MudButtonGroup>
+                </MudItem>
+            </MudGrid>
+        </MudExpansionPanel>
+    </MudHidden>
+</MudExpansionPanels>
+
+
+<MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+    <MudPaper Elevation="9" Square="true" Class="pa-3 mt-4">
+        <MudGrid>
+            <MudItem sm="12">
+                <MudText Typo="Typo.h6">Leads</MudText>
+            </MudItem>
+
+            <MudItem sm="12" xs="12">
+                <MudTextField Class="mr-1" T="string" TextChanged="Search" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Search" AdornmentColor="Color.Primary" />
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+</MudHidden>
+
+
+<MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+    <MudTable Elevation="9" @ref="_table" Class="mb-4" Items="Elements" Dense="true" Hover="true" Square="true" SortLabel="Sort By" Loading="_loading" LoadingProgressColor="@Color.Secondary">
+        <ToolBarContent>
+            <MudGrid>
+                <MudItem sm="12" xs="12">
+                    <MudChip Color="Color.Primary" Style="float: right; font-weight: bold">@Elements.Count</MudChip>
+                </MudItem>
+            </MudGrid>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<LeadDTO, object>(x => x.FullName)">FullName</MudTableSortLabel>
+            </MudTh>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<LeadDTO, object>(x => x.Email)">Email</MudTableSortLabel>
+            </MudTh>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<LeadDTO, object>(x => x.Phone)">Phone</MudTableSortLabel>
+            </MudTh>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<LeadDTO, object>(x => x.Sport)">Sport</MudTableSortLabel>
+            </MudTh>
+            <MudTh Style="text-align:center">Action</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="FullName">@context.FullName</MudTd>
+            <MudTd DataLabel="Email">@context.Email</MudTd>
+            <MudTd DataLabel="Phone">@context.Phone</MudTd>
+            <MudTd DataLabel="Sport">
+                @GetSportName(context.Sport)
+            </MudTd>
+            <MudTd Style="text-align:center">
+                <MudTooltip Text="Qualified Universities">
+                    <MudIconButton OnClick="@(() => CheckQualifiedUniversities(context))" Icon="@Icons.Material.Filled.School" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+                </MudTooltip>
+                <MudTooltip Text="Edit">
+                    <MudIconButton OnClick="@(() => OnEdit(context))" Icon="@Icons.Material.Filled.Edit" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+                </MudTooltip>
+                <MudTooltip Text="Delete">
+                    <MudIconButton OnClick="@(async () => await Delete(context.Id))" Icon="@Icons.Material.Filled.Delete" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+                </MudTooltip>
+            </MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new int[] {10, 25, 50, 100}" />
+        </PagerContent>
+    </MudTable>
+</MudHidden>
+
+@if (_account is not null)
+{
+    <MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+        <ListMobile Elevation="9" SearchBy="@(a => a.Param.FullName.Contains(_search, StringComparison.InvariantCultureIgnoreCase))" @ref="_listMobile" Style="margin-left: 16px; margin-right: 16px" T="LeadDTO" Title="Leads" EndPoint="@($"Lead/{_account.Id}?")">
+            <Actions>
+                <InputFile id="fileInput" OnChange="UploadFiles" hidden accept=".csv" />
+                <MudIconButton HtmlTag="label" Icon="@Icons.Material.Filled.DocumentScanner" for="fileInput" />
+            </Actions>
+
+            <Manage>
+                <MudGrid>
+                    <MudItem sm="4" xs="12">
+                        <MudTextField @bind-Value="_element.FullName" T="string" Label="Full Name" />
+                    </MudItem>
+                    <MudItem sm="4" xs="12">
+                        <MudTextField @ref="emailField" @bind-Value="_element.Email" T="string" Label="Email" />
+                    </MudItem>
+                    <MudItem sm="4" xs="12">
+                        <MudTextField @bind-Value="_element.Phone" T="string" Label="Phone" />
+                    </MudItem>
+                    <MudItem sm="2" xs="12">
+                        <MudNumericField T="decimal" @bind-Value="Gpa" Culture="@(CultureInfo.GetCultureInfo("en-US"))" Label="GPA" Min="1.00M" Max="4.00M" Step=".1M" />
+                    </MudItem>
+                    <MudItem sm="2" xs="12">
+                        <MudSelect T="int" Label="Year" @bind-Value="_element.GraduationYear" Strict="true" AdornmentIcon="@Icons.Filled.DateRange" AdornmentColor="Color.Primary">
+                            @for (int i = DateTime.Now.Year; i <= DateTime.Now.Year + 6; i++)
+                            {
+                                <MudSelectItem T="int" Value="i" />
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem sm="4" xs="12">
+                        <MudAutocomplete @bind-Value="_sport" T="SportDTO" Label="Sport" SearchFunc="@(new Func<string, Task<IEnumerable<SportDTO>>>(SearchSports))" ToStringFunc="@(s => s.Name)" />
+                    </MudItem>
+                    <MudItem sm="4" xs="12">
+                        <MudTextField @bind-Value="_element.SocialMedia" T="string" Label="Social Media" AdornmentIcon="@Icons.Filled.Link" AdornmentColor="Color.Primary" />
+                    </MudItem>
+                    <MudItem sm="12" xs="12">
+                        <MudTextField @bind-Value="_element.Notes" Variant="Variant.Outlined" T="string" Label="Notes" Lines="3" />
+                    </MudItem>
+                    <MudItem sm="12" xs="12">
+                        <MudButtonGroup Color="Color.Primary" Variant="Variant.Filled" Style="float: right">
+                            @if (_editMode)
+                            {
+                                <MudButton OnClick="Reset" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Cancel" Style="background-color: #db1e1e">Cancel</MudButton>
+                                <MudButton OnClick="@(async () => await Edit())" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" Color="Color.Primary">Save</MudButton>
+                            }
+                            else
+                            {
+                                <MudButton Disabled="_loading" OnClick="@(async () => await Save())" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add" Color="Color.Primary">ADD</MudButton>
+                            }
+                        </MudButtonGroup>
+                    </MudItem>
+                </MudGrid>
+            </Manage>
+
+            <Filters>
+                <MudGrid>
+                    <MudItem sm="12" xs="12">
+                        <MudTextField Class="mr-1" T="string" TextChanged="Search" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Search" AdornmentColor="Color.Primary" />
+                    </MudItem>
+                </MudGrid>
+            </Filters>
+
+            <CardTitle>
+                @context.FullName
+            </CardTitle>
+
+            <CardSubtitle>
+                @GetSportName(context.Sport) - GPA @context.GPA
+            </CardSubtitle>
+
+            <CardOptions>
+                <MudTooltip Text="Qualified Universities">
+                    <MudIconButton OnClick="@(() => CheckQualifiedUniversities(context))" Icon="@Icons.Material.Outlined.School" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+                </MudTooltip>
+                <MudTooltip Text="Edit">
+                    <MudIconButton OnClick="@(() => OnEdit(context))" Icon="@Icons.Material.Outlined.Edit" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+                </MudTooltip>
+                <MudTooltip Text="Delete">
+                    <MudIconButton Color="Color.Error" OnClick="@(async () => await Delete(context.Id))" Icon="@Icons.Material.Outlined.Delete" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+                </MudTooltip>
+            </CardOptions>
+        </ListMobile>
+    </MudHidden>
+}
+
+
+@code {
+    private const string Path = "/api/v1/lead";
+
+    private bool _isExpanded;
+    private SportDTO _sport = null!;
+    private LeadDTO _element = new();
+    private List<LeadDTO> _elements = null!;
+
+    private List<LeadDTO> Elements
+    {
+        get => _elements is null ?
+            Enumerable.Empty<LeadDTO>().ToList() :
+            _elements.Where(e => string.IsNullOrWhiteSpace(_search) ||
+                                 e.FullName.Contains(_search, StringComparison.InvariantCultureIgnoreCase)).ToList();
+
+        set => _elements = value;
+    }
+
+    private SportDTO[] _sports = Array.Empty<SportDTO>();
+
+
+    private string _search = string.Empty;
+    private bool _loading;
+    private bool _editMode => _element.Id != 0;
+    private string _description;
+    private decimal Gpa;
+
+
+    private AccountDto? _account = null!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _account = await _localStorage.GetItemAsync<AccountDto>("account");
+
+        await GetElements();
+    }
+
+    MudTable<LeadDTO>? _table;
+    ListMobile<LeadDTO>? _listMobile;
+
+    private async Task GetElements()
+    {
+        if (!_loading)
+        {
+            _loading = true;
+            StateHasChanged();
+        }
+
+        if (_table is null)
+        {
+            if (_listMobile is not null)
+            {
+                await LoadSports();
+                await _listMobile.ResetItemsAsync();
+
+                _loading = false;
+                StateHasChanged();
+
+                return;
+            }
+        }
+
+        var response = await _httpClient.GetFromJsonAsync<Response<List<LeadDTO>>>($"{Path}/{_account.Id}");
+        Elements = response?.Payload;
+
+        await LoadSports();
+
+        _loading = false;
+    }
+
+    private async Task LoadSports()
+    {
+
+        if (!_sports.Any())
+        {
+            var sportsResponse = await _httpClient.GetFromJsonAsync<Response<SportDTO[]>>("api/v1/sport");
+            _sports = sportsResponse.Payload;
+        }
+    }
+
+    private void Search(string value)
+    {
+        _search = value;
+    }
+
+    private async Task OnEdit(LeadDTO element)
+    {
+        _element = element;
+        if (_element.GPA is not null)
+            Gpa = decimal.Parse(_element.GPA, NumberStyles.Any, CultureInfo.GetCultureInfo("en-US"));
+        _sport = _sports.FirstOrDefault(s => s.Id == element.Sport);
+        _isExpanded = true;
+
+        await _jsRuntime.InvokeVoidAsync("scrollToTop");
+    }
+
+    private void CheckQualifiedUniversities(LeadDTO element)
+    {
+        if (element.GPA is null)
+        {
+            _snackBar.Add("You need to set a GPA to get a list of qualified universities...", Severity.Warning, o => o.VisibleStateDuration = 30000);
+            return;
+        }
+
+        string sportName = _sports.FirstOrDefault(s => s.Id == element.Sport)?.Name.Replace("'", "").Replace(" ", "-").ToLower();
+        string uri = $"/public/universities/{sportName}/{element.GPA.Replace(".", "-")}";
+
+        if (!_sports.Any())
+        {
+            _ = Task.Run(async () =>
+            {
+                var sportsResponse = await _httpClient.GetFromJsonAsync<Response<SportDTO[]>>("api/v1/sport");
+                _sports = sportsResponse.Payload;
+
+                sportName = _sports.FirstOrDefault(s => s.Id == element.Sport)?.Name.Replace("'", "").Replace(" ", "-").ToLower();
+                uri = $"/public/universities/{sportName}/{element.GPA.Replace(".", "-")}";
+
+                _navigationManager.NavigateTo(uri);
+
+            });
+        }
+        else
+            _navigationManager.NavigateTo(uri);
+    }
+
+    private async ValueTask Edit()
+    {
+        if (_element.Id > 0)
+        {
+            _loading = true;
+            _isExpanded = false;
+            StateHasChanged();
+
+            _element.GPA = Gpa.ToString();
+            _element.Sport = _sport.Id;
+
+            await _httpClient.PutAsJsonAsync(Path, _element);
+
+            Reset();
+        }
+    }
+
+    MudTextField<string> emailField;
+
+    private void SendMessages()
+    {
+        _dialogService.Show<SendSMS>("MASSIVE SMS",
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
+
+        _snackBar.Add("Messages started sending", Severity.Success, o => o.VisibleStateDuration = 8000);
+    }
+
+    private async ValueTask Save()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        if (!string.IsNullOrWhiteSpace(_element.Email))
+        {
+            var response = await _httpClient.GetFromJsonAsync<Response<bool>>($"{Path}/check/{_element.Email}");
+            if (response is not null && response.Payload)
+            {
+                _snackBar.Add("Email already exist", Severity.Warning,
+                    options => options.VisibleStateDuration = 8000);
+                emailField.Error = true;
+                emailField.ErrorText = "Email already exist";
+
+                _loading = false;
+                StateHasChanged();
+
+                return;
+            }
+        }
+
+        _isExpanded = false;
+        StateHasChanged();
+
+        _element.GPA = Gpa.ToString(CultureInfo.GetCultureInfo("en-US"));
+        _element.Sport = _sport.Id;
+        _element.UserId = _account.Id;
+
+        await _httpClient.PostAsJsonAsync(Path, _element);
+        await GetElements();
+
+        Reset();
+    }
+
+    private void Reset()
+    {
+        _loading = false;
+        _element = new();
+        _isExpanded = false;
+
+        _jsRuntime.InvokeVoidAsync("scrollToTop");
+    }
+
+    private async Task Delete(int id)
+    {
+        var reference = _dialogService.Show<DeleteConfirmation>();
+        var result = await reference.Result;
+
+        if (!result.Cancelled)
+        {
+            _loading = true;
+            StateHasChanged();
+
+            await _httpClient.DeleteAsync($"{Path}/{id}");
+            await GetElements();
+        }
+    }
+
+    private async Task<IEnumerable<SportDTO>> SearchSports(string value)
+    {
+        await Task.FromResult(50);
+
+        return _sports.Where(u => string.IsNullOrWhiteSpace(value) ||
+                                  u.Name.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+    }
+
+    private string GetSportName(int id)
+    {
+        return _sports?.FirstOrDefault(s => s.Id == id)?.Name ?? "NOT FOUND";
+    }
+
+    private async Task UploadFiles(InputFileChangeEventArgs e)
+    {
+        var disableBackdropClick = new DialogOptions { DisableBackdropClick = true };
+        var loadingParameters = new DialogParameters { { "Title", "We're uploading your file" } };
+        var reference = _dialogService.Show<SendingBlastEmails>("SendingBlastEmails", loadingParameters, disableBackdropClick);
+
+        try
+        {
+            await using var memoryStream = new MemoryStream();
+            await e.File.OpenReadStream(512000 * 2).CopyToAsync(memoryStream);
+            byte[] bytes = memoryStream.ToArray();
+            string source = Encoding.UTF8.GetString(bytes);
+
+            if (source is null)
+            {
+                _snackBar.Add("Please add a csv with a valid format", Severity.Warning);
+                reference.Close();
+                return;
+            }
+
+            var lines = source.Split("\r\n");
+            var columns = lines[0];
+            var valuesLines = lines.Skip(1);
+            var columnsCount = columns.Split(";").Length - 1;
+
+            var leads = valuesLines.TakeWhile(v => v != ";;;;;;;" && v != ",,,,,,,").Select(line =>
+            {
+                var values = line.Split(";");
+                if (values.Length < 7)
+                    values = line.Split(",");
+
+                return new LeadDTO
+                    {
+                        UserId = _account.Id,
+                        FullName = values[0],
+                        Email = values[1],
+                        Phone = values[2],
+                        GPA = decimal.TryParse(values[3], NumberStyles.Any, CultureInfo.GetCultureInfo("en-US"), out decimal value3)
+                                                                                ? value3.ToString(CultureInfo.GetCultureInfo("en-US")) : string.Empty,
+                        GraduationYear = int.TryParse(values[4], out int graduation) ? graduation : 0,
+                        Sport = _sports.FirstOrDefault(s => s.Name.Contains(values[5], StringComparison.InvariantCultureIgnoreCase))?.Id ?? 0,
+                        SocialMedia = values[6],
+                        Notes = values[7]
+                    };
+            });
+
+            if (leads is not null)
+            {
+                Elements.AddRange(leads);
+                StateHasChanged();
+
+                foreach (var lead in leads)
+                {
+                    await _httpClient.PostAsJsonAsync(Path, lead);
+                }
+
+                await GetElements();
+                reference.Close();
+                Reset();
+            }
+        }
+        catch (Exception ex)
+        {
+            _snackBar.Add("Please add a csv with a valid format", Severity.Warning);
+            reference.Close();
+        }
+    }
+
+}

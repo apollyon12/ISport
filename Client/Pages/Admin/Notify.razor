@@ -1,0 +1,244 @@
+﻿@layout MainLayout
+@page "/notify"
+
+@using iSportsRecruiting.Shared.DTO;
+@using iSportsRecruiting.Client.Shared.Dialogs
+@using System.Net.Http.Json
+
+@inject ISnackbar _snackBar
+@inject HttpClient _httpClient
+@inject IDialogService _dialogService
+@inject Blazored.LocalStorage.ILocalStorageService _localStorage;
+
+
+<MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+    <div class="mb-6">
+        <MudRadioGroup @bind-SelectedOption="FilterOption">
+            <MudRadio Option="@("Leads")">Leads</MudRadio>
+            <MudRadio Option="@("Athletes")">Athletes</MudRadio>
+            <MudRadio Option="@("Both")">Both</MudRadio>
+        </MudRadioGroup>
+    </div>
+    <MudPaper Square="true" Class="pa-3 mt-4">
+        <MudGrid>
+            <MudItem sm="12" xs="12">
+                <MudTextField Class="mr-1" T="string" TextChanged="Search" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Search" AdornmentColor="Color.Primary" />
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudTable @bind-SelectedItems="_selectedItems" Class="mb-4" Items="Elements" Dense="true" Hover="true" Square="true" SortLabel="Sort By" Loading="_loading" LoadingProgressColor="@Color.Secondary" MultiSelection="true">
+        <ColGroup>
+            <col style="width: 60px;" />
+            <col />
+            <col />
+            <col />
+            <col />
+        </ColGroup>
+        <HeaderContent>
+            <MudTh></MudTh>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<ContactDTO, object>(x => x.FullName)">Name</MudTableSortLabel>
+            </MudTh>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<ContactDTO, object>(x => x.Email)">Email</MudTableSortLabel>
+            </MudTh>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<ContactDTO, object>(x => x.Phone)">Phone</MudTableSortLabel>
+            </MudTh>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<ContactDTO, object>(x => x.Sport)">Sport</MudTableSortLabel>
+            </MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            @if (context.IsLead)
+            {
+                <MudTd>
+                    <MudAvatar Color="Color.Secondary" Style="width: 50px; height: 50px">@GetInitial(context)</MudAvatar>
+                </MudTd>
+            }
+            else
+            {
+                <MudTd>
+                    @if (!string.IsNullOrWhiteSpace(context.Image))
+                    {
+                        <MudAvatar Image="@($"https://isportsrecruiting.com/api/v1/file/uploads/50/50/{context.Image}")" Style="width: 50px; height: 50px" />
+                    }
+                    else
+                    {
+                        <MudAvatar Color="Color.Secondary" Style="width: 50px; height: 50px">@GetInitial(context)</MudAvatar>
+                    }
+                </MudTd>
+            }
+
+            <MudTd DataLabel="Name">@context.FullName</MudTd>
+            <MudTd DataLabel="Email">@context.Email</MudTd>
+            <MudTd DataLabel="Sport">@context.Phone</MudTd>
+
+            @if (context.IsLead)
+            {
+                <MudTd DataLabel="Sport">@GetSportName(int.Parse(context.Sport))</MudTd>
+            }
+            else
+            {
+                <MudTd DataLabel="Sport">@context.Sport</MudTd>
+            }
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new int[] {10, 25, 50, 100}" />
+        </PagerContent>
+    </MudTable>
+
+    <MudGrid>
+        <MudItem xs="6">
+            <MudText>Selected Contacts @_selectedItems.Count</MudText>
+        </MudItem>
+
+        <MudItem xs="6" Style="text-align: right">
+            <MudButtonGroup Variant="Variant.Filled" Color="Color.Primary">
+                <MudButton Disabled="!(_selectedItems?.Any() ?? false)" OnClick="SendSms">SEND SMS</MudButton>
+                <MudButton Disabled="!(_selectedItems?.Any() ?? false)" OnClick="SendEmails">SEND EMAIL</MudButton>
+            </MudButtonGroup>
+        </MudItem>
+    </MudGrid>
+</MudHidden>
+
+@code {
+
+    private HashSet<ContactDTO> _selectedItems = new HashSet<ContactDTO>();
+
+    public string FilterOption { get; set; } = "Both";
+
+    private string? _athleteEndpoint => _account is not null && _account?.Type != UserType.Admin || _account?.Type == UserType.Admin && ShowOnlyReferrals
+        ? $"Athlete/referral/{_account?.Id}?"
+        : "Athlete?";
+
+    private bool _showOnlyReferrals;
+
+    private bool ShowOnlyReferrals
+    {
+        get => _showOnlyReferrals;
+        set
+        {
+            _showOnlyReferrals = value;
+            Task.Run(async () => await GetInitialDataAsync());
+        }
+    }
+
+    private ContactDTO[] _elements = Array.Empty<ContactDTO>();
+
+    private ContactDTO[] Elements
+    {
+        get
+        {
+            return _elements.Where(a => (string.IsNullOrWhiteSpace(_search)
+                                         || (a.FullName).Contains(_search,
+                                             StringComparison.InvariantCultureIgnoreCase))
+                                             && (a.IsLead == (FilterOption == "Athletes" ? false : true)
+                                             || FilterOption == "Both")).ToArray();
+        }
+        set => _elements = value;
+    }
+
+    private SportDTO[] _sports = Array.Empty<SportDTO>();
+
+    private string _search = string.Empty;
+    private bool _loading;
+    private bool _editMode;
+    private string _description;
+    private AccountDto _account;
+    DateRange _dateRange = new(DateTime.Now.Date, DateTime.Now.AddDays(5).Date);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetInitialDataAsync();
+    }
+
+    private ListMobile<ContactDTO>? _listMobile;
+
+    private async Task GetInitialDataAsync()
+    {
+        try
+        {
+            await LoadSports();
+
+            _loading = true;
+            StateHasChanged();
+
+            _account = await _localStorage.GetItemAsync<AccountDto>("account");
+
+            var responseAthletes = await _httpClient.GetFromJsonAsync<Response<AthleteDTO[]>>("api/v1/athlete");
+
+            var responseLeads = await _httpClient.GetFromJsonAsync<Response<List<LeadDTO>>>($"api/v1/lead/{_account.Id}");
+
+            Elements = responseAthletes.Payload.Select(a => new ContactDTO { FullName = $"{a.FirstName} {a.LastName}", Email = a.Email, Phone = a.CellPhone, Sport = a.SportName, Image = a.ImageProfile }).ToArray();
+            Elements = Elements.Concat(responseLeads.Payload.Select(l => new ContactDTO { FullName = $"{l.FullName}", Email = l.Email, Phone = l.Phone, Sport = l.Sport.ToString(), IsLead = true })).OrderBy(e => e.FullName).ToArray();
+
+            _loading = false;
+            StateHasChanged();
+        }
+        catch (Exception e)
+        {
+        }
+    }
+
+    private async Task SendSms()
+    {
+        var reference = _dialogService.Show<SendSMS>("MASSIVE SMS",
+            new DialogParameters { ["Contacts"] = _selectedItems.ToArray() },
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
+
+        var result = await reference.Result;
+        if (!result.Cancelled)
+            _snackBar.Add("Messages started sending", Severity.Success, o => o.VisibleStateDuration = 8000);
+    }
+
+    private async Task SendEmails()
+    {
+        var reference = _dialogService.Show<SendEmails>("MASSIVE EMAILS",
+            new DialogParameters { ["Contacts"] = _selectedItems.ToArray() },
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
+
+        var result = await reference.Result;
+        if (!result.Cancelled)
+            _snackBar.Add("Emails started sending", Severity.Success, o => o.VisibleStateDuration = 8000);
+    }
+
+    private string GetInitial(ContactDTO contact)
+    {
+        if (!string.IsNullOrWhiteSpace(contact.FullName))
+        {
+            var letter = contact.FullName[0].ToString().ToUpper();
+            if (!string.IsNullOrWhiteSpace(letter))
+                return letter;
+        }
+        else if (!string.IsNullOrWhiteSpace(contact.FullName))
+        {
+            var letter = contact.FullName[0].ToString().ToUpper();
+            if (!string.IsNullOrWhiteSpace(letter))
+                return letter;
+        }
+
+        return "?";
+    }
+
+    private void Search(string value)
+    {
+        _search = value;
+    }
+
+    private string GetSportName(int id)
+    {
+        return _sports?.FirstOrDefault(s => s.Id == id)?.Name ?? "NOT FOUND";
+    }
+
+    private async Task LoadSports()
+    {
+
+        if (!_sports.Any())
+        {
+            var sportsResponse = await _httpClient.GetFromJsonAsync<Response<SportDTO[]>>("api/v1/sport");
+            _sports = sportsResponse.Payload;
+        }
+    }
+}

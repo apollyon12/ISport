@@ -1,0 +1,165 @@
+﻿@page "/sports"
+
+@using iSportsRecruiting.Shared.DTO;
+@using Blazored.LocalStorage
+@using iSportsRecruiting.Client.Shared.Dialogs
+@using System.Net.Http.Json
+
+@inject HttpClient _httpClient;
+@inject IDialogService _dialogService
+@inject ILocalStorageService _localStorage;
+
+<MudExpansionPanels Elevation="9">
+    <MudExpansionPanel Text="Manage">
+        <MudGrid>
+            <MudItem sm="4" xs="12">
+                <MudTextField T="string" Label="Name"/>
+            </MudItem>
+            <MudItem sm="4" xs="12">
+                <MudTextField T="string" Label="Description"/>
+            </MudItem>
+            <MudItem sm="4" xs="12">
+                <MudSelect T="string" Label="Gender">
+                    <MudSelectItem Value="@("Male")"/>
+                    <MudSelectItem Value="@("Female")"/>
+                </MudSelect>
+            </MudItem>
+            <MudItem sm="12" xs="12">
+                <MudButtonGroup Color="Color.Primary" Variant="Variant.Filled" Style="float: right">
+                    @if (_editMode)
+                    {
+                        <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Cancel" Style="background-color: #db1e1e">Cancel</MudButton>
+                    }
+
+                    <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" Color="Color.Primary">Save</MudButton>
+                </MudButtonGroup>
+            </MudItem>
+        </MudGrid>
+    </MudExpansionPanel>
+</MudExpansionPanels>
+
+<MudPaper Square="true" Class="pa-3 mt-4">
+    <MudGrid>
+        <MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+            <MudItem sm="12" xs="12">
+                <MudText Typo="Typo.h6">Sports</MudText>
+            </MudItem>
+        </MudHidden>
+
+        <MudItem sm="12" xs="12">
+            <MudTextField T="string" TextChanged="Search" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Search" AdornmentColor="Color.Primary"/>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+<MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+    <MudTable Elevation="9" Class="mb-4" Items="Elements" Dense="true" Hover="true" Square="true" SortLabel="Sort By" Loading="_loading" LoadingProgressColor="@Color.Secondary">
+        <ToolBarContent>
+            <MudGrid>
+                <MudItem sm="12" xs="12">
+                    <MudChip Color="Color.Primary" Style="float: right; font-weight: bold">@Elements.Length</MudChip>
+                </MudItem>
+
+            </MudGrid>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<SportDTO, object>(x => x.Name)">Name</MudTableSortLabel>
+            </MudTh>
+            <MudTh Style="text-align:center">Action</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Name">@context.Name</MudTd>
+            <MudTd DataLabel="Action" Style="text-align:center">
+                <MudTooltip Text="Edit">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+                </MudTooltip>
+                <MudTooltip Text="Delete">
+                    <MudIconButton OnClick="() => Delete(context.Id)" Icon="@Icons.Material.Filled.Delete" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+                </MudTooltip>
+            </MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new int[] {10, 25, 50, 100}"/>
+        </PagerContent>
+    </MudTable>
+</MudHidden>
+
+@if (_account is not null)
+{
+    <MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+        <ListMobile Elevation="9" SearchBy="@(a => a.Param.Name.Contains(_search, StringComparison.InvariantCultureIgnoreCase))" @ref="_listMobile" Style="margin-left: 16px; margin-right: 16px" T="SportDTO" Title="Sports" EndPoint="Sport?">
+            <CardTitle>
+                @context.Name
+            </CardTitle>
+            <CardSubtitle>
+                @context.Gender
+            </CardSubtitle>
+            <CardOptions>
+                <MudTooltip Text="Edit">
+                    <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+                </MudTooltip>
+                <MudTooltip Text="Delete">
+                    <MudIconButton Color="Color.Error" OnClick="() => Delete(context.Id)" Icon="@Icons.Material.Outlined.Delete" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+                </MudTooltip>
+            </CardOptions>
+        </ListMobile>
+    </MudHidden>
+}
+
+@code {
+    private SportDTO[] _elements = Array.Empty<SportDTO>();
+
+    private SportDTO[] Elements
+    {
+        get
+        {
+            return _elements.Where(e => string.IsNullOrWhiteSpace(_search) ||
+                                        e.Name.Contains(_search, StringComparison.InvariantCultureIgnoreCase)).ToArray();
+        }
+        set => _elements = value;
+    }
+
+    private string _search = string.Empty;
+    private bool _loading = true;
+    private bool _editMode;
+    private string _description;
+    private AccountDto? _account;
+    private ListMobile<SportDTO>? _listMobile;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetInitialDataAsync();
+    }
+
+    private async Task GetInitialDataAsync()
+    {
+        _account = await _localStorage.GetItemAsync<AccountDto>("account");
+
+        _loading = true;
+        StateHasChanged();
+
+        var response = await _httpClient.GetFromJsonAsync<Response<SportDTO[]>>("api/v1/sport");
+        _elements = response.Payload;
+
+        _loading = false;
+    }
+
+    private void Search(string value)
+    {
+        _search = value;
+    }
+
+    private async Task Delete(int id)
+    {
+        var reference = _dialogService.Show<DeleteConfirmation>();
+        var result = await reference.Result;
+
+        if (!result.Cancelled)
+        {
+            await _httpClient.DeleteAsync($"api/v1/sport/{id}");
+            await GetInitialDataAsync();
+        }
+    }
+
+}

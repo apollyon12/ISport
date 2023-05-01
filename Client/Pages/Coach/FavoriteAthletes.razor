@@ -1,0 +1,170 @@
+﻿@page "/favorites"
+
+@using iSportsRecruiting.Shared.DTO;
+@using System.Net.Http.Json
+
+@inject HttpClient _httpClient
+@inject Blazored.LocalStorage.ILocalStorageService _localStorage;
+
+<MudPaper Square="true" Class="pa-3 mt-4">
+    <MudGrid>
+        <MudItem sm="12" xs="12">
+            <MudText Typo="Typo.h6">Favorite Athletes</MudText>
+        </MudItem>
+        @if (_account is not null && _account.Type == UserType.Admin)
+        {
+            <MudItem sm="10" xs="12">
+                <MudTextField T="string" TextChanged="SearchAthletes" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Search" AdornmentColor="Color.Primary" />
+            </MudItem>
+            <MudItem sm="2" xs="12">
+                <MudCheckBox T="bool" @bind-Checked="ShowOnlyReferrals" Label="Only Referrals" Style="margin-top: 10px" />
+            </MudItem>
+        }
+        else
+        {
+            <MudItem sm="12" xs="12">
+                <MudTextField T="string" TextChanged="SearchAthletes" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Search" AdornmentColor="Color.Primary" />
+            </MudItem>
+        }
+    </MudGrid>
+</MudPaper>
+<MudTable Class="mb-4" Items="Elements" Dense="true" Hover="true" Square="true" SortLabel="Sort By" Loading="_loading" LoadingProgressColor="@Color.Secondary">
+    <ToolBarContent>
+        <MudGrid>
+            <MudItem sm="12" xs="12">
+                <MudChip Color="Color.Primary" Style="float: right; font-weight: bold">@Elements.Length</MudChip>
+            </MudItem>
+        </MudGrid>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<AthleteDTO, object>(x=>x.FirstName)">Name</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<AthleteDTO, object>(x=>x.Email)">Email</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<AthleteDTO, object>(x=>x.GPA)">GPA</MudTableSortLabel></MudTh>
+        <MudTh Style="text-align:center">Action</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>
+            @if (!string.IsNullOrWhiteSpace(context.ImageProfile))
+            {
+                <MudAvatar Image="@($"https://isportsrecruiting.com/api/v1/file/uploads/50/50/{context.ImageProfile}")" Style="width: 50px; height: 50px" />
+            }
+            else
+            {
+                <MudAvatar Color="Color.Secondary" Style="width: 50px; height: 50px">@GetInitial(context)</MudAvatar>
+            }
+        </MudTd>
+        <MudTd DataLabel="Name">@context.FirstName @context.LastName</MudTd>
+        <MudTd DataLabel="Email">@context.Email</MudTd>
+        <MudTd DataLabel="GPA">@context.GPA</MudTd>
+        <MudTd DataLabel="Action" Style="text-align: center">
+            <MudTooltip Text="Check Athlete">
+                <MudIconButton Link="@($"athletes/{context.Id}/{$"{context.FirstName} {context.LastName}".Replace(" ", "-").Replace(",", "").ToLower()}")"
+                               Icon="@Icons.Material.Filled.RemoveRedEye" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+            </MudTooltip>
+        </MudTd>
+
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager PageSizeOptions="new int[]{10, 25, 50, 100}" />
+    </PagerContent>
+</MudTable>
+
+@code {
+
+    private bool _showOnlyReferrals;
+    private bool ShowOnlyReferrals
+    {
+        get => _showOnlyReferrals;
+        set
+        {
+            _showOnlyReferrals = value;
+            Task.Run(async () => await GetInitialDataAsync());
+        }
+    }
+
+    private AthleteDTO[] _elements = Array.Empty<AthleteDTO>();
+    private AthleteDTO[] Elements
+    {
+        get
+        {
+            return _elements.Where(a => (string.IsNullOrWhiteSpace(_search)
+                    || (a.FirstName + a.LastName).Contains(_search,
+                    StringComparison.InvariantCultureIgnoreCase))).ToArray();
+        }
+        set => _elements = value;
+    }
+
+    private string _search;
+    private bool _loading;
+    private bool _editMode;
+    private string _description;
+    private AccountDto _account;
+    DateRange _dateRange = new(DateTime.Now.Date, DateTime.Now.AddDays(5).Date);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetInitialDataAsync();
+    }
+
+    private async Task GetInitialDataAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        _account = await _localStorage.GetItemAsync<AccountDto>("account");
+
+        if (_account.Type == UserType.Coach)
+        {
+            var responseAthletes = await _httpClient.GetFromJsonAsync<Response<AthleteDTO[]>>($"api/v1/athlete/sport/{_account.Coach.SportId}");
+            Elements = responseAthletes?.Payload;
+        }
+        else if (_account.Type != UserType.Admin || (_account.Type == UserType.Admin && ShowOnlyReferrals))
+        {
+            var response = await _httpClient.GetFromJsonAsync<Response<AthleteDTO[]>>($"api/v1/athlete/referral/{_account.Id}");
+            Elements = response?.Payload;
+        }
+        else
+        {
+            var response = await _httpClient.GetFromJsonAsync<Response<AthleteDTO[]>>("api/v1/athlete");
+            Elements = response?.Payload;
+        }
+
+        var favoriteResponse = await _httpClient.GetFromJsonAsync<Response<int[]>>($"api/v1/athlete/favorites/{_account.Id}");
+
+        if (favoriteResponse is not null && favoriteResponse.Status == ResponseStatus.Ok)
+        {
+            Elements = Elements?.Where(e => favoriteResponse.Payload.Contains(e.Id)).ToArray();
+        }
+        else
+        {
+            Elements = Array.Empty<AthleteDTO>();
+        }
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private string GetInitial(AthleteDTO athlete)
+    {
+        if (!string.IsNullOrWhiteSpace(athlete.FirstName))
+        {
+            var letter = athlete.FirstName[0].ToString().ToUpper();
+            if (!string.IsNullOrWhiteSpace(letter))
+                return letter;
+        }
+        else if (!string.IsNullOrWhiteSpace(athlete.LastName))
+        {
+            var letter = athlete.LastName[0].ToString().ToUpper();
+            if (!string.IsNullOrWhiteSpace(letter))
+                return letter;
+        }
+
+        return "?";
+    }
+
+    private void SearchAthletes(string value)
+    {
+        _search = value;
+    }
+}

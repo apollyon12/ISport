@@ -1,0 +1,181 @@
+﻿@page "/support"
+@using iSportsRecruiting.Client.Pages.Public.Components
+
+@layout PublicLayout
+
+@inject NavigationManager NavigationManager
+
+<style type="text/css">
+    body {
+        background-color: white;
+    }
+
+    body, p, div {
+        font-family: arial,helvetica,sans-serif;
+        font-size: 14px;
+    }
+
+    body {
+        color: #000000;
+    }
+
+        body a {
+            color: #1188E6;
+            text-decoration: none;
+        }
+
+    p {
+        margin: 0;
+        padding: 0;
+    }
+
+    table.wrapper {
+        width: 100% !important;
+        table-layout: fixed;
+        -webkit-font-smoothing: antialiased;
+        -webkit-text-size-adjust: 100%;
+        -moz-text-size-adjust: 100%;
+        -ms-text-size-adjust: 100%;
+    }
+
+    img.max-width {
+        max-width: 100% !important;
+    }
+
+    ul ul ul ul {
+        list-style-type: disc !important;
+    }
+
+    ol ol {
+        list-style-type: lower-roman !important;
+    }
+
+        ol ol ol {
+            list-style-type: lower-latin !important;
+        }
+
+            ol ol ol ol {
+                list-style-type: decimal !important;
+            }
+</style>
+
+<AppBar />
+
+<div style="text-align: center; padding: 20px; background-color:white" class="wrapper" data-link-color="#1188E6" data-body-style="font-size:14px; font-family:arial,helvetica,sans-serif; color:#000000;">
+    <div class="webkit">
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" class="wrapper">
+            <tr>
+                <td valign="top" width="100%">
+                    <table width="100%" role="content-container" class="outer" align="center" cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                            <td width="100%">
+                                <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                                    <tr>
+                                        <td>
+                                            <!--[if mso]>
+                                              <center>
+                                              <table><tr><td width="600">
+                                            <![endif]-->
+                                            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;" align="center">
+                                                <tr>
+                                                    <td role="modules-container" style="padding:0px 0px 0px 0px; color:#000000; text-align:left;" width="100%" align="left">
+                                                        <table class="module preheader preheader-hide" role="module" data-type="preheader" border="0" cellpadding="0" cellspacing="0" width="100%" style="display: none !important; mso-hide: all; visibility: hidden; opacity: 0; color: transparent; height: 0; width: 0;">
+                                                            <tr>
+                                                                <td role="module-content">
+                                                                    <p></p>
+                                                                </td>
+                                                            </tr>
+                                                        </table><table class="module" role="module" data-type="text" border="0" cellpadding="0" cellspacing="0" width="100%" style="table-layout: fixed;" data-muid="5ec70160-d01d-42b9-95a1-8273102613f0" data-mc-module-version="2019-10-22">
+                                                            <tbody>
+                                                                <tr>
+                                                                    <td style="padding:18px 0px 18px 0px; line-height:22px; text-align:inherit;" height="100%" valign="top" role="module-content">
+                                                                        <div>
+                                                                            <div style="font-family: inherit; text-align: inherit"><br></div>
+                                                                            <div style="font-family: inherit; text-align: center; margin-top: 3%"><span style="font-family: impact, sans-serif; font-size: 40px">NEED ASSISTANCE</span></div>
+                                                                            <div style="font-family: inherit; text-align: center"><br></div>
+                                                                            <div style="font-family: inherit; text-align: center; margin-left: 8%; margin-right: 8%;"><span style="box-sizing: border-box; padding-top: 0px; padding-right: 0px; padding-bottom: 0px; padding-left: 0px; margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px; font-style: inherit; font-variant-ligatures: inherit; font-variant-caps: inherit; font-variant-numeric: inherit; font-variant-east-asian: inherit; font-weight: inherit; font-stretch: inherit; line-height: inherit; font-family: inherit; font-size: 24px; vertical-align: baseline; border-top-width: 0px; border-right-width: 0px; border-bottom-width: 0px; border-left-width: 0px; border-top-style: initial; border-right-style: initial; border-bottom-style: initial; border-left-style: initial; border-top-color: initial; border-right-color: initial; border-bottom-color: initial; border-left-color: initial; border-image-source: initial; border-image-slice: initial; border-image-width: initial; border-image-outset: initial; border-image-repeat: initial; color: #000000; letter-spacing: normal; orphans: 2; text-align: center; text-indent: 0px; text-transform: none; white-space: pre-wrap; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; background-color: rgb(255, 255, 255); text-decoration-line: none; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial">Every athlete has a vision of playing at the next level, we at iSportsRecruiting want to not only assist your student-athlete with reaching their collegiate aspirations but also assist them with the best results.</span></div><div></div>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table><table class="wrapper" role="module" data-type="image" border="0" cellpadding="0" cellspacing="0" width="100%" style="table-layout: fixed;" data-muid="a6604c71-0967-4a79-b816-1c8a3d9fdcea">
+                                                            <tbody>
+                                                                <tr>
+                                                                    <td style="font-size:6px; line-height:10px; padding:0px 0px 0px 0px;" valign="top" align="center">
+                                                                        <MudGrid Style="margin-top: 44px; margin-bottom: 44px">
+                                                                            <MudItem sm="12" md="4">
+                                                                                <MudCard @onclick="@(() => NavigationManager.NavigateTo("/consultation"))" Elevation="1" Style="cursor:pointer;background-color: black; color: white; height: 188px;width: 311px; vertical-align: middle;display: table-cell;">
+                                                                                    <MudText Align="Align.Center" Typo="Typo.h5">
+                                                                                        Have Questions about College Recruiting
+                                                                                    </MudText>
+                                                                                </MudCard>
+                                                                            </MudItem>
+
+                                                                            <MudItem sm="12" md="4">
+                                                                                <MudCard @onclick="@(() => NavigationManager.NavigateTo("/consultation"))" Elevation="1" Style="cursor:pointer; background-color: black; color: white; height: 188px;width: 311px; vertical-align: middle;display: table-cell;">
+                                                                                    <MudText Align="Align.Center" Typo="Typo.h5">
+                                                                                        Have Questions about how does ISR works
+                                                                                    </MudText>
+                                                                                </MudCard>
+                                                                            </MudItem>
+
+                                                                            <MudItem sm="12" md="4">
+                                                                                <MudCard @onclick="@(() => NavigationManager.NavigateTo("/consultation"))" Elevation="1" Style="cursor:pointer;background-color: black; color: white; height: 188px;width: 311px; vertical-align: middle;display: table-cell;">
+                                                                                    <MudText Align="Align.Center" Typo="Typo.h5">
+                                                                                        Have Questions about creating an Online Profile
+                                                                                    </MudText>
+                                                                                </MudCard>
+                                                                            </MudItem>
+                                                                        </MudGrid>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table><table class="module" role="module" data-type="text" border="0" cellpadding="0" cellspacing="0" width="100%" style="table-layout: fixed;" data-muid="b056bda6-1143-4369-a05f-548fecc63139" data-mc-module-version="2019-10-22">
+                                                            <tbody>
+                                                                <tr>
+                                                                    <td style="padding:18px 0px 18px 0px; line-height:22px; text-align:inherit;" height="100%" valign="top" role="module-content">
+                                                                        <div>
+                                                                            <div style="font-family: inherit; text-align: inherit"><br></div>
+                                                                            <div style="font-family: inherit; text-align: center"><span style="font-family: impact, sans-serif; font-size: 40px">STAY CONNECTED WITH COLLEGE COACHES</span></div>
+                                                                            <div style="font-family: inherit; text-align: center"><br></div>
+
+                                                                            <div style="font-family: inherit; text-align: center; margin-bottom: 63px;">
+                                                                                <MudButton Style="font-size: 20px" Color="Color.Secondary" Variant="Variant.Filled" OnClick="@(() => NavigationManager.NavigateTo("/consultation"))">FREE CONSULTATION</MudButton>
+                                                                            </div>
+                                                                            <div style="font-family: inherit; text-align: center"><br></div>
+
+                                                                            <div style="font-family: inherit; text-align: center"><span style="color: #000000; font-family: arial, helvetica, sans-serif; font-size: 18px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: center; text-indent: 0px; text-transform: none; white-space: pre-wrap; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; background-color: rgb(255, 255, 255); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; float: none; display: inline">College Coaches are on the hunt every day for Student-Athletes</span></div>
+                                                                            <div style="font-family: inherit; text-align: center"><br></div>
+                                                                            <div style="font-family: inherit; text-align: center"><span style="color: #000000; font-family: arial, helvetica, sans-serif; font-size: 18px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: center; text-indent: 0px; text-transform: none; white-space: pre-wrap; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; background-color: rgb(255, 255, 255); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; float: none; display: inline"><strong>Contact Us: </strong></span><a href="mailto:support@isportsrecruiting.com" style="text-decoration: underline; color: #3fab24; font-family: arial, helvetica, sans-serif; font-size: 18px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: center; text-indent: 0px; text-transform: none; white-space: pre-wrap; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; background-color: rgb(255, 255, 255); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; float: none; display: inline">support@isportsrecruiting.com</a></div><div></div>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </td>
+                                                </tr>
+                                            </table>
+                                            <!--[if mso]>
+                                                  </td>
+                                                </tr>
+                                              </table>
+                                            </center>
+                                            <![endif]-->
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+
+
+    </div>
+
+</div>
+
+<div>
+    <img border="0" style="display:block; max-width:100% !important; width:100%; height:auto !important;" width="600" alt="" data-proportionally-constrained="true" data-responsive="true" src="https://i.imgur.com/nWB15GH.jpg">
+</div>

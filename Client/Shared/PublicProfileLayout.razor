@@ -1,0 +1,321 @@
+﻿@using iSportsRecruiting.Shared.DTO
+@using Microsoft.AspNetCore.Components.Routing
+@using iSportsRecruiting.Client.Pages.Identity
+@using iSportsRecruiting.Client.Shared.Utils
+@using Microsoft.AspNetCore.Components.Rendering
+@using MudBlazor.Extensions
+@using System.Net.Http.Json
+@inherits LayoutComponentBase
+
+@inject IJSRuntime _jsRuntime;
+@inject HttpClient Http;
+@inject IDialogService _dialogService;
+@inject IPushMessageService _pushMessage;
+@inject NavigationManager _navigationManager;
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage;
+
+<MudSnackbarProvider />
+<MudDialogProvider />
+<MudThemeProvider Theme="MyCustomTheme" />
+
+<style>
+    .mud-tabs-toolbar .mud-tabs-toolbar-inner {
+        display: flex;
+        min-height: 52px !important;
+    }
+</style>
+
+@{
+    _ = LoadDataAsync();
+}
+
+<MudLayout>
+    <MudAppBar Elevation="4" Color="Color.Primary" Style="opacity: 0.98">
+        <MudTooltip Text="Navigation">
+            <MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+                <MudIconButton Color="Color.Inherit" Icon="@Icons.Material.Outlined.ArrowBackIos" Style="cursor: pointer" OnClick="GoBack" />
+            </MudHidden>
+        </MudTooltip>
+
+        <MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+            @if (_account is null)
+            {
+                <img src="/images/ISR_LONG_WHITE.svg" width="220" style="cursor: pointer;" @onclick="@(() => _navigationManager.NavigateTo("/"))" />
+            }
+            else
+            {
+                <img src="/images/ISR_LONG_WHITE.svg" width="220" style="cursor: pointer;" @onclick="@(() => _navigationManager.NavigateTo("/dashboard"))" />
+            }
+        </MudHidden>
+        <MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+            @if (_account is null)
+            {
+                <img src="/images/ISR_WHITE.png" width="80" style="cursor: pointer;" @onclick="@(() => _navigationManager.NavigateTo("/"))" />
+            }
+            else
+            {
+                <img src="/images/ISR_WHITE.png" width="80" style="cursor: pointer;" @onclick="@(() => _navigationManager.NavigateTo("/dashboard"))" />
+            }
+        </MudHidden>
+
+        <MudSpacer />
+
+        <MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+            @*<LanguageSelector/>
+            <MudTooltip Text="@_localizer["Toggle Dark Mode"]">
+            <MudIconButton Icon="@Icons.Material.Filled.Brightness4" Color="Color.Inherit" OnClick="@((e) => DarkMode())"/>
+            </MudTooltip>*@
+            @if (_account is not null)
+            {
+                @if (_account.Notifications.Any())
+                {
+                    <MudBadge Content="@_account.Notifications.Count()" Color="Color.Error" Overlap="true">
+                        <MudMenu Icon="@Icons.Material.Outlined.Notifications" Color="Color.Inherit" Direction="Direction.Left" OffsetX="true">
+                            <div Style="max-height: 360px; overflow-y: auto">
+                                @foreach (var notification in _account.Notifications.OrderByDescending(n => n.Id))
+                                {
+                                    @if (notification.Type == "email")
+                                    {
+                                        <MudMenuItem Style="cursor: pointer; width:395px" @onclick="@(async () => await OpenConversationAsync(notification))">
+                                            <MudGrid>
+                                                <MudItem sm=2>
+                                                    <MudBadge Visible="@(notification.Count > 1)" Content="@notification.Count" Color="Color.Error" Overlap="true">
+                                                        <MudAvatar Image="@notification.Image" Style="width: 55px; height: 55px; top: 50%;" />
+                                                    </MudBadge>
+                                                </MudItem>
+
+                                                <MudItem sm="10">
+                                                    @if (notification.Title.Length > 30)
+                                                    {
+                                                        <MudText Style="display: inline-block" Typo="Typo.body1">@notification.Title.Substring(0, 27)...</MudText>
+                                                    }
+                                                    else
+                                                    {
+                                                        <MudText Style="display: inline-block" Typo="Typo.body1">@notification.Title</MudText>
+                                                    }
+
+                                                    @if (notification.Body.Length > 55)
+                                                    {
+                                                        <MudText Style="display: block" Typo="Typo.caption">@notification.Body.Substring(0, 52)...</MudText>
+                                                    }
+                                                    else
+                                                    {
+                                                        <MudText Style="display: block" Typo="Typo.caption">@notification.Body</MudText>
+                                                    }
+                                                </MudItem>
+                                            </MudGrid>
+                                        </MudMenuItem>
+                                    }
+                                    else
+                                    {
+                                        <MudMenuItem Style="cursor: pointer; width:395px" @onclick="@(async () => await DeleteNotificationAsync(notification))">
+                                            <MudGrid>
+                                                <MudItem sm="12">
+                                                    <div style="display: inline-block">
+                                                        <MudIcon Icon="@notification.GetIcon()" Style="font-size: 15px; margin-right: 5px" />
+                                                    </div>
+                                                    @if (notification.Title.Length > 30)
+                                                    {
+                                                        <MudText Style="display: inline-block" Typo="Typo.body1">@notification.Title.Substring(0, 27)...</MudText>
+                                                    }
+                                                    else
+                                                    {
+                                                        <MudText Style="display: inline-block" Typo="Typo.body1">@notification.Title</MudText>
+                                                    }
+
+                                                    @if (notification.Body.Length > 60)
+                                                    {
+                                                        <MudText Style="display: block" Typo="Typo.caption">@notification.Body.Substring(0, 57)...</MudText>
+                                                    }
+                                                    else
+                                                    {
+                                                        <MudText Style="display: block" Typo="Typo.caption">@notification.Body</MudText>
+                                                    }
+                                                </MudItem>
+                                            </MudGrid>
+                                        </MudMenuItem>
+                                    }
+
+                                    @if (_lastNotification is not null && _lastNotification.Type != notification.Type && (_lastNotification = notification) is not null)
+                                    {
+                                        <MudItem sm="12">
+                                            <MudDivider />
+                                        </MudItem>
+                                    }
+                                }
+                            </div>
+                        </MudMenu>
+                    </MudBadge>
+                }
+            }
+        </MudHidden>
+
+        <MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+
+            @*<MudTooltip Text="@_localizer["Toggle Dark Mode"]">
+            <MudIconButton Icon="@Icons.Material.Filled.Brightness4" Color="Color.Inherit" OnClick="@((e) => DarkMode())"/>
+            </MudTooltip>*@
+            @if (_account is not null)
+            {
+                @if (_account.Notifications.Any())
+                {
+                    <MudMenu Icon="@Icons.Filled.Notifications" Color="Color.Inherit" Dense="true" Direction="Direction.Right" OffsetY="true">
+                        <div class="px-2">
+                            <MudBadge Content="@_account.Notifications.Count" Color="Color.Error" Overlap="true">
+                                <MudMenu Icon="@Icons.Material.Outlined.Notifications" Color="Color.Inherit" Direction="Direction.Left" OffsetX="true" Dense="true">
+
+                                    @foreach (var notification in _account.Notifications)
+                                    {
+                                        <MudMenuItem Style="cursor: pointer" @onclick="@(() => _navigationManager.NavigateTo(notification.Link))">
+                                            <MudGrid>
+                                                <MudItem sm=2>
+                                                    <MudAvatar Image="@notification.Image" Style="width: 100px; height: 100px" />
+                                                </MudItem>
+                                                <MudItem sm="10">
+                                                    <div style="display: inline-block">
+                                                        <MudIcon Icon="@notification.Icon" Style="font-size: 15px" />
+                                                    </div>
+                                                    <MudText Style="display: inline-block" Typo="Typo.body1">@notification.Title</MudText>
+                                                    <MudText Style="display: block" Typo="Typo.caption">@notification.Body</MudText>
+                                                </MudItem>
+                                            </MudGrid>
+                                        </MudMenuItem>
+                                    }
+                                </MudMenu>
+                            </MudBadge>
+
+                        </div>
+                    </MudMenu>
+                }
+            }
+
+        </MudHidden>
+        @if (_account is not null)
+        {
+            <MudMenu Direction="Direction.Left" OffsetX="true" Dense="true" Class="mt-1">
+                <ActivatorContent>
+                    <MudTooltip Text="Profile">
+                        @if (_account is not null)
+                        {
+                            @if (_account.Type == UserType.Athlete && !string.IsNullOrWhiteSpace(_account.Image))
+                            {
+                                <MudAvatar Image="@($"{_account.Image}")" Style="height:32px; width:32px; display: block; margin-left: auto; margin-right: auto;" />
+                            }
+                            else if (_account.Type == UserType.AssisCoord || _account.Type == UserType.Coach && !string.IsNullOrEmpty(_account.Image))
+                            {
+                                <MudAvatar Image="@($"https://isportsrecruiting.com/api/v1/file/logos/32/32/{_account.Image}.jpg")" Style="height:32px; width:32px; display: block; margin-left: auto; margin-right: auto;" />
+                            }
+                            else
+                            {
+                                if (_account is not null && !string.IsNullOrWhiteSpace(_account.Name))
+                                {
+                                    <MudAvatar Color="Color.Secondary" Style="height:32px; width:32px; font-size: 1.2em;">@_account.Name[0].ToString().ToUpper()</MudAvatar>
+                                }
+                            }
+                        }
+                    </MudTooltip>
+                </ActivatorContent>
+                <ChildContent>
+                    <UserCard ShowTut=false Account="_account" Class="mt-n2" />
+                    @if (_account?.Type == UserType.Admin || _account?.Type == UserType.AssisCoord || _account?.Type == UserType.AssisAdmin)
+                    {
+                        <MudDivider Class="mb-2 mt-2" />
+                        <MudListItem Text="Referral URL" Icon="@Icons.Material.Outlined.InsertLink" OnClick="ShowReferralUrl" />
+                    }
+                    else if (_account?.Type == UserType.Athlete)
+                    {
+                        <MudDivider Class="mb-2 mt-2" />
+                        <MudListItem Text="Share Profile" Icon="@Icons.Material.Outlined.InsertLink" OnClick="ShowReferralUrl" />
+                        <MudDivider Class="mb-2 mt-2" />
+                        <MudListItem Text="Tutorial Tips" Icon="@Icons.Material.Outlined.Help" OnClick="EnableTutorial" />
+                        <MudDivider Class="mb-2 mt-2" />
+                        <MudListItem Text="Billing" Icon="@Icons.Material.Outlined.CreditCard" OnClick="@(() => _navigationManager.NavigateTo("/athlete/billing"))" />
+                    }
+                    <MudDivider Class="mb-2 mt-2" />
+                    <MudListItem Text="Logout" Icon="@Icons.Material.Outlined.Logout" OnClick="Logout" />
+                </ChildContent>
+            </MudMenu>
+        }
+
+    </MudAppBar>
+
+    <div style="background-color: #ffffff">
+        @Body
+    </div>
+
+    <MobileMenu />
+</MudLayout>
+
+@code {
+
+    protected override void OnInitialized()
+    {
+        AdaptableTabsHolder.AdaptableTabsRendered += OnAdaptableTabsRendered;
+        _navigationManager.LocationChanged += NavigationManagerOnLocationChanged;
+    }
+
+    private async Task EnableTutorial()
+    {
+        var account = await LocalStorage.GetItemAsync<AccountDto>("account");
+
+        await Http.GetFromJsonAsync<Response>($"api/v1/athlete/tut/{account.Id}/enable");
+
+        if (account.Type == UserType.Athlete)
+        {
+            account.Athlete.ShowTut = true;
+            await LocalStorage.SetItemAsync("account", account);
+
+            _navigationManager.NavigateTo("dashboard", true);
+        }
+    }
+
+    private void OnAdaptableTabsRendered()
+    {
+        StateHasChanged();
+    }
+
+    private void NavigationManagerOnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        _drawerOpen = false;
+
+        StateHasChanged();
+    }
+
+    MudTheme MyCustomTheme = new()
+        {
+            Palette = new Palette()
+            {
+                Primary = "#1a1a1a",
+                Secondary = "#2ebb0eff",
+                Tertiary = "#ffffff",
+                AppbarBackground = "#000000",
+                Success = "#2ebb0eff"
+            },
+            PaletteDark = new Palette()
+            {
+                Primary = "#1a1a1a"
+            },
+            LayoutProperties = new LayoutProperties()
+            {
+                DrawerWidthLeft = "260px",
+                DrawerWidthRight = "300px"
+            }
+        };
+
+    public static class AdaptableTabsHolder
+    {
+        [Parameter]
+        public static RenderFragment? Tabs { get; set; }
+
+        public static event Action? AdaptableTabsRendered;
+
+        public static void SetInstance(RenderFragment? adaptableTabs)
+        {
+            if (adaptableTabs is null) return;
+
+            Tabs = adaptableTabs;
+            AdaptableTabsRendered?.Invoke();
+        }
+    }
+
+}

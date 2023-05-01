@@ -1,0 +1,13 @@
+﻿<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.h6">Email settings were successfully saved.</MudText>
+    </DialogContent>
+    <DialogActions>        
+        <MudButton Color="Color.Primary" OnClick="Submit">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+
+    void Submit() => MudDialog.Close(DialogResult.Ok(true));    
+}

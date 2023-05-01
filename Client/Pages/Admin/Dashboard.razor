@@ -1,0 +1,724 @@
+﻿@layout MainLayout
+@page "/dashboard"
+@using iSportsRecruiting.Client.Shared
+@using iSportsRecruiting.Shared.DTO
+@using iSportsRecruiting.Shared.Models
+@using System.Net.Http.Json
+
+@inject HttpClient _httpClient
+@inject NavigationManager NavigationManager
+@inject Blazored.LocalStorage.ILocalStorageService _localStorage;
+
+<MudGrid Class="mb-3">
+    @if (_account.Type == UserType.Athlete)
+    {
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Elevation="9" Class="d-flex flex-row pt-3 pb-4" Style="height: 102px; cursor: pointer" @onclick="@(() => NavigationManager.NavigateTo("/athlete/universities/favorites"))">
+                <MudGrid>
+                    <MudItem Class="pl-7 pt-4" xs="7">
+                        <div>
+                            <MudText Typo="Typo.subtitle2" Style="font-weight: 600;">Favorite Universities</MudText>
+                            @if (_favoriteUniversities is null)
+                            {
+                                <MudSkeleton Width="100%" Height="46px" Animation="Animation.Wave" />
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left">@_favoriteUniversities</MudText>
+                            }
+                        </div>
+
+                    </MudItem>
+                    <MudItem xs="2">
+                        <MudIcon Icon="@Icons.Material.Filled.Star" Style="width: 87px; height: 55px; color: #2ebb0e!important;"></MudIcon>
+                    </MudItem>
+
+                </MudGrid>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Elevation="9" Class="d-flex flex-row pt-3 pb-4" Style="height: 102px; cursor: pointer" @onclick="@(() => NavigationManager.NavigateTo("/athlete/universities"))">
+                <MudGrid>
+                    <MudItem Class="pl-7 pt-4" xs="7">
+                        <div>
+                            <MudText Typo="Typo.subtitle2" Style="font-weight: 600;">Universities</MudText>
+                            @if (_qualifyUniversities is null)
+                            {
+                                <MudSkeleton Width="100%" Height="46px" Animation="Animation.Wave" />
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left">@_qualifyUniversities</MudText>
+                            }
+                        </div>
+
+                    </MudItem>
+                    <MudItem xs="2">
+                        <MudIcon Icon="@Icons.Material.Filled.School" Style="width: 87px; height: 55px; color: #2ebb0e !important;"></MudIcon>
+                    </MudItem>
+
+                </MudGrid>
+
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Elevation="9" Class="d-flex flex-row pt-3 pb-4" Style="height: 102px; cursor: pointer" @onclick="@(() => NavigationManager.NavigateTo("/athlete/views"))">
+                <MudGrid>
+                    <MudItem Class="pl-7 pt-4" xs="7">
+                        <div>
+                            <MudText Typo="Typo.subtitle2" Style="font-weight: 600">Coaches Views</MudText>
+                            @if (_coachesViews is null)
+                            {
+                                <MudSkeleton Width="100%" Height="46px" Animation="Animation.Wave" />
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left">@_coachesViews</MudText>
+                            }
+                        </div>
+
+                    </MudItem>
+                    <MudItem xs="2">
+                        <MudIcon Icon="@Icons.Material.Filled.RemoveRedEye" Style="width: 87px; height: 55px; color: #2ebb0e !important;"></MudIcon>
+                    </MudItem>
+
+                </MudGrid>
+
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Elevation="9" Class="d-flex flex-row pt-3 pb-4" Style="height: 102px; cursor: pointer" @onclick="@(() => NavigationManager.NavigateTo("/emails"))">
+                <MudGrid>
+                    <MudItem Class="pl-7 pt-4" xs="7">
+                        <div>
+                            <MudText Typo="Typo.subtitle2" Style="font-weight: 600">Emails</MudText>
+                            @if (_emails is null)
+                            {
+                                <MudSkeleton Width="100%" Height="46px" Animation="Animation.Wave" />
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left">@_emails.Length</MudText>
+                            }
+                        </div>
+
+                    </MudItem>
+                    <MudItem xs="2">
+                        <MudIcon Icon="@Icons.Material.Filled.Email" Style="width: 87px; height: 55px; color: #2ebb0e !important;"></MudIcon>
+                    </MudItem>
+
+                </MudGrid>
+
+            </MudPaper>
+        </MudItem>
+    }
+    else
+    {
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Elevation="9" Class="d-flex flex-row pt-6 pb-4" Style="height: 118px; cursor: pointer" @onclick="@(() => NavigationManager.NavigateTo("/schedules"))">
+                <MudGrid>
+                    <MudItem Class="pl-7 pt-4" xs="7">
+                        <div>
+                            <MudText Typo="Typo.subtitle2" Style="font-weight: 600;">Schedules</MudText>
+                            @if (_tasks is null)
+                            {
+                                <MudSkeleton Width="100%" Height="46px" Animation="Animation.Wave" />
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left">@_tasks.Count</MudText>
+                            }
+                        </div>
+
+                    </MudItem>
+                    <MudItem xs="2">
+                        <MudIcon Icon="@Icons.Material.Filled.Schedule" Class="mx-4" Style="width: 61px; height: 55px; color: #2ebb0e!important;"></MudIcon>
+                    </MudItem>
+
+                </MudGrid>
+            </MudPaper>
+        </MudItem>
+
+        @if (_account.Type == UserType.Admin || _account.Type == UserType.AssisCoord || _account.Type == UserType.AssisAdmin)
+        {
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Elevation="9" Class="d-flex flex-row pt-6 pb-4" Style="height: 118px; cursor: pointer" @onclick="@(() => NavigationManager.NavigateTo("/leads"))">
+                    <MudGrid>
+                        <MudItem Class="pl-7 pt-4" xs="7">
+                            <div>
+                                <MudText Typo="Typo.subtitle2" Style="font-weight: 600">Leads</MudText>
+                                @if (_leads is null)
+                                {
+                                    <MudSkeleton Width="100%" Height="46px" Animation="Animation.Wave" />
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left">@_leads</MudText>
+                                }
+                            </div>
+                        </MudItem>
+                        <MudItem xs="2">
+                            <MudIcon Icon="@Icons.Material.Filled.Leaderboard" Class="mx-4" Style="width: 61px; height: 55px; color: #2ebb0e !important;"></MudIcon>
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+            </MudItem>
+
+            @if (_account.Type == UserType.Admin)
+            {
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Elevation="9" Class="d-flex flex-row pt-6 pb-4" Style="height: 118px; cursor: pointer" @onclick="@(() => NavigationManager.NavigateTo("/athletes"))">
+                        <MudGrid>
+                            <MudItem Class="pl-7 pt-4" xs="7">
+                                <div>
+                                    <MudText Typo="Typo.subtitle2" Style="font-weight: 600">Athletes</MudText>
+                                    @if (_athletes is null)
+                                    {
+                                        <MudSkeleton Width="100%" Height="46px" Animation="Animation.Wave" />
+                                    }
+                                    else
+                                    {
+                                        <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left">@_athletes</MudText>
+                                    }
+                                </div>
+                            </MudItem>
+                            <MudItem xs="2">
+                                <MudIcon Icon="@Icons.Material.Filled.SportsHandball" Class="mx-4" Style="width: 61px; height: 55px; color: #2ebb0e !important;"></MudIcon>
+                            </MudItem>
+                        </MudGrid>
+                    </MudPaper>
+                </MudItem>
+            }
+        }
+        else
+        {
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Elevation="9" Class="d-flex flex-row pt-6 pb-4" Style="height: 118px; cursor: pointer" @onclick="@(() => NavigationManager.NavigateTo("/favorites"))">
+                    <MudIcon Icon="@Icons.Material.Filled.Star" Class="mx-4" Style="width: 87px; height: 55px; color: #2ebb0e!important;"></MudIcon>
+                    <div>
+                        <MudText Typo="Typo.subtitle2" Style="font-weight: 600">Favorite Athletes</MudText>
+                        @if (_athletes is null)
+                        {
+                            <MudSkeleton Width="100%" Height="46px" Animation="Animation.Wave" />
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left">@_favAthletes</MudText>
+                        }
+                    </div>
+                </MudPaper>
+            </MudItem>
+        }
+
+        @if (_account.Type == UserType.Coach)
+        {
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Elevation="9" Class="d-flex flex-row pt-6 pb-4" Style="height: 118px; cursor: pointer" @onclick="@(() => NavigationManager.NavigateTo("/athletes"))">
+                    <MudIcon Icon="@Icons.Material.Filled.SportsHandball" Class="mx-4" Style="width: 87px; height: 55px; color: #2ebb0e!important;"></MudIcon>
+                    <div>
+                        <MudText Typo="Typo.subtitle2" Style="font-weight: 600">Athletes</MudText>
+                        @if (_athletes is null)
+                        {
+                            <MudSkeleton Width="100%" Height="46px" Animation="Animation.Wave" />
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left">@_athletes</MudText>
+                        }
+                    </div>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Elevation="9" Class="d-flex flex-row pt-6 pb-4" Style="height: 118px; cursor: pointer" @onclick="@(() => NavigationManager.NavigateTo("/chat/conversations"))">
+                    <MudIcon Icon="@Icons.Material.Filled.Email" Class="mx-4" Style="width: 87px; height: 55px;  color: #2ebb0e!important;"></MudIcon>
+                    <div>
+                        <MudText Typo="Typo.subtitle2" Style="font-weight: 600">Emails</MudText>
+                        @if (_emails is null)
+                        {
+                            <MudSkeleton Width="100%" Height="46px" Animation="Animation.Wave" />
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left">@_emails.Length</MudText>
+                        }
+                    </div>
+                </MudPaper>
+            </MudItem>
+        }
+
+        @if (_account.Type == UserType.Admin || _account.Type == UserType.AssisAdmin)
+        {
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Elevation="9" Class="d-flex flex-row pt-6 pb-4" Style="height: 118px; cursor: pointer" @onclick="@(() => NavigationManager.NavigateTo("/universities"))">
+                    <MudGrid>
+                        <MudItem Class="pl-7 pt-4" xs="7">
+                            <div>
+                                <MudText Typo="Typo.subtitle2" Style="font-weight: 600">Universities</MudText>
+                                @if (_universities is null)
+                                {
+                                    <MudSkeleton Width="100%" Height="46px" Animation="Animation.Wave" />
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left">@_universities</MudText>
+                                }
+                            </div>
+                        </MudItem>
+                        <MudItem xs="2">
+                            <MudIcon Icon="@Icons.Material.Filled.School" Class="mx-4" Style="width: 61px; height: 55px; color: #2ebb0e!important;"></MudIcon>
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Elevation="9" Class="d-flex flex-row pt-6 pb-4" Style="height: 118px; cursor: pointer" @onclick="@(() => NavigationManager.NavigateTo("/sports"))">
+                    <MudGrid>
+                        <MudItem Class="pl-7 pt-4" xs="7">
+                            <div>
+                                <MudText Typo="Typo.subtitle2" Style="font-weight: 600">Sports</MudText>
+                                @if (_sports is null)
+                                {
+                                    <MudSkeleton Width="100%" Height="46px" Animation="Animation.Wave" />
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left">@_sports</MudText>
+                                }
+                            </div>
+                        </MudItem>
+                        <MudItem xs="2">
+                            <MudIcon Icon="@Icons.Material.Filled.Sports" Class="mx-4" Style="width: 61px; height: 55px; color: #2ebb0e!important;"></MudIcon>
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Elevation="9" Class="d-flex flex-row pt-6 pb-4" Style="height: 118px; cursor: pointer" @onclick="@(() => NavigationManager.NavigateTo("/assistants"))">
+                    <MudGrid>
+                        <MudItem Class="pl-7 pt-4" xs="7">
+                            <div>
+                                <MudText Typo="Typo.subtitle2" Style="font-weight: 600">Assistants</MudText>
+                                @if (_assistants is null)
+                                {
+                                    <MudSkeleton Width="100%" Height="46px" Animation="Animation.Wave" />
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left">@_assistants</MudText>
+                                }
+                            </div>
+                        </MudItem>
+                        <MudItem xs="2">
+                            <MudIcon Icon="@Icons.Material.Filled.Assistant" Class="mx-4" Style="width: 61px; height: 55px; color: #2ebb0e!important;"></MudIcon>
+                        </MudItem>
+                    </MudGrid>
+
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Elevation="9" Class="d-flex flex-row pt-6 pb-4" Style="height: 118px; cursor: pointer" @onclick="@(() => NavigationManager.NavigateTo("/promotions"))">
+                    <MudGrid>
+                        <MudItem Class="pl-7 pt-4" xs="7">
+                            <div>
+                                <MudText Typo="Typo.subtitle2" Style="font-weight: 600">Promotions</MudText>
+                                @if (_promotions is null)
+                                {
+                                    <MudSkeleton Width="100%" Height="46px" Animation="Animation.Wave" />
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left">@_promotions</MudText>
+                                }
+                            </div>
+                        </MudItem>
+                        <MudItem xs="2">
+                            <MudIcon Icon="@Icons.Material.Filled.LocalOffer" Class="mx-4" Style="width: 70px; height: 55px; color: #2ebb0e!important;"></MudIcon>
+                        </MudItem>
+                    </MudGrid>
+
+                </MudPaper>
+            </MudItem>
+        }
+    }
+</MudGrid>
+
+@if ((_account.Type == UserType.Coach || _account.Type == UserType.Athlete) && (_emails is not null && _emails.Any()))
+{
+    <MudDivider Class="mb-6 mt-3" />
+    <MudText Typo="Typo.h4" Class="mb-6">Emails</MudText>
+    <MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+        <MudGrid Class="mb-3">
+            @foreach (var email in _emails)
+            {
+                <MudItem sm="4" xs="6">
+                    <MudPaper @onclick="@(() => ViewEmail(email))" Elevation="9" Class="d-flex flex-row pt-6 pb-4" Style="height: 136px; cursor: pointer">
+                        <MudGrid>
+
+                            <MudItem sm="9" xs="12" Style="padding-left: 27px;padding-right: 27px;">
+                                <MudText Style="width: 100%;white-space: nowrap;text-overflow: ellipsis;overflow: hidden" Typo="Typo.h6">@email.Sender_Name</MudText>
+                                <MudText Style="width: 100%;white-space: nowrap;text-overflow: ellipsis;overflow: hidden" Typo="Typo.subtitle1" Class="mud-text-secondary mb-n1">@email.Content</MudText>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary mb-n1">@email.Date.ToString("d")</MudText>
+                            </MudItem>
+                            <MudItem sm="3" xs="12" Style="height: 64%">
+                                <MudIcon Icon="@Icons.Filled.Email" Style="width: 100%;height: 100%; color: #2ebb0e!important;"></MudIcon>
+                            </MudItem>
+                        </MudGrid>
+                    </MudPaper>
+                </MudItem>
+            }
+        </MudGrid>
+
+    </MudHidden>
+    <MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+        <MudGrid Class="mb-3">
+            @foreach (var email in _emails)
+            {
+                <MudItem sm="4" xs="6">
+                    <MudPaper @onclick="@(() => ViewEmailMobile(email))" Elevation="9" Class="d-flex flex-row pt-6 pb-4" Style="height: 200px">
+                        <MudGrid>
+                            <MudItem sm="3" xs="12" Style="height: 45%">
+                                <MudIcon Icon="@Icons.Filled.Email" Style="width: 100%;height: 100%; color: #2ebb0e!important;"></MudIcon>
+                            </MudItem>
+                            <MudItem sm="9" xs="12" Style="padding-left: 27px;padding-right: 27px;">
+                                <MudText Style="width: 100%;white-space: nowrap;text-overflow: ellipsis;overflow: hidden" Typo="Typo.h6">@email.Sender_Name</MudText>
+                                <MudText Style="width: 100%;white-space: nowrap;text-overflow: ellipsis;overflow: hidden" Typo="Typo.subtitle1" Class="mud-text-secondary mb-n1">@email.Content</MudText>
+                                <MudText Typo="Typo.subtitle1" Class="mud-text-secondary mb-n1">@email.Date.ToString("d")</MudText>
+                            </MudItem>
+                        </MudGrid>
+                    </MudPaper>
+                </MudItem>
+            }
+        </MudGrid>
+
+    </MudHidden>
+
+}
+
+@if (_account.Type != UserType.Athlete && _tasks is not null && _tasks.Any())
+{
+    <MudDivider Class="mb-6 mt-3" />
+    <MudText Typo="Typo.h4" Class="mb-6">Schedules</MudText>
+    <MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+        <MudGrid Class="mb-3">
+            @foreach (var task in _tasks)
+            {
+                <MudItem sm="4" xs="6">
+                    <MudPaper Elevation="9" Class="d-flex flex-row pt-6 pb-4" Style="height: 136px; cursor: pointer">
+                        <MudGrid>
+                            <MudItem sm="9" xs="12" Style="padding-left: 27px;padding-right: 27px;">
+                                <MudText Style="width: 100%;white-space: nowrap;text-overflow: ellipsis;overflow: hidden" Typo="Typo.h6">@task.Description</MudText>
+                                <MudText Typo="Typo.subtitle1" Class="mud-text-secondary mb-n1">@task.DateStart?.ToString("d")</MudText>
+                                <MudText Style="width: 100%;white-space: nowrap;text-overflow: ellipsis;overflow: hidden" Typo="Typo.subtitle1" Class="mud-text-secondary mb-n1">@task.Notes</MudText>
+                            </MudItem>
+                            <MudItem sm="3" xs="12" Style="height: 90%">
+                                <MudIcon Icon="@(task.Type == 1 ? Icons.Filled.AddTask : Icons.Filled.Phone)" Style="width: 100%;height: 50%; color: #2ebb0e!important;"></MudIcon>
+                            </MudItem>
+                        </MudGrid>
+                    </MudPaper>
+                </MudItem>
+            }
+        </MudGrid>
+    </MudHidden>
+    <MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+        <MudGrid Class="mb-3">
+            @foreach (var task in _tasks)
+            {
+                <MudItem sm="4" xs="6">
+                    <MudPaper Elevation="9" Class="d-flex flex-row pt-6 pb-4" Style="height: 200px">
+                        <MudGrid>
+                            <MudItem sm="3" xs="12" Style="height: 45%">
+                                <MudIcon Icon="@(task.Type == 1 ? Icons.Filled.AddTask : Icons.Filled.Phone)" Style="width: 100%;height: 95%; color: #2ebb0e!important;"></MudIcon>
+                            </MudItem>
+                            <MudItem sm="9" xs="12" Style="padding-left: 27px;padding-right: 27px;">
+                                <MudText Style="width: 100%;white-space: nowrap;text-overflow: ellipsis;overflow: hidden" Typo="Typo.h6">@task.Description</MudText>
+                                <MudText Typo="Typo.subtitle1" Class="mud-text-secondary mb-n1">@task.DateStart?.ToString("d")</MudText>
+                                <MudText Style="width: 100%;white-space: nowrap;text-overflow: ellipsis;overflow: hidden" Typo="Typo.subtitle1" Class="mud-text-secondary mb-n1">@task.Notes</MudText>
+                            </MudItem>
+                        </MudGrid>
+                    </MudPaper>
+                </MudItem>
+            }
+        </MudGrid>
+
+    </MudHidden>
+}
+
+@if (_account.Type == UserType.Admin || _account.Type == UserType.AssisCoord || _account.Type == UserType.AssisAdmin)
+{
+    <MudDivider Class="mb-6 mt-3" />
+    <MudText Typo="Typo.h4" Class="mb-6">Reports</MudText>
+    <MudGrid Class="mb-3">
+        <MudItem sm="6" xs="12">
+            <MudPaper Elevation="9" Class="pa-6">
+                <MudSelect T="int" Label="Months" @bind-Value="@_months">
+                    <MudSelectItem Value="6" />
+                    <MudSelectItem Value="12" />
+                </MudSelect>
+                <MudChart ChartType="ChartType.Bar" ChartSeries="@Series" @bind-SelectedIndex="Index" XAxisLabels="@XAxisLabels" Width="100%" Height="350px"></MudChart>
+            </MudPaper>
+        </MudItem>
+        <MudItem sm="6" xs="12">
+            <MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+                <MudGrid Class="mb-3">
+                    <MudItem xs="6">
+                        <MudPaper Elevation="9" Class="d-flex flex-row pt-6 pb-4" Style="height: 136px; cursor: pointer">
+                            <MudGrid>
+                                <MudItem sm="9" xs="12" Style="padding-left: 27px;padding-right: 27px;">
+                                    <MudText Typo="Typo.subtitle2" Style="font-weight: 600;">Current Earnings</MudText>
+                                    <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left">0</MudText>
+                                </MudItem>
+                                <MudItem sm="3" xs="12" Style="height: 90%">
+                                    <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Style="width: 55px; height: 55px; color: #2ebb0e!important; margin-right:-2px !important"></MudIcon>
+                                </MudItem>
+                            </MudGrid>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudPaper Elevation="9" Class="d-flex flex-row pt-6 pb-4" Style="height: 136px; cursor: pointer">
+                            <MudGrid>
+                                <MudItem sm="9" xs="12" Style="padding-left: 27px;padding-right: 27px;">
+                                    <MudText Typo="Typo.subtitle2" Style="font-weight: 600;">Projections</MudText>
+                                    <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left">0</MudText>
+                                </MudItem>
+                                <MudItem sm="3" xs="12" Style="height: 90%">
+                                    <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Style="width: 55px; height: 55px; color: #2ebb0e!important;"></MudIcon>
+                                </MudItem>
+                            </MudGrid>
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
+            </MudHidden>
+            <MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+                <MudGrid Class="mb-3">
+                    <MudItem xs="6">
+                        <MudPaper Elevation="9" Class="d-flex flex-row pt-6 pb-4" Style="height: 200px">
+                            <MudGrid Justify="Justify.Center">
+                                <MudItem xs="12" Style="height: 45%">
+                                    <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Style="width: 173px; height: 55px; color: #2ebb0e!important;"></MudIcon>
+                                </MudItem>
+                                <MudItem xs="12" Style="padding-left: 27px;padding-right: 27px;">
+                                    <MudText Typo="Typo.subtitle2" Style="font-weight: 600;">Current Earnings</MudText>
+                                    <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left">0</MudText>
+                                </MudItem>
+                            </MudGrid>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudPaper Elevation="9" Class="d-flex flex-row pt-6 pb-4" Style="height: 200px">
+                            <MudGrid Justify="Justify.Center">
+                                <MudItem xs="12" Style="height: 45%">
+                                    <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Style="width: 173px; height: 55px; color: #2ebb0e!important;"></MudIcon>
+                                </MudItem>
+                                <MudItem xs="12" Style="padding-left: 27px;padding-right: 27px;">
+                                    <MudText Typo="Typo.subtitle2" Style="font-weight: 600;">Projections</MudText>
+                                    <MudText Typo="Typo.h5" Style="font-size: 35px; font-weight: bold; float: left">0</MudText>
+                                </MudItem>
+                            </MudGrid>
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
+
+            </MudHidden>
+        </MudItem>
+    </MudGrid>
+}
+
+
+@code {
+    int? _leads;
+    int? _athletes;
+    int? _favAthletes;
+    int? _universities;
+    int? _sports;
+    int? _assistants;
+    int? _promotions;
+
+    private int? _qualifyUniversities;
+    private int? _favoriteUniversities;
+    private int? _coachesViews;
+
+    int _months = 6;
+    List<TaskDTO>? _tasks;
+    EmailModel[] _emails;
+    AccountDto _account = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _account = await _localStorage.GetItemAsync<AccountDto>("account");
+
+
+        if (_account.Type == UserType.Athlete)
+        {
+            _ = Task.Run(async () =>
+            {
+                var response = await _httpClient.GetFromJsonAsync<Response<EmailModel[]>>($"/api/v1/email/receive/{_account.Id}");
+                _emails = response?.Payload;
+
+                StateHasChanged();
+            });
+
+            _ = Task.Run(async () =>
+            {
+                var responseQualification = await _httpClient.GetFromJsonAsync<Response<UniversityModel[]>>("api/v1/university/qualify?" +
+                                                                                                            $"sportName={_account.Athlete.SportName}&" +
+                                                                                                            $"gpa={_account.Athlete.GPA}");
+                _qualifyUniversities = responseQualification?.Payload?.Length ?? 0;
+
+                StateHasChanged();
+            });
+
+            _ = Task.Run(async () =>
+            {
+                var responseFavorites = await _httpClient.GetFromJsonAsync<Response<UniversityModel[]>>($"api/v1/university/favorites/{_account.Athlete.Id}");
+                _favoriteUniversities = responseFavorites?.Payload?.Count() ?? 0;
+
+                StateHasChanged();
+            });
+
+
+            _ = Task.Run(async () =>
+            {
+                var responseCoachViews = await _httpClient.GetFromJsonAsync<Response<int>>($"api/v1/coach/views/{_account.Athlete.Id}/count");
+                _coachesViews = responseCoachViews?.Payload ?? 0;
+
+                StateHasChanged();
+            });
+        }
+        else
+        {
+            _ = Task.Run(async () =>
+            {
+                var response = await _httpClient.GetFromJsonAsync<Response<List<TaskDTO>>>($"/api/v1/task/{_account.Id}");
+                _tasks = response?.Payload;
+
+                StateHasChanged();
+            });
+
+            if (_account.Type == UserType.Coach)
+            {
+                _ = Task.Run(async () =>
+                {
+                    var response = await _httpClient.GetFromJsonAsync<Response<EmailModel[]>>($"/api/v1/email/receive/{_account.Coach.UniversityContactId}");
+                    _emails = response?.Payload;
+
+                    StateHasChanged();
+                });
+            }
+
+            _ = Task.Run(async () =>
+            {
+                var responseLead = await _httpClient.GetFromJsonAsync<Response<int>>($"/api/v1/lead/{_account.Id}/count");
+                _leads = responseLead?.Payload ?? 0;
+
+                StateHasChanged();
+            });
+
+            _ = Task.Run(async () =>
+            {
+                if (_account.Type == UserType.Coach)
+                {
+                    var responseAthletes = await _httpClient.GetFromJsonAsync<Response<AthleteDTO[]>>($"api/v1/athlete/sport/{_account.Coach.SportId}");
+                    _athletes = responseAthletes?.Payload.Length ?? 0;
+                }
+                else if (_account.Type == UserType.Admin)
+                {
+                    var responseAthletes = await _httpClient.GetFromJsonAsync<Response<int>>("api/v1/athlete/count");
+                    _athletes = responseAthletes?.Payload ?? 0;
+                }
+                else
+                {
+                    var responseAthletes = await _httpClient.GetFromJsonAsync<Response<int>>($"api/v1/athlete/referral/{_account.Id}/count");
+                    _athletes = responseAthletes?.Payload ?? 0;
+                }
+
+                StateHasChanged();
+            });
+
+            _ = Task.Run(async () =>
+            {
+                if (_account.Type == UserType.Coach)
+                {
+                    var responseFavAthletes = await _httpClient.GetFromJsonAsync<Response<int>>($"api/v1/athlete/favorites/{_account.Coach.Id}/count");
+                    _favAthletes = responseFavAthletes?.Payload ?? 0;
+                }
+
+                StateHasChanged();
+            });
+
+            if (_account.Type == UserType.Admin)
+            {
+                _ = Task.Run(async () =>
+                {
+                    var responseUniversities = await _httpClient.GetFromJsonAsync<Response<int>>("api/v1/university/count?");
+                    _universities = responseUniversities?.Payload ?? 0;
+
+                    StateHasChanged();
+                });
+
+                _ = Task.Run(async () =>
+                {
+                    var responseSports = await _httpClient.GetFromJsonAsync<Response<int>>("api/v1/sport/count");
+                    _sports = responseSports?.Payload ?? 0;
+
+                    StateHasChanged();
+                });
+
+                _ = Task.Run(async () =>
+                {
+                    var responseAssistants = await _httpClient.GetFromJsonAsync<Response<int>>("api/v1/assistant/count");
+                    _assistants = responseAssistants?.Payload ?? 0;
+
+                    StateHasChanged();
+                });
+
+                _ = Task.Run(async () =>
+                {
+                    var responsePromotions = await _httpClient.GetFromJsonAsync<Response<int>>("api/v1/promotion/count");
+                    _promotions = responsePromotions?.Payload ?? 0;
+
+                    StateHasChanged();
+                });
+            }
+        }
+    }
+
+    private int Index = -1; //default value cannot be 0 -> first selectedindex is 0.
+
+    public List<ChartSeries> Series = new()
+    {
+        new() {Name = "Prospect", Data = new double[] {20, 20, 15, 30, 40, 35}},
+        new() {Name = "Pending", Data = new double[] {3, 5, 10, 9, 6, 16}},
+        new() {Name = "Signed", Data = new double[] {1, 3, 5, 6, 8, 11}},
+    };
+
+    public string[] XAxisLabels = { "Jan", "Feb", "Mar", "Apr", "May", "Jun" };
+
+    @code {
+
+        [Parameter]
+        public bool Tut { get; set; }
+
+        private void NextFromTutorial()
+        {
+            Tut = false;
+            StateHasChanged();
+        }
+        private async Task ViewEmailMobile(EmailModel email)
+        {
+            await _localStorage.SetItemAsync("email", email);
+            NavigationManager.NavigateTo($"emails/{_account.Id}");
+        }
+        private async Task ViewEmail(EmailModel emailReceived)
+        {
+            await _localStorage.SetItemAsync("email", emailReceived);
+            NavigationManager.NavigateTo($"emails");
+        }
+    }
+}

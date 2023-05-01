@@ -1,0 +1,196 @@
+﻿@page "/athlete/views"
+
+@using iSportsRecruiting.Shared.DTO;
+@using iSportsRecruiting.Shared.Models;
+@using System.Net.Http.Json
+
+@inject ISnackbar _snackBar
+@inject HttpClient _httpClient
+@inject NavigationManager _navigationManager
+@inject Blazored.LocalStorage.ILocalStorageService _localStorage;
+
+<style>
+    .mud-grid-spacing-xs-3 > .mud-grid-item {
+        padding: 12px;
+    }
+</style>
+<MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+    <MudPaper Elevation="9" Square="true" Class="pa-3 mt-4">
+        <MudGrid>
+            <MudItem sm="12">
+                <MudText Typo="Typo.h6">Coach Views</MudText>
+            </MudItem>
+            <MudItem sm="12" xs="12">
+                <MudTextField Class="mr-1" T="string" TextChanged="Search" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Search" AdornmentColor="Color.Primary" />
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+    <MudTable Class="mb-4" Items="Elements" Square="true" SortLabel="Sort By" Loading="_loading" LoadingProgressColor="@Color.Secondary">
+        <ToolBarContent>
+            <MudGrid>
+                @if (_account?.Athlete?.Plan == "AA" && OtherUniversities > 0)
+                {
+                    <MudItem sm="6" xs="6">
+                        <MudButton OnClick="ShowUpgradePlanMessage">OTHERS UNIVERSITIES (@OtherUniversities)</MudButton>
+                    </MudItem>
+                    <MudItem sm="6" xs="6">
+                        <MudChip Color="Color.Primary" Style="float: right; font-weight: bold">@Elements?.Count</MudChip>
+                    </MudItem>
+                }
+                else
+                {
+                    <MudItem sm="12" xs="12">
+                        <MudChip Color="Color.Primary" Style="float: right; font-weight: bold">@Elements?.Count</MudChip>
+                    </MudItem>
+                }
+
+            </MudGrid>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>
+            </MudTh>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<CoachViewModel, object>(x => x.Full_Name)">From</MudTableSortLabel>
+            </MudTh>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<CoachViewModel, object>(x => x.Count)">Views</MudTableSortLabel>
+            </MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Image">
+                <img src="https://isportsrecruiting.com/api/v1/file/logos/50/50/@string.Format(context.University_Image + ".jpg")" style="width: 50px; height: 50px;margin-left: auto;margin-right: auto;display: block;">
+            </MudTd>
+            <MudTd DataLabel="FullName">
+                <MudText Style="font-size: 16px; font-weight: bolder;">
+                    @context.University_Name
+                </MudText>
+
+                @context.Coach_Name
+            </MudTd>
+            <MudTd DataLabel="Count">@context.Count</MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new int[] {10, 25, 50, 100}" />
+        </PagerContent>
+    </MudTable>
+</MudHidden>
+
+<MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+    @if (_account is not null)
+    {
+        <ListMobile SearchBy="@(a => $"{a.Param.Full_Name} {a.Param.University_Name}".Contains(_search, StringComparison.InvariantCultureIgnoreCase))" @ref="_listMobile" Style="margin-left: 16px; margin-right: 16px" T="CoachViewModel" Title="Views" EndPoint="@($"Coach/views/mobile/{_account.Id}?")">
+            <Filters>
+                <MudGrid Justify="Justify.SpaceAround">
+                    <div style="padding-right:0">
+                        <MudItem xs="12">
+                            <MudTextField T="string" TextChanged="Search" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Search" AdornmentColor="Color.Primary" />
+
+                        </MudItem>
+                    </div>
+                </MudGrid>
+            </Filters>
+            <CardImage>
+                <img src="https://isportsrecruiting.com/api/v1/file/logos/50/50/@string.Format(context.University_Image + ".jpg")" style="width: 50px; height: 50px;margin-left: auto;margin-right: auto;display: block;">
+            </CardImage>
+            <CardTitle>
+                @context.University_Name
+            </CardTitle>
+
+            <CardSubtitle>
+                @context.Coach_Name
+            </CardSubtitle>
+            <CardViewIcon>
+                <MudGrid>
+                    <MudItem Class="mb-n3" xs="1">
+                        <MudText>@context.Count</MudText>
+                    </MudItem>
+                    <MudItem Class="mb-n3" xs="3">
+                        <MudIcon Style="padding-right:1px;" Icon="@Icons.Material.Outlined.RemoveRedEye" Title="Views" />
+                    </MudItem>
+                </MudGrid>
+            </CardViewIcon>
+        </ListMobile>
+    }
+</MudHidden>
+
+
+@code {
+
+    private const string Path = "/api/v1/coach/views";
+
+    private ListMobile<CoachViewModel>? _listMobile;
+
+    private int OtherUniversities = 0;
+    private CoachViewModel _element = new();
+    private List<CoachViewModel> _elements;
+
+    private List<CoachViewModel> Elements
+    {
+        get => _elements is null ?
+            Enumerable.Empty<CoachViewModel>().ToList() :
+            _elements.Where(e => string.IsNullOrWhiteSpace(_search) ||
+                                 e.Full_Name.Contains(_search, StringComparison.InvariantCultureIgnoreCase)).ToList();
+
+        set => _elements = value;
+    }
+
+
+    private string _search = string.Empty;
+    private bool _loading;
+    private bool _editMode => _element.Id != 0;
+    private string _description;
+
+
+    private AccountDto _account;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _account = await _localStorage.GetItemAsync<AccountDto>("account");
+
+        await GetElements();
+    }
+
+    private async Task GetElements()
+    {
+        if (!_loading)
+        {
+            _loading = true;
+            StateHasChanged();
+        }
+
+        var response = await _httpClient.GetFromJsonAsync<Response<List<CoachViewModel>>>($"{Path}/{_account.Id}");
+        Elements = response?.Payload.GroupBy(c => c.Coach_Id).Select(c =>
+        {
+            var view = c.OrderByDescending(a => a.Id).First();
+            view.Count = c.Count();
+            return view;
+        }).ToList();
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private void ShowUpgradePlanMessage()
+    {
+        _snackBar.Add("Upgrade your plan", Severity.Info, config =>
+        {
+            config.VisibleStateDuration = 15000;
+            config.HideTransitionDuration = 500;
+            config.ShowTransitionDuration = 500;
+            config.CloseAfterNavigation = true;
+            config.Action = "UPGRADE";
+            config.ActionColor = Color.Primary;
+            config.Onclick = _ =>
+            {
+                _navigationManager.NavigateTo("/athlete/billing");
+                return Task.CompletedTask;
+            };
+        });
+    }
+
+    private void Search(string value)
+    {
+        _search = value;
+    }
+
+}

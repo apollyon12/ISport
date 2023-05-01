@@ -1,0 +1,1083 @@
+﻿@inject NavigationManager _navigationMaganger
+
+@using System.Threading
+@using iSportsRecruiting.Client.Shared.Dialogs
+
+@using iSportsRecruiting.Shared.DTO;
+@using iSportsRecruiting.Shared.Models;
+@using iSportsRecruiting.Shared.Constants;
+@using System.Net.Http.Json
+@using System.Globalization
+
+@inject ISnackbar _snackBar
+@inject HttpClient _httpClient
+@inject IDialogService _dialogService
+@inject NavigationManager Navigation
+@inject Blazored.LocalStorage.ILocalStorageService _localStorage;
+
+<MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+
+    @if (ShowAthleteSettings)
+    {
+        <MudAlert Severity="Severity.Success" Variant="Variant.Filled" Elevation="3" Style="background-color: #3dce0c; color:black; font-size: large" Class="mb-4">
+            Schools to Aproach <b>@UniversitiesAproach</b>
+        </MudAlert>
+        <MudCard Class="mb-4">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudGrid>
+                        <MudItem sm="6" xs="12">
+                            <MudText Typo="Typo.h6">SETTINGS</MudText>
+                        </MudItem>
+                        <MudItem sm="6" xs="12">
+                            <MudIconButton Icon="@Icons.Material.Filled.Save" Size="Size.Medium" Style="float: right" @onclick="@(() => Task.Run(async () => await SaveAthleteSettingsAsync()))"></MudIconButton>
+                        </MudItem>
+                    </MudGrid>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudGrid>
+                    <MudItem xs="3">
+                        <MudCheckBox @bind-Checked="@_checkDivision" Label="Divisions" Color="Color.Primary"></MudCheckBox>
+
+                        <MudSelect Disabled="@(!_checkDivision)" OffsetY="true" T="string" Label="Divisions" MultiSelection="true" @bind-SelectedValues="DivisionsSelected">
+                            @for (int i = 0; i < _divisions.Length; i++)
+                            {
+                                <MudSelectItem Value="@_divisions[i]" />
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="3">
+                        <MudCheckBox @bind-Checked="@_checkGpa" Label="GPA" Color="Color.Primary"></MudCheckBox>
+                        <MudNumericField T="decimal" Culture="@CultureInfo.GetCultureInfo("en-US")" Disabled="@(!_checkGpa)" @bind-Value="Gpa" Label="GPA" Variant="Variant.Outlined" Min="1.00M" Max="4.00M" Step=".1M" />
+                    </MudItem>
+                    <MudItem xs="3">
+                        <MudCheckBox @bind-Checked="@_checkAct" Label="ACT" Color="Color.Primary"></MudCheckBox>
+                        <MudNumericField T="int" Disabled="@(!_checkAct)" @bind-Value="Act" Label="ACT" Variant="Variant.Outlined" Min="1" Max="36" />
+                    </MudItem>
+                    <MudItem xs="3">
+                        <MudCheckBox @bind-Checked="@_checkSat" Label="SAT" Color="Color.Primary"></MudCheckBox>
+                        <MudNumericField T="int" Disabled="@(!_checkSat)" @bind-Value="Sat" Label="SAT" Variant="Variant.Outlined" Min="400" Max="1600" />
+                    </MudItem>
+                </MudGrid>
+            </MudCardContent>
+        </MudCard>
+    }
+
+    <MudExpansionPanels Class="mb-6" Elevation="9">
+        <MudExpansionPanel Text="FILTERS">
+            <MudGrid>
+
+                @if (ShowOnlySearch)
+                {
+                    <MudItem sm="12" xs="12">
+                        <MudTextField T="string" @bind-Value="SearchString" Immediate="true" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Search" AdornmentColor="Color.Primary" />
+                    </MudItem>
+                }
+
+                @if (ShowSearchParameters)
+                {
+                    <MudItem sm="9" xs="12">
+                        <MudTextField T="string" @bind-Value="SearchString" Immediate="true" Label="Search"  Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Search" AdornmentColor="Color.Primary" />
+                    </MudItem>
+                    <MudItem sm="3" xs="12">
+                        <MudAutocomplete Variant="Variant.Outlined" @bind-Value="State" T="string" Label="State" SearchFunc="@SearchStates" Clearable="true" ResetValueOnEmptyText="true" MaxItems="Int32.MaxValue" />
+                    </MudItem>
+                }
+            </MudGrid>
+            @if (ShowSearchParameters)
+            {
+                <MudGrid>
+                    <MudItem sm="6" xs="12">
+                        <MudAutocomplete Variant="Variant.Outlined" @bind-Value="MajorCategory" T="CategoryModel" Label="Categories" SearchFunc="@SearchCategories" Clearable="true" ToStringFunc="@(m => m.Name)" ResetValueOnEmptyText="true" MaxItems="Int32.MaxValue" />
+                    </MudItem>
+                    <MudItem sm="6" xs="12">
+                        <MudAutocomplete Variant="Variant.Outlined" Disabled="!Majors.Any()" @bind-Value="Major" T="MajorModel" Label="Majors" SearchFunc="@SearchMajors" Clearable="true" ToStringFunc="@(m => m.Name)" ResetValueOnEmptyText="true" MaxItems="Int32.MaxValue" />
+                        @if (_loadingMajors)
+                        {
+                            <MudProgressLinear Color="Color.Success" Indeterminate="true" />
+                        }
+                    </MudItem>
+
+                </MudGrid>
+            }
+        </MudExpansionPanel>
+    </MudExpansionPanels>
+
+    <MudGrid Class="pa-4">
+        <MudItem sm="6">
+            <MudText Typo="Typo.h6">@(!string.IsNullOrWhiteSpace(Title) ? Title.ToUpper() : "UNIVERSITIES")</MudText>
+            @if (Universities?.Length > totalItems)
+            {
+                <MudText Class="mt-3 mb-3" Typo="Typo.caption">@Universities.Length/@Universities.Length</MudText>
+            }
+            else
+            {
+                <MudText Class="mt-3 mb-3" Typo="Typo.caption">@Universities.Length/@totalItems</MudText>
+            }
+        </MudItem>
+
+        @if (Tut && !_tutFinalized)
+        {
+            <WelcomePopover Open="Tut" ClickNext="NextFromTutorial" Style="margin-left: 2vh;margin-top: 11vh;">
+                <Title>
+                    College and Universities Information
+                </Title>
+                <Description>
+                    Search and select your favorite college or university by GPA, SAT/ACT, State, <br />
+                    Majors. Online Profile needs to be complete at least 90% to start sending direct <br />
+                    emails to coaches
+                </Description>
+            </WelcomePopover>
+        }
+
+        @if (_account is not null && _account?.Type == UserType.Admin)
+        {
+            <MudItem Class="d-flex align-end flex-column py-2 px-1" sm="6">
+                <MudIconButton Link="/universities/new" Icon="@Icons.Filled.Add" />
+            </MudItem>
+        }
+    </MudGrid>
+
+    <MudTable Elevation="9" FixedHeader="true" Striped="true" Bordered="true" ServerData="@(new Func<TableState, Task<TableData<UniversityDTO>>>(ServerReload))" Hover="true" @ref="table" LoadingProgressColor="Color.Primary">
+        @* <ToolBarContent> *@
+        @*     <MudGrid> *@
+        @*         <MudItem sm="12" xs="12"> *@
+        @*             <MudChip Color="Color.Primary" Style="float: right; font-weight: bold">@totalItems</MudChip> *@
+        @*         </MudItem> *@
+        @*     </MudGrid> *@
+        @* </ToolBarContent> *@
+        <HeaderContent>
+            <MudTh></MudTh>
+            <MudTh>
+                <MudTableSortLabel SortLabel="name" T="UniversityDTO">Name</MudTableSortLabel>
+            </MudTh>
+            <MudTh>
+                <MudTableSortLabel SortLabel="gpa" T="UniversityDTO">GPA</MudTableSortLabel>
+            </MudTh>
+            <MudTh>
+                <MudTableSortLabel SortLabel="act" T="UniversityDTO">ACT</MudTableSortLabel>
+            </MudTh>
+            <MudTh>
+                <MudTableSortLabel SortLabel="sat" T="UniversityDTO">SAT</MudTableSortLabel>
+            </MudTh>
+            <MudTh>
+                <MudTableSortLabel SortLabel="division" T="UniversityDTO">Division</MudTableSortLabel>
+            </MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Image" Style="cursor: pointer" @onclick="@(() => OnUniversityIsSelected(context))">
+                <img src="https://isportsrecruiting.com/api/v1/file/logos/50/50/@string.Format(context.Image + ".jpg")" style="width: 50px; height: 50px;margin-left: auto;margin-right: auto;display: block;">
+            </MudTd>
+            <MudTd DataLabel="Name" Style="cursor: pointer" @onclick="@(() => OnUniversityIsSelected(context))">
+                <MudHidden Breakpoint="Breakpoint.Xl" Invert="true">
+                    <MudText Style="font-size: 16px; font-weight: bolder;">
+                        @context.University
+                    </MudText>
+                    @GetCityAndState(context.Address)
+                </MudHidden>
+                <MudHidden Breakpoint="Breakpoint.Lg" Invert="true">
+                    <MudText Style="font-size: 16px; font-weight: bolder;">
+                        @context.University
+                    </MudText>
+                    @GetCityAndState(context.Address)
+                </MudHidden>
+                <MudHidden Breakpoint="Breakpoint.Md" Invert="true">
+                    <MudText Style="font-size: 16px; font-weight: bolder;">
+                        @context.University
+                    </MudText>
+                    @GetCityAndState(context.Address)
+                </MudHidden>
+                <MudHidden Breakpoint="Breakpoint.Sm" Invert="true">
+                    <MudText Style="font-size: 16px; font-weight: bolder;">
+                        @context.University
+                    </MudText>
+                    @GetCityAndState(context.Address)
+                </MudHidden>
+                <MudHidden Breakpoint="Breakpoint.Xs" Invert="true">
+                    <MudText Style="font-size: 16px;" Align="Align.Right">
+                        @context.University, @GetCityAndState(context.Address)
+                    </MudText>
+                </MudHidden>
+            </MudTd>
+            <MudTd DataLabel="Gpa">@context.GPA</MudTd>
+            <MudTd DataLabel="Act">@context.ACT</MudTd>
+            <MudTd DataLabel="Sat">@context.SAT</MudTd>
+            <MudTd DataLabel="Division">@context.Division</MudTd>
+
+
+            <div style="margin-left: 12px;width: 148px;top: 55%;-ms-transform: translateY(-50%);transform: translateY(5%);margin-top: 12px;">
+                @if (Athlete is not null)
+                {
+                    @if (!FavoriteFilter)
+                    {
+                        <MudTooltip Text="Set as Favorite">
+                            @if (context.IsFavorite)
+                            {
+                                <MudIconButton Icon="@Icons.Material.Outlined.Star" Style="cursor: pointer; color: #ffdb00; display: inline-block" @onclick="@(() => RemoveFavoriteAsync(context.Id))" />
+                            }
+                            else
+                            {
+                                <MudIconButton Icon="@Icons.Material.Outlined.Star" Style="cursor: pointer" @onclick="@(() => SetFavoriteAsync(context.Id))" />
+                            }
+                        </MudTooltip>
+                    }
+
+                    <MudTooltip Text="Send Email">
+                        <MudIconButton Icon="@Icons.Material.Outlined.Email" Style="cursor: pointer; display: inline-block" @onclick="@(() => SendEmailDialog(context.Id, context.IsFavorite))" />
+                    </MudTooltip>
+                }
+
+                <MudTooltip Text="Check University">
+                    <MudIconButton OnClick="@(() => CheckUniversity(context.Id, context.University, context.IsFavorite))" Icon="@Icons.Material.Outlined.RemoveRedEye" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+                </MudTooltip>
+                @if (ManageActions)
+                {
+                    <MudTooltip Text="Edit">
+                        <MudIconButton OnClick="() => Edit(context)" Icon="@Icons.Material.Outlined.Edit" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+                    </MudTooltip>
+                    <MudTooltip Text="Delete">
+                        <MudIconButton OnClick="() => Delete(context.Id)" Icon="@Icons.Material.Outlined.Delete" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+                    </MudTooltip>
+                }
+            </div>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>No matching records found</MudText>
+        </NoRecordsContent>
+        <LoadingContent>
+            <MudText>Loading...</MudText>
+        </LoadingContent>
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+    </MudTable>
+</MudHidden>
+@if (!IsPublicUniversities)
+{
+    <MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+        @if (Tut && !_tutFinalized)
+        {
+            <WelcomePopover Open="Tut" ClickNext="NextFromTutorial" IsMobile="true" Style="left: 0% !important;">
+                <Title>
+                    College and Universities Information
+                </Title>
+                <Description>
+                    Search and select your favorite college or university by GPA, SAT/ACT, State, <br />
+                    Majors. Online Profile needs to be complete at least 90% to start sending direct <br />
+                    emails to coaches
+                </Description>
+            </WelcomePopover>
+        }
+        <MudExpansionPanels Class="mb-6" Elevation="9">
+            <MudExpansionPanel Text="FILTERS">
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudCheckBox @bind-Checked="@_checkDivision" Label="Divisions" Color="Color.Primary"></MudCheckBox>
+
+                        <MudSelect Disabled="@(!_checkDivision)" OffsetY="true" T="string" Label="Divisions" MultiSelection="true" @bind-SelectedValues="DivisionsSelected">
+                            @for (int i = 0; i < _divisions.Length; i++)
+                            {
+                                <MudSelectItem Value="@_divisions[i]" />
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudCheckBox @bind-Checked="@_checkGpa" Label="GPA" Color="Color.Primary"></MudCheckBox>
+                        <MudNumericField T="decimal" Culture="@CultureInfo.GetCultureInfo("en-US")" Disabled="@(!_checkGpa)" @bind-Value="Gpa" Label="GPA" Variant="Variant.Outlined" Min="1.00M" Max="4.00M" Step=".1M" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudCheckBox @bind-Checked="@_checkAct" Label="ACT" Color="Color.Primary"></MudCheckBox>
+                        <MudNumericField T="int" Disabled="@(!_checkAct)" @bind-Value="Act" Label="ACT" Variant="Variant.Outlined" Min="1" Max="36" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudCheckBox @bind-Checked="@_checkSat" Label="SAT" Color="Color.Primary"></MudCheckBox>
+                        <MudNumericField T="int" Disabled="@(!_checkSat)" @bind-Value="Sat" Label="SAT" Variant="Variant.Outlined" Min="400" Max="1600" />
+                    </MudItem>
+                </MudGrid>
+                <MudGrid>
+                    @if (ShowOnlySearch)
+                    {
+                        <MudItem sm="12" xs="12">
+                            <MudTextField T="string" @bind-Value="SearchString" Immediate="true" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Search" AdornmentColor="Color.Primary" />
+                        </MudItem>
+                    }
+
+                    @if (ShowSearchParameters)
+                    {
+                        <MudItem sm="9" xs="12">
+                            <MudTextField T="string" @bind-Value="SearchString" Immediate="true" Label="Search" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Filled.Search" AdornmentColor="Color.Primary" />
+                        </MudItem>
+                        <MudItem sm="3" xs="12">
+                            <MudAutocomplete Variant="Variant.Outlined" @bind-Value="State" T="string" Label="State" SearchFunc="@SearchStates" Clearable="true" ResetValueOnEmptyText="true" MaxItems="Int32.MaxValue" />
+                        </MudItem>
+
+                        <MudItem sm="6" xs="12">
+                            <MudAutocomplete Variant="Variant.Outlined" @bind-Value="MajorCategory" T="CategoryModel" Label="Categories" SearchFunc="@SearchCategories" Clearable="true" ToStringFunc="@(m => m.Name)" ResetValueOnEmptyText="true" MaxItems="Int32.MaxValue" />
+                        </MudItem>
+                        <MudItem sm="6" xs="12">
+                            <MudAutocomplete Variant="Variant.Outlined" Disabled="!Majors.Any()" @bind-Value="Major" T="MajorModel" Label="Majors" SearchFunc="@SearchMajors" Clearable="true" ToStringFunc="@(m => m.Name)" ResetValueOnEmptyText="true" MaxItems="Int32.MaxValue" />
+                            @if (_loadingMajors)
+                            {
+                                <MudProgressLinear Color="Color.Success" Indeterminate="true" />
+                            }
+                        </MudItem>
+
+                        <MudItem sm="12" xs="12">
+                            <MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save" Size="Size.Medium" Style="float: right" @onclick="@(() => Task.Run(async () => await SaveAthleteSettingsAsync()))">SAVE</MudButton>
+                        </MudItem>
+                    }
+                </MudGrid>
+            </MudExpansionPanel>
+        </MudExpansionPanels>
+
+        <ListMobile @ref="_listMobile" Style="margin-left: 16px; margin-right: 16px" T="UniversityDTO" Title="Universities" EndPoint="@GetQuery()">
+            <CardImage>
+                <img alt="logo" src="https://isportsrecruiting.com/api/v1/file/logos/50/50/@string.Format(context.Image + ".jpg")" style="padding: 3%;width: 50px;display: block;margin-left: auto;margin-right: auto;">
+            </CardImage>
+            <CardTitle>
+                @context.University
+            </CardTitle>
+            <CardSubtitle>
+                @if (!string.IsNullOrWhiteSpace(context.GPA))
+                {
+                    <span>GPA @context.GPA</span>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(context.State))
+                {
+                    <span> - @context.State.ToUpper()[..2]</span>
+                }
+            </CardSubtitle>
+            <CardOptions>
+                @if (Athlete is not null)
+                {
+                    @if (!FavoriteFilter)
+                    {
+                        <MudTooltip Text="Set as Favorite">
+                            @if (context.IsFavorite)
+                            {
+                                <MudIconButton Icon="@Icons.Material.Outlined.Star" Style="cursor: pointer; color: #ffdb00; display: inline-block" @onclick="@(() => RemoveFavoriteAsync(context.Id))" />
+                            }
+                            else
+                            {
+                                <MudIconButton Icon="@Icons.Material.Outlined.Star" Style="cursor: pointer" @onclick="@(() => SetFavoriteAsync(context.Id))" />
+                            }
+                        </MudTooltip>
+                    }
+
+                    <MudTooltip Text="Send Email">
+                        <MudIconButton Icon="@Icons.Material.Outlined.Email" Style="cursor: pointer; display: inline-block" @onclick="@(() => SendEmailDialog(context.Id, context.IsFavorite))" />
+                    </MudTooltip>
+                }
+
+                <MudTooltip Text="Check University">
+                    <MudIconButton OnClick="@(() => CheckUniversity(context.Id, context.University, context.IsFavorite))" Icon="@Icons.Material.Outlined.RemoveRedEye" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+                </MudTooltip>
+                @if (ManageActions)
+                {
+                    <MudTooltip Text="Edit">
+                        <MudIconButton OnClick="() => Edit(context)" Icon="@Icons.Material.Outlined.Edit" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+                    </MudTooltip>
+                    <MudTooltip Text="Delete">
+                        <MudIconButton Color="@Color.Error" OnClick="() => Delete(context.Id)" Icon="@Icons.Material.Outlined.Delete" Size="Size.Medium" Style="display: inline-block"></MudIconButton>
+                    </MudTooltip>
+                }
+            </CardOptions>
+        </ListMobile>
+
+        @* <MudGrid Style="margin-bottom: 60px"> *@
+        @*     <MudItem xs="6"> *@
+        @*         <MudText Class="mt-3" Typo="Typo.h6">Universities</MudText> *@
+        @*         <MudText Class="mt-3 mb-3" Typo="Typo.caption">@Universities.Length/@totalItems</MudText> *@
+        @*     </MudItem> *@
+        @*     <MudItem xs="6"> *@
+        @*         <div style="float:right"> *@
+        @*             <MudTooltip Text="Add New"> *@
+        @*                 <MudIconButton Icon="@Icons.Filled.Add" Link="/universities/new"/> *@
+        @*             </MudTooltip> *@
+        @*         </div> *@
+        @*     </MudItem> *@
+        @* *@
+        @*     @if (!_loadingMobile) *@
+        @*     { *@
+        @*         @foreach (var university in Universities) *@
+        @*         { *@
+        @*             <MudItem xs="4" Style="height: 173px;" @onclick="@(() => CheckUniversity(university.Id, university.University, university.IsFavorite))"> *@
+        @*                 <div style="height: 173px"> *@
+        @*                     <div style="width: 100%;height: 56%;box-shadow: -2px 2px 5px 0px darkgrey;border-radius: 15px;background-color: white;margin-bottom: 10px;"> *@
+        @*                         <img src="https://isportsrecruiting.com/images/logos/@string.Format(university.Image + ".jpg")" style="padding: 3%;width: 90%;display: block;margin-left: auto;margin-right: auto;"> *@
+        @*                     </div> *@
+        @*                     <div style="width: 100%; height: 20%"> *@
+        @*                         <MudText Style="font-size: 15px;color: #343434;white-space: nowrap;text-overflow: ellipsis;width: 100%;overflow: hidden;" Typo="Typo.body1" Align="Align.Left"> *@
+        @*                             @university.University *@
+        @*                         </MudText> *@
+        @*                         <MudText Style="font-size: 12px;align-self: flex-end;font-weight: 400;" Typo="Typo.caption">GPA @university.GPA - @university.State.ToUpper()[..2]</MudText> *@
+        @*                     </div> *@
+        @*                 </div> *@
+        @*             </MudItem> *@
+        @*         } *@
+        @*     } *@
+        @*     else *@
+        @*     { *@
+        @*         for (int i = 0; i < _tableState.PageSize; i++) *@
+        @*         { *@
+        @*             <MudItem xs="4" Style="height: 173px;"> *@
+        @*                 <div style="height: 173px"> *@
+        @*                     <MudSkeleton Style="width: 100%;height: 56%;margin-bottom: 10px;" Animation="Animation.Wave" SkeletonType="SkeletonType.Rectangle"/> *@
+        @*                     <div style="width: 100%; height: 20%"> *@
+        @*                         <MudSkeleton Style="width: 100%;" Animation="Animation.Wave" SkeletonType="SkeletonType.Text"></MudSkeleton> *@
+        @*                         <MudSkeleton Style="width: 50%;" Animation="Animation.Wave" SkeletonType="SkeletonType.Text"></MudSkeleton> *@
+        @*                     </div> *@
+        @*                 </div> *@
+        @*             </MudItem> *@
+        @*         } *@
+        @*     } *@
+        @* *@
+        @*     <MudItem xs="12"> *@
+        @*         <MudIconButton OnClick="LoadMoreUniversities" Disabled="_loadingMobile || _disableLoadMoreMobile" Style="display: block;margin-left: auto;margin-right: auto;" Icon="@Icons.Filled.Refresh" Size="Size.Large"/> *@
+        @*     </MudItem> *@
+        @* </MudGrid> *@
+    </MudHidden>
+}
+
+
+
+@code {
+    [Parameter]
+    public bool Tut { get; set; }
+
+    [Parameter]
+    public string Sport { get; set; }
+
+    [Parameter]
+    public decimal? GpaScore { get; set; }
+
+    [Parameter]
+    public bool ShowAthleteSettings { get; set; }
+
+    [Parameter]
+    public bool ShowOnlySearch { get; set; }
+
+    [Parameter]
+    public bool ShowSearchParameters { get; set; } = true;
+
+    [Parameter]
+    public bool ManageActions { get; set; }
+
+    [Parameter]
+    public AthleteDTO? Athlete { get; set; }
+
+    [Parameter]
+    public string Title { get; set; }
+
+    [Parameter]
+    public bool FavoriteFilter { get; set; }
+
+    [Parameter]
+    public bool IsPublicUniversities { get; set; } = false;
+
+    [Parameter]
+    public EventHandler<UniversityDTO> OnUniversitySelected { get; set; }
+
+    [Parameter]
+    public EventHandler<int> OnLoadPublicUniversitiesCount { get; set; }
+
+
+    private bool _loadingMajors = false;
+
+    private bool _loadingMobile;
+    private bool _disableLoadMoreMobile;
+
+    private AccountDto? _account;
+
+    public UniversityDTO[] Universities { get; set; } = Array.Empty<UniversityDTO>();
+
+    private IEnumerable<string> StatesSelected { get; set; } = new List<string>();
+
+    private string _searchString;
+
+    private string SearchString
+    {
+        get => _searchString;
+        set
+        {
+            _searchString = value;
+            _ = UpdateUniversitiesAsync(1250);
+        }
+    }
+
+    private string _state;
+
+    private string State
+    {
+        get => _state;
+        set
+        {
+            _state = value;
+            _ = UpdateUniversitiesAsync();
+        }
+    }
+
+    private CategoryModel[] MajorCategories { get; set; }
+
+    private CategoryModel _majorCategory;
+
+    private CategoryModel MajorCategory
+    {
+        get => _majorCategory;
+        set
+        {
+            _majorCategory = value;
+            if (Major is not null)
+                Major = null;
+            Majors = Array.Empty<MajorModel>();
+            if (MajorCategory is not null)
+                _ = GetMajorsAsync();
+        }
+    }
+
+    private void NextFromTutorial()
+    {
+        Tut = false;
+        StateHasChanged();
+
+        Navigation.NavigateTo("services/advisor/tut/true");
+    }
+
+    private MajorModel[] Majors { get; set; } = Array.Empty<MajorModel>();
+
+    private MajorModel _major;
+
+    private MajorModel Major
+    {
+        get => _major;
+        set
+        {
+            _major = value;
+            _ = UpdateUniversitiesAsync();
+        }
+    }
+
+    private MajorUniversityModel[] MajorUniversities { get; set; }
+
+    private bool _loading = true;
+
+    private UniversityDTO[] _favoriteUniversities = Array.Empty<UniversityDTO>();
+
+    private bool _tutFinalized;
+    protected override async Task OnInitializedAsync()
+    {
+        _account = await _localStorage.GetItemAsync<AccountDto>("account");
+
+        if (_account is not null && _account.Type == UserType.Athlete)
+        {
+            _tutFinalized = !_account.Athlete.ShowTut;
+            StateHasChanged();
+        }
+
+        _ = GetCategories();
+
+        await GetAthleteSettingsAsync();
+        await GetFavorites();
+        await GetUniversities();
+    }
+
+    private void SendEmailDialog(int universityId, bool isFavorite)
+    {
+        _dialogService.Show<SendEmail>("Send Email",
+            new DialogParameters { ["UniversityId"] = universityId, ["IsFromEmailList"] = true },
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
+    }
+
+    private async ValueTask GetFavorites()
+    {
+        if (Athlete is null)
+            return;
+
+        var responseFavorites = await _httpClient.GetFromJsonAsync<Response<IEnumerable<UniversityDTO>>>($"api/v1/university/favorites/{Athlete.Id}");
+        if (responseFavorites?.Payload?.Any() ?? false)
+            _favoriteUniversities = responseFavorites.Payload.ToArray();
+    }
+
+    private TableState _tableState = new TableState
+        {
+            Page = 0,
+            PageSize = 10
+        };
+
+    private Task LoadMoreUniversities()
+    {
+        _tableState.PageSize *= 2;
+        return GetUniversities();
+    }
+
+    private async Task GetUniversities()
+    {
+        if (table is not null)
+            await table.ReloadServerData();
+        else
+        {
+            _loadingMobile = true;
+            StateHasChanged();
+
+            if (_tableState.PageSize == 10)
+                _tableState.PageSize = 12;
+
+            await ServerReload(_tableState);
+
+            _loadingMobile = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task GetCategories()
+    {
+        var categoriesResponse = await _httpClient.GetFromJsonAsync<Response<CategoryModel[]>>("api/v1/university/majors/category");
+        if (categoriesResponse is not null)
+            MajorCategories = categoriesResponse.Payload;
+    }
+
+    private string GetCityAndState(string address)
+    {
+        var split = address.Split(',');
+
+        if (split.Length >= 3)
+        {
+            var stateSplit = split[2].Split(' ');
+
+            if (stateSplit.Length >= 2)
+            {
+                return $"{split[1]}, {stateSplit[1]}";
+            }
+            else if (stateSplit.Length == 1)
+            {
+                return $"{split[1]}, {stateSplit[0]}";
+            }
+        }
+        else if (split.Length >= 2)
+        {
+            var stateSplit = split[1].Split(' ');
+
+            if (stateSplit.Length >= 2)
+            {
+                return $"{split[0]}, {stateSplit[1]}";
+            }
+            else if (stateSplit.Length == 1)
+            {
+                return $"{split[0]}, {stateSplit[0]}";
+            }
+        }
+
+        return address;
+    }
+
+    private async Task<IEnumerable<string>> SearchStates(string value)
+    {
+        await Task.Delay(0);
+
+        if (State is not null && State == value)
+            return StatesOfAmerica.Names;
+
+        if (string.IsNullOrEmpty(value))
+            return StatesOfAmerica.Names;
+        return StatesOfAmerica.Names.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+    }
+
+    private async Task<IEnumerable<CategoryModel>> SearchCategories(string value)
+    {
+        await Task.Delay(0);
+
+        if (MajorCategory is not null && MajorCategory.Name == value)
+            return MajorCategories;
+
+        return string.IsNullOrEmpty(value)
+            ? MajorCategories
+            : MajorCategories?
+                .Where(x => x.Name
+                    .Contains(value, StringComparison.InvariantCultureIgnoreCase));
+    }
+
+    CancellationTokenSource _source = new();
+
+    private async Task<IEnumerable<MajorModel>> SearchMajors(string value)
+    {
+        await Task.Delay(0);
+
+        if (Major is not null && Major.Name == value)
+            return Majors;
+
+        return string.IsNullOrEmpty(value)
+            ? Majors
+            : Majors?
+                .Where(x => x.Name
+                    .Contains(value, StringComparison.InvariantCultureIgnoreCase));
+    }
+
+    private async Task UpdateUniversitiesAsync(int millisecondsDelay = 0)
+    {
+        _source.Cancel();
+
+        _source = new CancellationTokenSource();
+
+        await Task.Delay(millisecondsDelay, _source.Token);
+
+        await Task.Run(async () => await GetUniversities(), _source.Token);
+    }
+
+    private Task GetMajorsAsync()
+    {
+        return Task.Run(async () =>
+        {
+            _loadingMajors = true;
+            StateHasChanged();
+
+            var majorsResponse = await _httpClient.GetFromJsonAsync<Response<MajorModel[]>>($"api/v1/university/majors/category/{MajorCategory.Id}");
+
+            _loadingMajors = false;
+
+            if (majorsResponse is not null)
+            {
+                Majors = majorsResponse.Payload;
+            }
+
+            StateHasChanged();
+        });
+    }
+
+    public async Task SetFavoriteAsync(int universityId)
+    {
+        var university = Universities.First(i => i.Id == universityId);
+        university.IsFavorite = true;
+        StateHasChanged();
+
+        var message = await _httpClient.PostAsync($"api/v1/university/favorites/{Athlete.Id}/{universityId}/{Athlete.Plan}", new StringContent(string.Empty));
+        if (!message.IsSuccessStatusCode)
+        {
+            university.IsFavorite = false;
+            StateHasChanged();
+
+            _snackBar.Add("There was an error trying to save this university to favorites...", Severity.Warning, o => o.VisibleStateDuration = 8000);
+        }
+        else
+        {
+            var responseDto = await message.Content.ReadFromJsonAsync<Response>();
+
+            if (responseDto.Status != ResponseStatus.Ok)
+            {
+                university.IsFavorite = false;
+                StateHasChanged();
+
+                _snackBar.Add("There was a problem adding this universities to favorites...", Severity.Info, config =>
+                {
+                    config.VisibleStateDuration = 15000;
+                    config.HideTransitionDuration = 500;
+                    config.ShowTransitionDuration = 500;
+                    config.CloseAfterNavigation = true;
+                    config.ActionColor = Color.Primary;
+                });
+            }
+        }
+    }
+
+    public async Task RemoveFavoriteAsync(int universityId)
+    {
+        var university = Universities.First(i => i.Id == universityId);
+
+        university.IsFavorite = false;
+        StateHasChanged();
+
+        var response = await _httpClient.DeleteAsync($"api/v1/university/favorites/{Athlete.Id}/{universityId}/{Athlete.Plan}");
+        if (!response.IsSuccessStatusCode)
+        {
+            university.IsFavorite = true;
+            StateHasChanged();
+
+            _snackBar.Add("There was an error removing this university to favorites", Severity.Warning, o => o.VisibleStateDuration = 8000);
+        }
+        else
+        {
+            var responseDto = await response.Content.ReadFromJsonAsync<Response>();
+
+            if (responseDto.Status != ResponseStatus.Ok)
+            {
+                university.IsFavorite = true;
+                StateHasChanged();
+
+                _snackBar.Add("Upgrade for access to more Universities", Severity.Info, config =>
+                {
+                    config.VisibleStateDuration = 15000;
+                    config.HideTransitionDuration = 500;
+                    config.ShowTransitionDuration = 500;
+                    config.CloseAfterNavigation = true;
+                    config.Action = "UPGRADE";
+                    config.ActionColor = Color.Primary;
+                    config.Onclick = _ =>
+                    {
+                        Navigation.NavigateTo("/athlete/billing");
+                        return Task.CompletedTask;
+                    };
+                });
+            }
+        }
+    }
+
+    private async Task Delete(int id)
+    {
+        var reference = _dialogService.Show<DeleteConfirmation>();
+        var result = await reference.Result;
+
+        if (!result.Cancelled)
+        {
+            await _httpClient.DeleteAsync($"api/v1/university/{id}");
+            Universities = Universities.Where(u => u.Id != id).ToArray();
+            StateHasChanged();
+        }
+    }
+
+    private void Edit(UniversityDTO university)
+    {
+        Navigation.NavigateTo($"universities/manage/{university.Id}/{university.University.Replace(" ", "-").Replace(",", "").ToLower()}");
+    }
+
+    private int Sat { get; set; }
+    private int Act { get; set; }
+    private decimal Gpa { get; set; }
+
+    private string[] _divisions = new string[6] { "NCAA DI", "NCAA DII", "NCAA DIII", "NAIA", "NJCAA", "OTHER" };
+    private int UniversitiesAproach { get; set; }
+
+    private bool _disDivision, _disGpa, _disAct, _disSat;
+    private bool _checkDivision, _checkGpa, _checkAct, _checkSat, _checkState;
+    private IEnumerable<string> DivisionsSelected { get; set; } = new List<string>();
+
+    private async ValueTask GetAthleteSettingsAsync()
+    {
+        if (!ShowAthleteSettings)
+            return;
+
+        var response = await _httpClient.GetFromJsonAsync<Response<AthleteSettingsDTO>>($"api/v1/university/settings/{Athlete.Id}");
+
+        if (response?.Payload is null)
+        {
+            if (decimal.TryParse(Athlete.GPA, out var gpa))
+                Gpa = gpa;
+
+            _checkGpa = Gpa != 0;
+
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(response.Payload.Divisions))
+            DivisionsSelected = response.Payload.Divisions?.Split(',')?.ToList();
+
+        if (DivisionsSelected is not null && DivisionsSelected.Any())
+            _checkDivision = true;
+
+        var average = response.Payload.Average.Split(',');
+
+        if (average.Length > 0)
+        {
+            Gpa = decimal.TryParse(average[0], NumberStyles.Any,
+                CultureInfo.GetCultureInfo("en-US"), out var parsedGpa) ? parsedGpa : 0;
+
+            if (Gpa != 0)
+                _checkGpa = true;
+        }
+
+        if (average.Length > 1)
+        {
+            Act = int.TryParse(average[1], out var parsedAct) ? parsedAct : 0;
+
+            if (Act != 0)
+                _checkAct = true;
+        }
+
+        if (average.Length > 2)
+        {
+            Sat = int.TryParse(average[2], out var parsedSat) ? parsedSat : 0;
+
+            if (Sat != 0)
+                _checkSat = true;
+        }
+    }
+
+    public async Task SaveAthleteSettingsAsync()
+    {
+        _ = Task.Run(async () =>
+        {
+            await _httpClient.PutAsync($"api/v1/university/update-settings/{Athlete.Id}" +
+                                       $"?divisions={(_checkDivision ? string.Join(",", DivisionsSelected) : "")}" +
+                                       $"&average={(_checkGpa ? Gpa.ToString(CultureInfo.GetCultureInfo("en-US")) : "")},{(_checkAct ? Act : "")},{(_checkSat ? Sat : "")}",
+                new StringContent(string.Empty));
+        });
+
+        await UpdateUniversitiesAsync();
+    }
+
+    private void CheckUniversity(int id, string name, bool isFavorite)
+    {
+        Navigation.NavigateTo($"universities/{id}/{name.Replace(" ", "-").Replace(",", "").ToLower()}");
+    }
+
+    public void OnUniversityIsSelected(UniversityDTO university)
+    {
+        OnUniversitySelected?.Invoke(this, university);
+    }
+
+    // -- SERVER LOAD NEW APPROACH --
+    private IEnumerable<UniversityDTO>? pagedData = null!;
+    private MudTable<UniversityDTO>? table = null!;
+
+    private int totalItems;
+
+    private ListMobile<UniversityDTO> _listMobile;
+
+    private string GetQuery()
+    {
+        if (FavoriteFilter && Athlete is not null)
+        {
+            return $"university/favorites/{Athlete.Id}?";
+        }
+
+        string query = "?";
+
+        if (GpaScore.HasValue)
+        {
+            query += $"sportName={Sport}&gpa={GpaScore.Value.ToString(CultureInfo.GetCultureInfo("en-US"))}";
+            return $"university?{query}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(SearchString))
+            query += $"search={SearchString}&";
+
+        if (!string.IsNullOrWhiteSpace(State))
+            query += $"state={State}&";
+
+        if (Major is not null)
+            query += $"major={Major.Id}&";
+
+        if (Athlete is not null)
+        {
+            if (!string.IsNullOrWhiteSpace(Athlete.GPA))
+                query += $"gpa={(!string.IsNullOrWhiteSpace(Athlete.GPA) ? Athlete.GPA.ToString(CultureInfo.GetCultureInfo("en-US")) : string.Empty)}&";
+
+            if (!string.IsNullOrWhiteSpace(Athlete.SportName))
+                query += $"sportName={Athlete.SportName}&";
+
+            if (ShowAthleteSettings)
+                query += $"divisions={(_checkDivision ? string.Join(",", DivisionsSelected) : "")}&" +
+                         $"gpa={(!_checkGpa ? string.Empty : Athlete.GPA.ToString(CultureInfo.GetCultureInfo("en-US")))}&" +
+                         $"act={(!_checkAct ? string.Empty : Athlete.ACT)}&" +
+                         $"sat={(!_checkSat ? string.Empty : Athlete.SAT)}&" +
+                         $"state={(string.IsNullOrWhiteSpace(_state) ? string.Empty : _state)}";
+        }
+
+        return $"university{query}";
+    }
+
+    private async Task<TableData<UniversityDTO>> ServerReload(TableState state)
+    {
+        _loading = true;
+        StateHasChanged();
+
+        var query = GetQuery();
+
+        if (table is null && _listMobile is not null)
+        {
+            _listMobile.EndPoint = $"{query}&";
+            await _listMobile.ResetItemsAsync();
+        }
+
+        if (FavoriteFilter)
+        {
+            Universities = _favoriteUniversities;
+            return new TableData<UniversityDTO>() { TotalItems = _favoriteUniversities.Length, Items = Universities };
+        }
+
+        _account ??= await _localStorage.GetItemAsync<AccountDto>("account");
+
+        if (_account is not null && _account.Type == UserType.Athlete)
+        {
+            _ = Task.Run(async () =>
+            {
+                var qualifyResponse = await _httpClient.GetFromJsonAsync<Response<UniversityModel[]>>($"api/v1/university?" +
+                                                                                                      $"sportName={_account.Athlete.SportName}&" +
+                                                                                                      $"gpa={(!string.IsNullOrWhiteSpace(_account.Athlete.GPA) ? _account.Athlete.GPA.ToString(CultureInfo.GetCultureInfo("en-US")) : string.Empty)}");
+
+                if (qualifyResponse is not null)
+                {
+                    UniversitiesAproach = qualifyResponse.Payload.Length;
+                    StateHasChanged();
+                }
+            });
+
+            var response = await _httpClient.GetFromJsonAsync<Response<UniversityModel[]>>($"api/v1/{query}&" +
+                                                                                           $"page={state.Page}&" +
+                                                                                           $"take={state.PageSize}&" +
+                                                                                           $"gpa={(!string.IsNullOrWhiteSpace(_account.Athlete.GPA) ? _account.Athlete.GPA.ToString(CultureInfo.GetCultureInfo("en-US")) : string.Empty)}");
+            if (response is not null)
+            {
+                Universities = response.Payload.Select(u => u.ToDTO()).ToArray();
+
+                Universities = Universities.Select(u =>
+                {
+                    if (_favoriteUniversities.Select(f => f.Id).Contains(u.Id))
+                        u.IsFavorite = true;
+
+                    return u;
+                }).ToArray();
+
+                totalItems = response.Total ?? 0;
+            }
+        }
+        else
+        {
+            var universitiesResponse = await _httpClient.GetFromJsonAsync<Response<UniversityDTO[]>>($"api/v1/{query}&page={state.Page}&take={state.PageSize}");
+
+            if (universitiesResponse is not null)
+            {
+                Universities = universitiesResponse.Payload;
+                totalItems = universitiesResponse.Total ?? 0;
+            }
+        }
+
+        _loading = false;
+
+        if (Universities is not null && Universities.Any())
+            OnLoadPublicUniversitiesCount?.Invoke(this, totalItems);
+
+
+        _disableLoadMoreMobile = totalItems <= _tableState.PageSize;
+
+        switch (state.SortLabel)
+        {
+            case "name":
+                Universities = Universities.OrderByDirection(state.SortDirection, o => o.University).ToArray();
+                break;
+            case "gpa":
+                Universities = Universities.OrderByDirection(state.SortDirection, o => o.GPA).ToArray();
+                break;
+            case "act":
+                Universities = Universities.OrderByDirection(state.SortDirection, o => o.ACT).ToArray();
+                break;
+            case "sat":
+                Universities = Universities.OrderByDirection(state.SortDirection, o => o.SAT).ToArray();
+                break;
+            case "division":
+                Universities = Universities.OrderByDirection(state.SortDirection, o => o.Division).ToArray();
+                break;
+        }
+
+        StateHasChanged();
+
+        return new TableData<UniversityDTO>() { TotalItems = totalItems, Items = Universities };
+    }
+
+    private void OnSearch(string text)
+    {
+        SearchString = text;
+        table.ReloadServerData();
+    }
+
+}

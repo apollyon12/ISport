@@ -1,0 +1,24 @@
+﻿@page "/athlete/universities/favorites"
+
+@inject HttpClient _httpClient
+@inject IDialogService _dialogService
+@inject ILocalStorageService _localStorage;
+
+@using iSportsRecruiting.Shared.DTO;
+@using Blazored.LocalStorage
+
+@if (Athlete is not null)
+{
+    <UniversitiesTable Title="Top Picks" FavoriteFilter="true" Athlete="Athlete" />
+}
+
+@code {
+    AthleteDTO Athlete { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Athlete = (await _localStorage.GetItemAsync<AccountDto>("account")).Athlete;
+
+        //await GetUniversitiesAsync();
+    }
+}
